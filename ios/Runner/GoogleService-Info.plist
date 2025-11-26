@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>GOOGLE_APP_ID</key>
+  <string>1:996182230556:ios:d6450cf4d962f1508fc1d9</string>
+  <key>API_KEY</key>
+  <dict>
+    <key>current_key</key>
+    <string>AIzaSyC15240GbMinUQKT85TgbZ2cJB4gYBmweU</string>
+  </dict>
+  <key>GCM_SENDER_ID</key>
+  <string>996182230556</string>
+  <key>PROJECT_ID</key>
+  <string>connect-ngo-82057</string>
+  <key>STORAGE_BUCKET</key>
+  <string>connect-ngo-82057.firebasestorage.app</string>
+  <key>BUNDLE_ID</key>
+  <string>com.example.ngoApp</string>
+</dict>
+</plist>
