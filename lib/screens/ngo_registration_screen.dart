@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import '../services/ngo_verification_service.dart';
-import 'verification_result_screen.dart';
+import '../services/ngo_registration_service.dart';
+import '../services/local_storage_service.dart';
+import 'ngo_verification_status_screen.dart';
 
 class NgoRegistrationScreen extends StatefulWidget {
   const NgoRegistrationScreen({Key? key}) : super(key: key);
@@ -100,7 +101,7 @@ class _NgoRegistrationScreenState extends State<NgoRegistrationScreen> {
             const CircularProgressIndicator(color: primary),
             const SizedBox(height: 20),
             const Text(
-              'Verifying your NGO...',
+              'Submitting your registration...',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w500,
@@ -108,7 +109,7 @@ class _NgoRegistrationScreenState extends State<NgoRegistrationScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Please wait while we verify your documents',
+              'Please wait while we process your application',
               style: TextStyle(
                 fontSize: 12,
                 color: Colors.grey.shade600,
@@ -119,54 +120,95 @@ class _NgoRegistrationScreenState extends State<NgoRegistrationScreen> {
       ),
     );
 
-    // Collect all registration data
-    final registrationData = NgoRegistrationData(
-      ngoName: _ngoNameController.text,
-      registrationNo: _registrationNoController.text,
-      ngoType: _selectedNgoType ?? '',
-      category: _selectedCategory ?? '',
-      yearOfEstablishment: _yearController.text,
-      headOfficeAddress: _headOfficeController.text,
-      branchOfficeAddress: _branchOfficeController.text,
-      officialPhone: _phoneController.text,
-      websiteLink: _websiteController.text,
-      contactPersonName: _fullNameController.text,
-      designation: _designationController.text,
-      mobileNo: _mobileController.text,
-      email: _emailController.text,
-      idProofType: _selectedIdProof ?? '',
-      missionVision: _missionController.text,
-      areaOfWork: _areaOfWorkController.text,
-      activeVolunteers: _volunteersController.text,
-      achievements: _achievementsController.text,
-      // Document paths - null if not uploaded
-      idProofPath: _idProofUploaded ? '/uploads/id_proof.pdf' : null,
-      registrationCertPath: _registrationCertUploaded ? '/uploads/registration_cert.pdf' : null,
-      panCardPath: _panCardUploaded ? '/uploads/pan_card.pdf' : null,
-      certificate12A80GPath: _certificate12A80GUploaded ? '/uploads/12a80g.pdf' : null,
-      pastWorkProofPath: _pastWorkProofUploaded ? '/uploads/past_work.pdf' : null,
-    );
-
-    // Verify the NGO
-    final result = await NgoVerificationService.verifyNgoRegistration(registrationData);
-
-    // Close loading dialog
-    if (mounted) {
-      Navigator.pop(context);
-    }
-
-    setState(() {
-      _isVerifying = false;
-    });
-
-    // Navigate to verification result screen
-    if (mounted) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => VerificationResultScreen(result: result),
-        ),
+    try {
+      // Submit to registration service
+      final registrationService = NgoRegistrationService();
+      debugPrint('=== SUBMITTING REGISTRATION ===');
+      final registration = await registrationService.submitRegistration(
+        ngoName: _ngoNameController.text,
+        registrationNo: _registrationNoController.text,
+        ngoType: _selectedNgoType ?? '',
+        category: _selectedCategory ?? '',
+        yearOfEstablishment: _yearController.text,
+        headOfficeAddress: _headOfficeController.text,
+        branchOfficeAddress: _branchOfficeController.text,
+        officialPhone: _phoneController.text,
+        websiteLink: _websiteController.text,
+        contactPersonName: _fullNameController.text,
+        designation: _designationController.text,
+        mobileNo: _mobileController.text,
+        email: _emailController.text,
+        idProofType: _selectedIdProof ?? '',
+        missionVision: _missionController.text,
+        areaOfWork: _areaOfWorkController.text,
+        activeVolunteers: _volunteersController.text,
+        achievements: _achievementsController.text,
+        idProofUploaded: _idProofUploaded,
+        registrationCertUploaded: _registrationCertUploaded,
+        panCardUploaded: _panCardUploaded,
+        certificate12A80GUploaded: _certificate12A80GUploaded,
+        pastWorkProofUploaded: _pastWorkProofUploaded,
       );
+      debugPrint('=== REGISTRATION SUCCESS: ${registration.id} ===');
+
+      // Close loading dialog
+      if (mounted) {
+        Navigator.pop(context);
+      }
+
+      setState(() {
+        _isVerifying = false;
+      });
+
+      // Save registration ID to local storage for persistence
+      final localStorageService = LocalStorageService();
+      await localStorageService.savePendingRegistration(registration.id);
+      debugPrint('=== SAVED TO LOCAL STORAGE ===');
+
+      // Navigate to verification status screen
+      if (mounted) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(
+            builder: (context) => NgoVerificationStatusScreen(
+              registrationId: registration.id,
+            ),
+          ),
+          (route) => false, // Remove all previous routes
+        );
+      }
+    } catch (e, stackTrace) {
+      debugPrint('=== REGISTRATION ERROR ===');
+      debugPrint('Error: $e');
+      debugPrint('Stack trace: $stackTrace');
+      
+      // Close loading dialog
+      if (mounted) {
+        Navigator.pop(context);
+      }
+
+      setState(() {
+        _isVerifying = false;
+      });
+
+      // Show error dialog to user
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Registration Failed'),
+            content: Text(
+              'There was an error submitting your registration:\n\n$e\n\nPlease check your internet connection and try again.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
     }
   }
 

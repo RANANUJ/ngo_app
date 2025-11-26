@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'individual_registration_screen.dart';
 import 'ngo_registration_screen.dart';
+import 'admin_login_screen.dart';
 
 class UserTypeScreen extends StatelessWidget {
   const UserTypeScreen({Key? key}) : super(key: key);
@@ -124,6 +125,25 @@ class UserTypeScreen extends StatelessWidget {
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
                     ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 32),
+              // Admin Login link
+              TextButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const AdminLoginScreen()),
+                  );
+                },
+                icon: Icon(Icons.admin_panel_settings, color: Colors.grey.shade600, size: 20),
+                label: Text(
+                  'Admin Login',
+                  style: TextStyle(
+                    color: Colors.grey.shade600,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ),

@@ -11,7 +11,8 @@ dependencies:
     sdk: flutter
   firebase_core: ^3.8.1
   firebase_auth: ^5.3.4
-  # cloud_firestore: ^5.6.0  # Enable when Firestore is set up in Firebase Console
+  cloud_firestore: ^5.6.0
+  shared_preferences: ^2.2.2
   # firebase_storage: ^12.4.0
   # firebase_messaging: ^15.2.0
 

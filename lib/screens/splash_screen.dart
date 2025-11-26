@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'user_type_screen.dart';
+import 'ngo_verification_status_screen.dart';
+import '../services/local_storage_service.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({Key? key}) : super(key: key);
@@ -10,23 +12,50 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen> {
   static const Color primary = Color(0xFF0099B8);
+  final LocalStorageService _localStorageService = LocalStorageService();
 
   @override
   void initState() {
     super.initState();
     // Use addPostFrameCallback to ensure widget is fully built before navigation
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _navigateToHome();
+      _checkRegistrationAndNavigate();
     });
   }
 
-  Future<void> _navigateToHome() async {
+  Future<void> _checkRegistrationAndNavigate() async {
     await Future.delayed(const Duration(seconds: 3));
-    if (mounted) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const UserTypeScreen()),
-      );
+    
+    if (!mounted) return;
+
+    // Check if there's a pending registration
+    final pendingRegistrationId = await _localStorageService.getPendingRegistrationId();
+    final registrationStatus = await _localStorageService.getRegistrationStatus();
+
+    print('SplashScreen: Checking registration - ID: $pendingRegistrationId, Status: $registrationStatus');
+
+    if (pendingRegistrationId != null && 
+        pendingRegistrationId.isNotEmpty && 
+        registrationStatus == 'pending') {
+      // User has a pending registration, show verification status screen
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => NgoVerificationStatusScreen(
+              registrationId: pendingRegistrationId,
+            ),
+          ),
+        );
+      }
+    } else {
+      // No pending registration, show user type screen
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const UserTypeScreen()),
+        );
+      }
     }
   }
 
