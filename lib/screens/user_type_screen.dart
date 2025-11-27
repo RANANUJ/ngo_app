@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'individual_registration_screen.dart';
 import 'ngo_registration_screen.dart';
+import 'ngo_login_screen.dart';
 import 'admin_login_screen.dart';
 
 class UserTypeScreen extends StatelessWidget {
@@ -38,11 +39,11 @@ class UserTypeScreen extends StatelessWidget {
               // Illustration
               Image.network(
                 'https://img.freepik.com/free-vector/business-team-putting-together-jigsaw-puzzle-isolated-flat-vector-illustration-cartoon-partners-working-connection-teamwork-partnership-cooperation-concept_74855-9814.jpg',
-                height: 280,
+                height: 220,
                 fit: BoxFit.contain,
                 errorBuilder: (context, error, stackTrace) {
                   return Container(
-                    height: 280,
+                    height: 220,
                     decoration: BoxDecoration(
                       color: Colors.grey.shade100,
                       borderRadius: BorderRadius.circular(20),
@@ -68,43 +69,103 @@ class UserTypeScreen extends StatelessWidget {
                   );
                 },
               ),
-              const Spacer(flex: 2),
-              // Register as NGO button
-              SizedBox(
+              const Spacer(flex: 1),
+              
+              // NGO Section
+              Container(
                 width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {
-                    // Navigate to NGO registration
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const NgoRegistrationScreen()),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: primary.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: primary.withOpacity(0.2)),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.business, color: primary, size: 24),
+                        const SizedBox(width: 8),
+                        Text(
+                          'For NGOs',
+                          style: TextStyle(
+                            color: primary,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                     ),
-                    elevation: 0,
-                  ),
-                  child: const Text(
-                    'Register as NGO',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        // Register NGO button
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (context) => const NgoRegistrationScreen()),
+                              );
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: primary,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              elevation: 0,
+                            ),
+                            child: const Text(
+                              'Register NGO',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        // Login NGO button
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (context) => const NgoLoginScreen()),
+                              );
+                            },
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: primary,
+                              side: BorderSide(color: primary),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: const Text(
+                              'NGO Login',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
+                  ],
                 ),
               ),
+              
               const SizedBox(height: 16),
+              
               // Join as Individual button
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () {
-                    // Navigate to Individual registration
                     Navigator.push(
                       context,
                       MaterialPageRoute(builder: (context) => const IndividualRegistrationScreen()),
@@ -128,7 +189,7 @@ class UserTypeScreen extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 24),
               // Admin Login link
               TextButton.icon(
                 onPressed: () {

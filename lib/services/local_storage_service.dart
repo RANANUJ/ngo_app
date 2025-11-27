@@ -4,6 +4,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 class LocalStorageService {
   static const String _pendingRegistrationIdKey = 'pending_ngo_registration_id';
   static const String _registrationStatusKey = 'ngo_registration_status';
+  static const String _ngoLoginIdKey = 'ngo_login_id';
+  static const String _ngoLoginNameKey = 'ngo_login_name';
+  static const String _isNgoLoggedInKey = 'is_ngo_logged_in';
   
   // Singleton pattern
   static final LocalStorageService _instance = LocalStorageService._internal();
@@ -66,5 +69,42 @@ class LocalStorageService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_registrationStatusKey, 'rejected');
     print('LocalStorage: Marked registration as rejected');
+  }
+
+  /// Save NGO login state
+  Future<void> saveNgoLogin(String registrationId, String ngoName) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_ngoLoginIdKey, registrationId);
+    await prefs.setString(_ngoLoginNameKey, ngoName);
+    await prefs.setBool(_isNgoLoggedInKey, true);
+    print('LocalStorage: Saved NGO login - ID: $registrationId, Name: $ngoName');
+  }
+
+  /// Check if NGO is logged in
+  Future<bool> isNgoLoggedIn() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_isNgoLoggedInKey) ?? false;
+  }
+
+  /// Get logged in NGO ID
+  Future<String?> getLoggedInNgoId() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_ngoLoginIdKey);
+  }
+
+  /// Get logged in NGO name
+  Future<String?> getLoggedInNgoName() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_ngoLoginNameKey);
+  }
+
+  /// Clear NGO login state
+  Future<void> clearNgoLogin() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_ngoLoginIdKey);
+    await prefs.remove(_ngoLoginNameKey);
+    await prefs.setBool(_isNgoLoggedInKey, false);
+    await clearRegistrationData();
+    print('LocalStorage: Cleared NGO login');
   }
 }

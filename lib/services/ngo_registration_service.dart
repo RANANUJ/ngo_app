@@ -184,15 +184,23 @@ class NgoRegistrationService {
 
   /// Get stream of all registrations (for admin) - real-time updates
   Stream<List<NgoRegistrationRequest>> get registrationsStream {
-    return _registrationsCollection
-        .snapshots()
-        .map((snapshot) {
-          print('Firestore: Got ${snapshot.docs.length} registrations');
-          return snapshot.docs
-            .map((doc) => NgoRegistrationRequest.fromFirestore(doc))
-            .toList()
-            ..sort((a, b) => b.submittedAt.compareTo(a.submittedAt));
-        });
+    return _registrationsCollection.snapshots().handleError((e, st) {
+      debugPrint('Firestore snapshots error: $e');
+      debugPrint('$st');
+    }).map((snapshot) {
+      debugPrint('Firestore: Got ${snapshot.docs.length} registrations');
+      final List<NgoRegistrationRequest> list = [];
+      for (final doc in snapshot.docs) {
+        try {
+          list.add(NgoRegistrationRequest.fromFirestore(doc));
+        } catch (e, st) {
+          debugPrint('Error parsing registration doc ${doc.id}: $e');
+          debugPrint('$st');
+        }
+      }
+      list.sort((a, b) => b.submittedAt.compareTo(a.submittedAt));
+      return list;
+    });
   }
 
   /// Get stream of pending registrations only
@@ -200,9 +208,22 @@ class NgoRegistrationService {
     return _registrationsCollection
         .where('status', isEqualTo: 'pending')
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => NgoRegistrationRequest.fromFirestore(doc))
-            .toList());
+        .handleError((e, st) {
+          debugPrint('Pending snapshots error: $e');
+          debugPrint('$st');
+        })
+        .map((snapshot) {
+          final List<NgoRegistrationRequest> list = [];
+          for (final doc in snapshot.docs) {
+            try {
+              list.add(NgoRegistrationRequest.fromFirestore(doc));
+            } catch (e, st) {
+              debugPrint('Error parsing pending doc ${doc.id}: $e');
+              debugPrint('$st');
+            }
+          }
+          return list;
+        });
   }
 
   /// Submit a new NGO registration
@@ -299,6 +320,10 @@ class NgoRegistrationService {
       );
     } catch (e, stackTrace) {
       debugPrint('=== FIRESTORE ERROR ===');
+      if (e is FirebaseException) {
+        debugPrint('FirebaseException code: ${e.code}');
+        debugPrint('FirebaseException message: ${e.message}');
+      }
       debugPrint('Error: $e');
       debugPrint('Stack trace: $stackTrace');
       rethrow;
@@ -321,9 +346,17 @@ class NgoRegistrationService {
 
   /// Get real-time status stream for a specific registration (for NGO member to listen)
   Stream<NgoRegistrationRequest?> getStatusStream(String id) {
-    return _registrationsCollection.doc(id).snapshots().map((doc) {
-      if (doc.exists) {
-        return NgoRegistrationRequest.fromFirestore(doc);
+    return _registrationsCollection.doc(id).snapshots().handleError((e, st) {
+      debugPrint('Status snapshot error for $id: $e');
+      debugPrint('$st');
+    }).map((doc) {
+      try {
+        if (doc.exists) {
+          return NgoRegistrationRequest.fromFirestore(doc);
+        }
+      } catch (e, st) {
+        debugPrint('Error parsing status doc ${doc.id}: $e');
+        debugPrint('$st');
       }
       return null;
     });
@@ -375,6 +408,52 @@ class NgoRegistrationService {
     } catch (e) {
       print('Error getting statistics: $e');
       return {'total': 0, 'pending': 0, 'approved': 0, 'rejected': 0};
+    }
+  }
+
+  /// Find approved registration by phone number (for NGO login)
+  Future<NgoRegistrationRequest?> findApprovedRegistrationByPhone(String phone) async {
+    try {
+      // Try to find with the exact phone number
+      var querySnapshot = await _registrationsCollection
+          .where('mobileNo', isEqualTo: phone)
+          .where('status', isEqualTo: 'approved')
+          .limit(1)
+          .get();
+      
+      if (querySnapshot.docs.isNotEmpty) {
+        return NgoRegistrationRequest.fromFirestore(querySnapshot.docs.first);
+      }
+      
+      // Also try with +91 prefix
+      querySnapshot = await _registrationsCollection
+          .where('mobileNo', isEqualTo: '+91$phone')
+          .where('status', isEqualTo: 'approved')
+          .limit(1)
+          .get();
+      
+      if (querySnapshot.docs.isNotEmpty) {
+        return NgoRegistrationRequest.fromFirestore(querySnapshot.docs.first);
+      }
+      
+      return null;
+    } catch (e) {
+      debugPrint('Error finding registration by phone: $e');
+      return null;
+    }
+  }
+
+  /// Find registration by ID (for login verification)
+  Future<NgoRegistrationRequest?> findRegistrationById(String id) async {
+    try {
+      final doc = await _registrationsCollection.doc(id).get();
+      if (doc.exists) {
+        return NgoRegistrationRequest.fromFirestore(doc);
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Error finding registration by ID: $e');
+      return null;
     }
   }
 }

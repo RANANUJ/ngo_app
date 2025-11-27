@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'user_type_screen.dart';
 import 'ngo_verification_status_screen.dart';
+import 'ngo_home_screen.dart';
 import '../services/local_storage_service.dart';
+import '../services/ngo_registration_service.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({Key? key}) : super(key: key);
@@ -13,6 +15,7 @@ class SplashScreen extends StatefulWidget {
 class _SplashScreenState extends State<SplashScreen> {
   static const Color primary = Color(0xFF0099B8);
   final LocalStorageService _localStorageService = LocalStorageService();
+  final NgoRegistrationService _registrationService = NgoRegistrationService();
 
   @override
   void initState() {
@@ -27,6 +30,30 @@ class _SplashScreenState extends State<SplashScreen> {
     await Future.delayed(const Duration(seconds: 3));
     
     if (!mounted) return;
+
+    // First check if NGO is already logged in
+    final isLoggedIn = await _localStorageService.isNgoLoggedIn();
+    if (isLoggedIn) {
+      final ngoId = await _localStorageService.getLoggedInNgoId();
+      if (ngoId != null) {
+        // Get NGO data and navigate to home
+        final ngoData = await _registrationService.findRegistrationById(ngoId);
+        if (ngoData != null && ngoData.status == RegistrationStatus.approved) {
+          if (mounted) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => NgoHomeScreen(ngoData: ngoData),
+              ),
+            );
+          }
+          return;
+        } else {
+          // Clear invalid login state
+          await _localStorageService.clearNgoLogin();
+        }
+      }
+    }
 
     // Check if there's a pending registration
     final pendingRegistrationId = await _localStorageService.getPendingRegistrationId();
