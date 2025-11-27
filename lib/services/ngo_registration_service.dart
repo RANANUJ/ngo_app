@@ -29,6 +29,7 @@ class NgoRegistrationRequest {
   final String areaOfWork;
   final String activeVolunteers;
   final String achievements;
+  final String? profileImageUrl;
   final bool idProofUploaded;
   final bool registrationCertUploaded;
   final bool panCardUploaded;
@@ -59,6 +60,7 @@ class NgoRegistrationRequest {
     required this.areaOfWork,
     required this.activeVolunteers,
     required this.achievements,
+    this.profileImageUrl,
     required this.idProofUploaded,
     required this.registrationCertUploaded,
     required this.panCardUploaded,
@@ -112,6 +114,7 @@ class NgoRegistrationRequest {
       'areaOfWork': areaOfWork,
       'activeVolunteers': activeVolunteers,
       'achievements': achievements,
+      'profileImageUrl': profileImageUrl,
       'idProofUploaded': idProofUploaded,
       'registrationCertUploaded': registrationCertUploaded,
       'panCardUploaded': panCardUploaded,
@@ -147,6 +150,7 @@ class NgoRegistrationRequest {
       areaOfWork: data['areaOfWork'] ?? '',
       activeVolunteers: data['activeVolunteers'] ?? '',
       achievements: data['achievements'] ?? '',
+      profileImageUrl: data['profileImageUrl'],
       idProofUploaded: data['idProofUploaded'] ?? false,
       registrationCertUploaded: data['registrationCertUploaded'] ?? false,
       panCardUploaded: data['panCardUploaded'] ?? false,
