@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
-import 'dashboard_screen.dart';
+import 'volunteer_dashboard_screen.dart';
 
 class EmailVerificationScreen extends StatefulWidget {
   final String email;
@@ -54,7 +54,7 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
             if (mounted) {
               Navigator.pushAndRemoveUntil(
                 context,
-                MaterialPageRoute(builder: (context) => const DashboardScreen()),
+                MaterialPageRoute(builder: (context) => const VolunteerDashboardScreen()),
                 (route) => false,
               );
             }

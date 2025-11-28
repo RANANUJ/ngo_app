@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
-import 'dashboard_screen.dart';
+import 'volunteer_dashboard_screen.dart';
 import 'email_verification_screen.dart';
 import 'individual_registration_screen.dart';
 
@@ -53,11 +53,11 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = false);
 
     if (result.success) {
-      // Navigate to dashboard
+      // Navigate to volunteer dashboard
       if (mounted) {
         Navigator.pushAndRemoveUntil(
           context,
-          MaterialPageRoute(builder: (context) => const DashboardScreen()),
+          MaterialPageRoute(builder: (context) => const VolunteerDashboardScreen()),
           (route) => false,
         );
       }

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'user_type_screen.dart';
 import 'ngo_verification_status_screen.dart';
 import 'ngo_home_screen.dart';
+import 'volunteer_dashboard_screen.dart';
 import '../services/local_storage_service.dart';
 import '../services/ngo_registration_service.dart';
 
@@ -31,7 +33,24 @@ class _SplashScreenState extends State<SplashScreen> {
     
     if (!mounted) return;
 
-    // First check if NGO is already logged in
+    // Check if a volunteer/individual user is logged in with Firebase Auth
+    final firebaseUser = FirebaseAuth.instance.currentUser;
+    if (firebaseUser != null && firebaseUser.emailVerified) {
+      // Check if this is NOT an NGO user (no NGO login state)
+      final isNgoLoggedIn = await _localStorageService.isNgoLoggedIn();
+      if (!isNgoLoggedIn) {
+        // This is a volunteer/individual user
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const VolunteerDashboardScreen()),
+          );
+        }
+        return;
+      }
+    }
+
+    // Check if NGO is already logged in
     final isLoggedIn = await _localStorageService.isNgoLoggedIn();
     if (isLoggedIn) {
       final ngoId = await _localStorageService.getLoggedInNgoId();

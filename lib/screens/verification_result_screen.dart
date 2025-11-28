@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/ngo_verification_service.dart';
-import 'dashboard_screen.dart';
+import 'volunteer_dashboard_screen.dart';
 
 class VerificationResultScreen extends StatelessWidget {
   final VerificationResult result;
@@ -87,13 +87,13 @@ class VerificationResultScreen extends StatelessWidget {
                   if (result.isVerified) {
                     Navigator.pushAndRemoveUntil(
                       context,
-                      MaterialPageRoute(builder: (context) => const DashboardScreen()),
+                      MaterialPageRoute(builder: (context) => const VolunteerDashboardScreen()),
                       (route) => false,
                     );
                   } else if (result.status == VerificationLevel.manualReview) {
                     Navigator.pushAndRemoveUntil(
                       context,
-                      MaterialPageRoute(builder: (context) => const DashboardScreen()),
+                      MaterialPageRoute(builder: (context) => const VolunteerDashboardScreen()),
                       (route) => false,
                     );
                   } else {

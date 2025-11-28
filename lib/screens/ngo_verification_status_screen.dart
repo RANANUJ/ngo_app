@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/ngo_registration_service.dart';
 import '../services/local_storage_service.dart';
-import 'dashboard_screen.dart';
+import 'ngo_home_screen.dart';
 import 'user_type_screen.dart';
 
 class NgoVerificationStatusScreen extends StatefulWidget {
@@ -439,12 +439,13 @@ class _NgoVerificationStatusScreenState extends State<NgoVerificationStatusScree
           width: double.infinity,
           child: ElevatedButton(
             onPressed: () async {
-              // Clear local storage as registration is approved
+              // Save NGO login state and navigate to home
               await _localStorageService.markAsApproved();
+              await _localStorageService.saveNgoLogin(registration.id, registration.ngoName);
               if (mounted) {
                 Navigator.pushAndRemoveUntil(
                   context,
-                  MaterialPageRoute(builder: (context) => const DashboardScreen()),
+                  MaterialPageRoute(builder: (context) => NgoHomeScreen(ngoData: registration)),
                   (route) => false,
                 );
               }
