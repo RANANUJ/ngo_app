@@ -58,8 +58,6 @@ class _CommunityScreenState extends State<CommunityScreen>
           children: [
             // Header
             _buildHeader(),
-            // Search Bar
-            _buildSearchBar(),
             // Tab Bar
             _buildTabBar(),
             // Tab Content
@@ -546,23 +544,23 @@ class _CommunityScreenState extends State<CommunityScreen>
     final userId = widget.userId ?? FirebaseAuth.instance.currentUser?.uid;
 
     return SizedBox(
-      height: 70,
+      height: 80,
       child: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
-            .collectionGroup('members')
-            .where('userId', isEqualTo: userId)
+            .collection('communities')
+            .where('creatorId', isEqualTo: userId)
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          final memberDocs = snapshot.data?.docs ?? [];
+          final communities = snapshot.data?.docs ?? [];
 
-          if (memberDocs.isEmpty) {
+          if (communities.isEmpty) {
             return Center(
               child: Text(
-                'Join a community to see it here',
+                'Create a community to see it here',
                 style: TextStyle(color: Colors.grey.shade600),
               ),
             );
@@ -571,26 +569,18 @@ class _CommunityScreenState extends State<CommunityScreen>
           return ListView.builder(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: memberDocs.length,
+            itemCount: communities.length,
             itemBuilder: (context, index) {
-              final communityRef = memberDocs[index].reference.parent.parent;
-              return FutureBuilder<DocumentSnapshot>(
-                future: communityRef?.get(),
-                builder: (context, communitySnapshot) {
-                  if (!communitySnapshot.hasData) {
-                    return const SizedBox(width: 100);
-                  }
-
-                  final community = communitySnapshot.data!.data() as Map<String, dynamic>?;
-                  if (community == null) return const SizedBox();
-
-                  return _buildYourCommunityItem(
-                    communitySnapshot.data!.id,
-                    community['name'] ?? 'Community',
-                    community['imageUrl'],
-                    community['membersCount'] ?? 0,
-                  );
-                },
+              final data = communities[index].data() as Map<String, dynamic>;
+              final coverUrl = data['coverUrl'] ?? '';
+              final imageUrl = data['imageUrl'] ?? '';
+              final displayImage = coverUrl.isNotEmpty ? coverUrl : imageUrl;
+              
+              return _buildYourCommunityItem(
+                communities[index].id,
+                data['name'] ?? 'Community',
+                displayImage,
+                data['membersCount'] ?? 0,
               );
             },
           );
