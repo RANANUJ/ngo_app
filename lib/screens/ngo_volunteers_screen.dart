@@ -294,7 +294,7 @@ class _NgoVolunteersScreenState extends State<NgoVolunteersScreen> {
     final volunteering = data['volunteeringFor'] ?? 'General volunteering';
     final location = data['location'] ?? 'Location not specified';
     final experience = data['experience'] ?? 'Not specified';
-    final photoUrl = data['volunteerPhotoUrl'];
+    final volunteerId = data['volunteerId'];
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -314,27 +314,8 @@ class _NgoVolunteersScreenState extends State<NgoVolunteersScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Profile Image
-          Container(
-            width: 60,
-            height: 60,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(8),
-              color: primary.withOpacity(0.1),
-            ),
-            child: photoUrl != null && photoUrl.isNotEmpty
-                ? ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.network(
-                      photoUrl,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Icon(Icons.person, color: primary, size: 30);
-                      },
-                    ),
-                  )
-                : Icon(Icons.person, color: primary, size: 30),
-          ),
+          // Profile Image - Fetch from volunteers collection
+          _buildVolunteerAvatar(volunteerId, data['volunteerPhotoUrl']),
           const SizedBox(width: 12),
 
           // Details
@@ -416,6 +397,70 @@ class _NgoVolunteersScreenState extends State<NgoVolunteersScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  // Build volunteer avatar - fetches photo from volunteers collection
+  Widget _buildVolunteerAvatar(String? volunteerId, String? fallbackPhotoUrl) {
+    return Container(
+      width: 60,
+      height: 60,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        color: primary.withOpacity(0.1),
+      ),
+      child: volunteerId != null
+          ? FutureBuilder<DocumentSnapshot>(
+              future: FirebaseFirestore.instance
+                  .collection('volunteers')
+                  .doc(volunteerId)
+                  .get(),
+              builder: (context, snapshot) {
+                String? photoUrl;
+                
+                if (snapshot.hasData && snapshot.data!.exists) {
+                  final data = snapshot.data!.data() as Map<String, dynamic>?;
+                  photoUrl = data?['photoUrl'];
+                }
+                
+                // Fallback to request photo URL if not in volunteers collection
+                photoUrl ??= fallbackPhotoUrl;
+                
+                if (photoUrl != null && photoUrl.isNotEmpty) {
+                  return ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.network(
+                      photoUrl,
+                      fit: BoxFit.cover,
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return Center(
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: primary,
+                            value: loadingProgress.expectedTotalBytes != null
+                                ? loadingProgress.cumulativeBytesLoaded /
+                                    loadingProgress.expectedTotalBytes!
+                                : null,
+                          ),
+                        );
+                      },
+                      errorBuilder: (context, error, stackTrace) {
+                        return _buildDefaultAvatar();
+                      },
+                    ),
+                  );
+                }
+                return _buildDefaultAvatar();
+              },
+            )
+          : _buildDefaultAvatar(),
+    );
+  }
+
+  Widget _buildDefaultAvatar() {
+    return Center(
+      child: Icon(Icons.person, color: primary, size: 30),
     );
   }
 

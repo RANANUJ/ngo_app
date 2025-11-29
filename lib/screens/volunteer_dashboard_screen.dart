@@ -8,6 +8,7 @@ import 'user_type_screen.dart';
 import 'discover_ngo_screen.dart';
 import 'campaign_list_screen.dart';
 import 'government_schemes_screen.dart';
+import 'volunteer_opportunities_screen.dart';
 
 class VolunteerDashboardScreen extends StatefulWidget {
   const VolunteerDashboardScreen({Key? key}) : super(key: key);
@@ -753,24 +754,7 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
   }
 
   Widget _buildExploreTab() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.explore, size: 80, color: Colors.grey.shade400),
-          const SizedBox(height: 16),
-          Text(
-            'Explore NGOs & Opportunities',
-            style: TextStyle(fontSize: 18, color: Colors.grey.shade600),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Coming Soon',
-            style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
-          ),
-        ],
-      ),
-    );
+    return const VolunteerOpportunitiesScreen(isEmbedded: true);
   }
 
   Widget _buildCreateTab() {

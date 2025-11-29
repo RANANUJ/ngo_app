@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'edit_campaign_screen.dart';
 
 class CampaignDetailScreen extends StatefulWidget {
   final Map<String, dynamic> campaign;
   final bool isVolunteerView;
+  final bool isNgoView;
 
   const CampaignDetailScreen({
     Key? key,
     required this.campaign,
     this.isVolunteerView = false,
+    this.isNgoView = false,
   }) : super(key: key);
 
   @override
@@ -106,6 +109,68 @@ class _CampaignDetailScreenState extends State<CampaignDetailScreen> {
     }
   }
 
+  void _editCampaign() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => EditCampaignScreen(
+          campaignId: widget.campaign['id'],
+          campaignData: widget.campaign,
+        ),
+      ),
+    ).then((updated) {
+      if (updated == true) {
+        Navigator.pop(context, true);
+      }
+    });
+  }
+
+  void _showDeleteConfirmation() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Campaign'),
+        content: const Text('Are you sure you want to delete this campaign? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _deleteCampaign();
+            },
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteCampaign() async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('campaigns')
+          .doc(widget.campaign['id'])
+          .delete();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Campaign deleted successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.pop(context, true);
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error deleting campaign: $e')),
+      );
+    }
+  }
+
   @override
   void dispose() {
     _pageController.dispose();
@@ -137,6 +202,42 @@ class _CampaignDetailScreenState extends State<CampaignDetailScreen> {
           ),
         ),
         centerTitle: true,
+        actions: widget.isNgoView
+            ? [
+                PopupMenuButton<String>(
+                  icon: Icon(Icons.more_vert, color: primary),
+                  onSelected: (value) {
+                    if (value == 'edit') {
+                      _editCampaign();
+                    } else if (value == 'delete') {
+                      _showDeleteConfirmation();
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'edit',
+                      child: Row(
+                        children: [
+                          Icon(Icons.edit, color: Colors.blue),
+                          SizedBox(width: 8),
+                          Text('Edit'),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'delete',
+                      child: Row(
+                        children: [
+                          Icon(Icons.delete, color: Colors.red),
+                          SizedBox(width: 8),
+                          Text('Delete'),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ]
+            : null,
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -159,7 +260,8 @@ class _CampaignDetailScreenState extends State<CampaignDetailScreen> {
                       ),
                     ),
                   ),
-                  Icon(Icons.bookmark_border, color: primary, size: 28),
+                  if (!widget.isNgoView)
+                    Icon(Icons.bookmark_border, color: primary, size: 28),
                 ],
               ),
             ),

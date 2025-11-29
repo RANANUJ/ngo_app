@@ -197,9 +197,14 @@ class _CampaignListScreenState extends State<CampaignListScreen> {
             builder: (context) => CampaignDetailScreen(
               campaign: campaign,
               isVolunteerView: widget.isVolunteerView,
+              isNgoView: !widget.isVolunteerView,
             ),
           ),
-        );
+        ).then((result) {
+          if (result == true) {
+            setState(() {});
+          }
+        });
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),

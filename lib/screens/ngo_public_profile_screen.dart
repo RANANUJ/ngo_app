@@ -5,6 +5,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:io';
 import '../services/ngo_registration_service.dart';
+import 'volunteer_registration_screen.dart';
 
 class NgoPublicProfileScreen extends StatefulWidget {
   final NgoRegistrationRequest ngoData;
@@ -708,147 +709,43 @@ class _NgoPublicProfileScreenState extends State<NgoPublicProfileScreen> {
     );
   }
 
-  void _joinAsVolunteer(BuildContext context) {
-    final volunteeringController = TextEditingController();
-    final locationController = TextEditingController();
-    final experienceController = TextEditingController();
-    
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          'Join as Volunteer',
-          style: TextStyle(color: primary, fontWeight: FontWeight.bold),
+  void _joinAsVolunteer(BuildContext context) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please login to join as volunteer'),
+          backgroundColor: Colors.red,
         ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'Fill in your details to send a volunteer request',
-                style: TextStyle(fontSize: 14, color: Colors.grey),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: volunteeringController,
-                decoration: InputDecoration(
-                  labelText: 'Volunteering For',
-                  hintText: 'e.g., Teaching children',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: locationController,
-                decoration: InputDecoration(
-                  labelText: 'Your Location',
-                  hintText: 'e.g., Delhi, India',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: experienceController,
-                decoration: InputDecoration(
-                  labelText: 'Experience',
-                  hintText: 'e.g., 2 years',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              ),
-            ],
-          ),
+      );
+      return;
+    }
+
+    // Check if request already exists
+    final existingRequest = await FirebaseFirestore.instance
+        .collection('volunteer_requests')
+        .where('ngoId', isEqualTo: widget.ngoData.id)
+        .where('volunteerId', isEqualTo: user.uid)
+        .get();
+
+    if (existingRequest.docs.isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('You have already sent a request to this NGO'),
+          backgroundColor: Colors.orange,
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (volunteeringController.text.isEmpty ||
-                  locationController.text.isEmpty ||
-                  experienceController.text.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Please fill all fields'),
-                    backgroundColor: Colors.orange,
-                  ),
-                );
-                return;
-              }
+      );
+      return;
+    }
 
-              try {
-                final user = FirebaseAuth.instance.currentUser;
-                if (user == null) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Please login to send request'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                  return;
-                }
-
-                // Check if request already exists
-                final existingRequest = await FirebaseFirestore.instance
-                    .collection('volunteer_requests')
-                    .where('ngoId', isEqualTo: widget.ngoData.id)
-                    .where('volunteerId', isEqualTo: user.uid)
-                    .get();
-
-                if (existingRequest.docs.isNotEmpty) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('You have already sent a request to this NGO'),
-                      backgroundColor: Colors.orange,
-                    ),
-                  );
-                  return;
-                }
-
-                // Save request to Firestore
-                await FirebaseFirestore.instance.collection('volunteer_requests').add({
-                  'ngoId': widget.ngoData.id,
-                  'ngoName': widget.ngoData.ngoName,
-                  'volunteerId': user.uid,
-                  'volunteerName': user.displayName ?? 'Volunteer',
-                  'volunteerEmail': user.email,
-                  'volunteerPhotoUrl': user.photoURL,
-                  'volunteeringFor': volunteeringController.text.trim(),
-                  'location': locationController.text.trim(),
-                  'experience': experienceController.text.trim(),
-                  'status': 'pending',
-                  'requestedAt': FieldValue.serverTimestamp(),
-                });
-
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Volunteer request sent successfully!'),
-                    backgroundColor: Colors.green,
-                  ),
-                );
-              } catch (e) {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Error sending request: $e'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-              }
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: primary),
-            child: const Text('Send Request', style: TextStyle(color: Colors.white)),
-          ),
-        ],
+    // Navigate to volunteer registration screen
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => VolunteerRegistrationScreen(
+          ngoId: widget.ngoData.id,
+          ngoName: widget.ngoData.ngoName,
+        ),
       ),
     );
   }

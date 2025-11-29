@@ -8,6 +8,8 @@ import 'ngo_volunteers_screen.dart';
 import 'create_campaign_screen.dart';
 import 'campaign_list_screen.dart';
 import 'government_schemes_screen.dart';
+import 'ngo_opportunities_screen.dart';
+import 'event_calendar_screen.dart';
 
 class NgoHomeScreen extends StatefulWidget {
   final NgoRegistrationRequest ngoData;
@@ -22,11 +24,100 @@ class _NgoHomeScreenState extends State<NgoHomeScreen> {
   static const Color primary = Color(0xFF0099B8);
   int _selectedIndex = 0;
   String? _ngoLogo;
+  bool _isRefreshing = false;
+  
+  // Data variables for real-time updates
+  int _campaignsCount = 0;
+  int _opportunitiesCount = 0;
+  int _volunteersCount = 0;
+  Map<String, dynamic>? _ngoData;
 
   @override
   void initState() {
     super.initState();
-    _loadNgoLogo();
+    _loadAllData();
+  }
+
+  Future<void> _loadAllData() async {
+    await Future.wait([
+      _loadNgoLogo(),
+      _loadCampaignsCount(),
+      _loadOpportunitiesCount(),
+      _loadVolunteersCount(),
+      _loadNgoDetails(),
+    ]);
+  }
+
+  Future<void> _onRefresh() async {
+    setState(() => _isRefreshing = true);
+    await _loadAllData();
+    if (mounted) {
+      setState(() => _isRefreshing = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Data refreshed successfully'),
+          duration: Duration(seconds: 1),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
+  }
+
+  Future<void> _loadCampaignsCount() async {
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('campaigns')
+          .where('ngoId', isEqualTo: widget.ngoData.id)
+          .get();
+      if (mounted) {
+        setState(() => _campaignsCount = snapshot.docs.length);
+      }
+    } catch (e) {
+      debugPrint('Error loading campaigns count: $e');
+    }
+  }
+
+  Future<void> _loadOpportunitiesCount() async {
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('volunteer_opportunities')
+          .where('ngoId', isEqualTo: widget.ngoData.id)
+          .get();
+      if (mounted) {
+        setState(() => _opportunitiesCount = snapshot.docs.length);
+      }
+    } catch (e) {
+      debugPrint('Error loading opportunities count: $e');
+    }
+  }
+
+  Future<void> _loadVolunteersCount() async {
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('volunteer_requests')
+          .where('ngoId', isEqualTo: widget.ngoData.id)
+          .where('status', isEqualTo: 'accepted')
+          .get();
+      if (mounted) {
+        setState(() => _volunteersCount = snapshot.docs.length);
+      }
+    } catch (e) {
+      debugPrint('Error loading volunteers count: $e');
+    }
+  }
+
+  Future<void> _loadNgoDetails() async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('ngo_registrations')
+          .doc(widget.ngoData.id)
+          .get();
+      if (doc.exists && mounted) {
+        setState(() => _ngoData = doc.data());
+      }
+    } catch (e) {
+      debugPrint('Error loading NGO details: $e');
+    }
   }
 
   Future<void> _loadNgoLogo() async {
@@ -128,47 +219,52 @@ class _NgoHomeScreenState extends State<NgoHomeScreen> {
   }
 
   Widget _buildHomeTab() {
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header with NGO Info
-          _buildHeader(),
-          
-          const SizedBox(height: 20),
-          
-          // Quick Task Bar
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: _buildQuickTaskBar(),
-          ),
-          
-          const SizedBox(height: 24),
-          
-          // Features Grid
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: _buildFeaturesGrid(),
-          ),
-          
-          const SizedBox(height: 24),
-          
-          // Event Banner
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: _buildEventBanner(),
-          ),
-          
-          const SizedBox(height: 24),
-          
-          // Book Demo Button
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: _buildDemoButton(),
-          ),
-          
-          const SizedBox(height: 24),
-        ],
+    return RefreshIndicator(
+      onRefresh: _onRefresh,
+      color: primary,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header with NGO Info
+            _buildHeader(),
+            
+            const SizedBox(height: 20),
+            
+            // Quick Task Bar
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: _buildQuickTaskBar(),
+            ),
+            
+            const SizedBox(height: 24),
+            
+            // Features Grid
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: _buildFeaturesGrid(),
+            ),
+            
+            const SizedBox(height: 24),
+            
+            // Event Banner
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: _buildEventBanner(),
+            ),
+            
+            const SizedBox(height: 24),
+            
+            // Book Demo Button
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: _buildDemoButton(),
+            ),
+            
+            const SizedBox(height: 24),
+          ],
+        ),
       ),
     );
   }
@@ -303,17 +399,29 @@ class _NgoHomeScreenState extends State<NgoHomeScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _buildQuickTaskItem('assets/icons8-task-completed-48.png', 'Quick Task'),
-          _buildQuickTaskItem('assets/shield.png', 'Event Calendar'),
-          _buildQuickTaskItem('assets/progress (1).png', 'Progress'),
-          _buildQuickTaskItem('assets/new-user.png', 'Add Admin'),
+          _buildQuickTaskItem('assets/icons8-task-completed-48.png', 'Quick Task', null),
+          _buildQuickTaskItem('assets/shield.png', 'Event Calendar', () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => EventCalendarScreen(
+                  ngoId: widget.ngoData.id!,
+                  ngoName: widget.ngoData.ngoName,
+                ),
+              ),
+            );
+          }),
+          _buildQuickTaskItem('assets/progress (1).png', 'Progress', null),
+          _buildQuickTaskItem('assets/new-user.png', 'Add Admin', null),
         ],
       ),
     );
   }
 
-  Widget _buildQuickTaskItem(String imagePath, String label) {
-    return Column(
+  Widget _buildQuickTaskItem(String imagePath, String label, VoidCallback? onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
@@ -330,15 +438,16 @@ class _NgoHomeScreenState extends State<NgoHomeScreen> {
           ),
         ),
         const SizedBox(height: 6),
-        Text(
-          label,
-          style: TextStyle(
-            color: Colors.grey.shade700,
-            fontSize: 11,
-            fontWeight: FontWeight.w500,
+          Text(
+            label,
+            style: TextStyle(
+              color: Colors.grey.shade700,
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -725,8 +834,18 @@ class _NgoHomeScreenState extends State<NgoHomeScreen> {
           ),
         );
         break;
-      case 'Donation':
       case 'Collaboration':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => NgoOpportunitiesScreen(
+              ngoId: widget.ngoData.id,
+              ngoName: widget.ngoData.ngoName,
+            ),
+          ),
+        );
+        break;
+      case 'Donation':
       case 'Connection':
       default:
         ScaffoldMessenger.of(context).showSnackBar(

@@ -4,36 +4,52 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 
-class CreateCampaignScreen extends StatefulWidget {
-  final String ngoId;
-  final String ngoName;
+class EditCampaignScreen extends StatefulWidget {
+  final String campaignId;
+  final Map<String, dynamic> campaignData;
 
-  const CreateCampaignScreen({
+  const EditCampaignScreen({
     Key? key,
-    required this.ngoId,
-    required this.ngoName,
+    required this.campaignId,
+    required this.campaignData,
   }) : super(key: key);
 
   @override
-  State<CreateCampaignScreen> createState() => _CreateCampaignScreenState();
+  State<EditCampaignScreen> createState() => _EditCampaignScreenState();
 }
 
-class _CreateCampaignScreenState extends State<CreateCampaignScreen> {
+class _EditCampaignScreenState extends State<EditCampaignScreen> {
   static const Color primary = Color(0xFF0099B8);
   
   final _formKey = GlobalKey<FormState>();
-  final _titleController = TextEditingController();
-  final _descriptionController = TextEditingController();
+  late TextEditingController _titleController;
+  late TextEditingController _descriptionController;
   final _purposeController = TextEditingController();
   final _targetController = TextEditingController();
   
-  final List<File> _selectedImages = [];
-  final List<String> _purposes = [];
-  final List<String> _targets = [];
+  final List<File> _newImages = [];
+  List<String> _existingImages = [];
+  List<String> _purposes = [];
+  List<String> _targets = [];
   
   DateTime? _selectedDate;
   bool _isLoading = false;
   final ImagePicker _picker = ImagePicker();
+
+  @override
+  void initState() {
+    super.initState();
+    _titleController = TextEditingController(text: widget.campaignData['title'] ?? '');
+    _descriptionController = TextEditingController(text: widget.campaignData['description'] ?? '');
+    _existingImages = List<String>.from(widget.campaignData['images'] ?? []);
+    _purposes = List<String>.from(widget.campaignData['purpose'] ?? []);
+    _targets = List<String>.from(widget.campaignData['target'] ?? []);
+    
+    final eventDate = widget.campaignData['eventDate'];
+    if (eventDate != null && eventDate is Timestamp) {
+      _selectedDate = eventDate.toDate();
+    }
+  }
 
   @override
   void dispose() {
@@ -54,7 +70,7 @@ class _CreateCampaignScreenState extends State<CreateCampaignScreen> {
       
       if (images.isNotEmpty) {
         setState(() {
-          _selectedImages.addAll(images.map((img) => File(img.path)));
+          _newImages.addAll(images.map((img) => File(img.path)));
         });
       }
     } catch (e) {
@@ -64,9 +80,15 @@ class _CreateCampaignScreenState extends State<CreateCampaignScreen> {
     }
   }
 
-  void _removeImage(int index) {
+  void _removeExistingImage(int index) {
     setState(() {
-      _selectedImages.removeAt(index);
+      _existingImages.removeAt(index);
+    });
+  }
+
+  void _removeNewImage(int index) {
+    setState(() {
+      _newImages.removeAt(index);
     });
   }
 
@@ -100,12 +122,13 @@ class _CreateCampaignScreenState extends State<CreateCampaignScreen> {
     });
   }
 
-  Future<List<String>> _uploadImages() async {
+  Future<List<String>> _uploadNewImages() async {
     List<String> imageUrls = [];
+    final ngoId = widget.campaignData['ngoId'];
     
-    for (int i = 0; i < _selectedImages.length; i++) {
-      final file = _selectedImages[i];
-      final fileName = 'campaigns/${widget.ngoId}/${DateTime.now().millisecondsSinceEpoch}_$i.jpg';
+    for (int i = 0; i < _newImages.length; i++) {
+      final file = _newImages[i];
+      final fileName = 'campaigns/$ngoId/${DateTime.now().millisecondsSinceEpoch}_$i.jpg';
       
       final ref = FirebaseStorage.instance.ref().child(fileName);
       await ref.putFile(file);
@@ -116,10 +139,10 @@ class _CreateCampaignScreenState extends State<CreateCampaignScreen> {
     return imageUrls;
   }
 
-  Future<void> _postCampaign() async {
+  Future<void> _updateCampaign() async {
     if (!_formKey.currentState!.validate()) return;
     
-    if (_selectedImages.isEmpty) {
+    if (_existingImages.isEmpty && _newImages.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please add at least one image')),
       );
@@ -143,36 +166,38 @@ class _CreateCampaignScreenState extends State<CreateCampaignScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // Upload images
-      final imageUrls = await _uploadImages();
+      // Upload new images
+      final newImageUrls = await _uploadNewImages();
       
-      // Create campaign document
-      await FirebaseFirestore.instance.collection('campaigns').add({
-        'ngoId': widget.ngoId,
-        'ngoName': widget.ngoName,
+      // Combine existing and new images
+      final allImages = [..._existingImages, ...newImageUrls];
+      
+      // Update campaign document
+      await FirebaseFirestore.instance
+          .collection('campaigns')
+          .doc(widget.campaignId)
+          .update({
         'title': _titleController.text.trim(),
         'description': _descriptionController.text.trim(),
-        'images': imageUrls,
+        'images': allImages,
         'purpose': _purposes,
         'target': _targets,
         'eventDate': _selectedDate != null ? Timestamp.fromDate(_selectedDate!) : null,
-        'participants': '0',
-        'createdAt': FieldValue.serverTimestamp(),
-        'status': 'active',
+        'updatedAt': FieldValue.serverTimestamp(),
       });
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Campaign posted successfully!'),
+            content: Text('Campaign updated successfully!'),
             backgroundColor: Colors.green,
           ),
         );
-        Navigator.pop(context);
+        Navigator.pop(context, true);
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error posting campaign: $e')),
+        SnackBar(content: Text('Error updating campaign: $e')),
       );
     } finally {
       if (mounted) {
@@ -193,7 +218,7 @@ class _CreateCampaignScreenState extends State<CreateCampaignScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'Create Campaign',
+          'Edit Campaign',
           style: TextStyle(
             color: primary,
             fontSize: 20,
@@ -228,7 +253,7 @@ class _CreateCampaignScreenState extends State<CreateCampaignScreen> {
               // Images Section
               _buildSectionTitle('Campaign Images'),
               const SizedBox(height: 8),
-              _buildImagePicker(),
+              _buildImageSection(),
               
               const SizedBox(height: 24),
               
@@ -325,12 +350,12 @@ class _CreateCampaignScreenState extends State<CreateCampaignScreen> {
               
               const SizedBox(height: 40),
               
-              // Post Campaign Button
+              // Update Campaign Button
               SizedBox(
                 width: double.infinity,
                 height: 54,
                 child: ElevatedButton(
-                  onPressed: _isLoading ? null : _postCampaign,
+                  onPressed: _isLoading ? null : _updateCampaign,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: primary,
                     shape: RoundedRectangleBorder(
@@ -348,7 +373,7 @@ class _CreateCampaignScreenState extends State<CreateCampaignScreen> {
                           ),
                         )
                       : const Text(
-                          'Post Campaign',
+                          'Update Campaign',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w600,
@@ -403,89 +428,107 @@ class _CreateCampaignScreenState extends State<CreateCampaignScreen> {
     );
   }
 
-  Widget _buildImagePicker() {
-    return Column(
-      children: [
-        // Selected images grid
-        if (_selectedImages.isNotEmpty)
-          SizedBox(
-            height: 120,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: _selectedImages.length,
-              itemBuilder: (context, index) {
-                return Padding(
-                  padding: const EdgeInsets.only(right: 12),
-                  child: Stack(
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Image.file(
-                          _selectedImages[index],
-                          width: 120,
-                          height: 120,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                      Positioned(
-                        top: 4,
-                        right: 4,
-                        child: GestureDetector(
-                          onTap: () => _removeImage(index),
-                          child: Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: const BoxDecoration(
-                              color: Colors.red,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.close,
-                              color: Colors.white,
-                              size: 16,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+  Widget _buildImageSection() {
+    return SizedBox(
+      height: 120,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        children: [
+          // Add Image button
+          GestureDetector(
+            onTap: _pickImages,
+            child: Container(
+              width: 100,
+              height: 100,
+              margin: const EdgeInsets.only(right: 12),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.add_photo_alternate, color: primary, size: 32),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Add Image',
+                    style: TextStyle(color: primary, fontSize: 12),
                   ),
-                );
-              },
-            ),
-          ),
-        
-        const SizedBox(height: 12),
-        
-        // Add images button
-        GestureDetector(
-          onTap: _pickImages,
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 24),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade50,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: primary.withOpacity(0.5),
-                style: BorderStyle.solid,
-                width: 2,
+                ],
               ),
             ),
-            child: Column(
+          ),
+          // Existing images
+          ..._existingImages.asMap().entries.map((entry) {
+            return Stack(
               children: [
-                Icon(Icons.add_photo_alternate_outlined, color: primary, size: 40),
-                const SizedBox(height: 8),
-                Text(
-                  'Add Campaign Images',
-                  style: TextStyle(
-                    color: primary,
-                    fontWeight: FontWeight.w500,
+                Container(
+                  width: 100,
+                  height: 100,
+                  margin: const EdgeInsets.only(right: 12),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    image: DecorationImage(
+                      image: NetworkImage(entry.value),
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 4,
+                  right: 16,
+                  child: GestureDetector(
+                    onTap: () => _removeExistingImage(entry.key),
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.close, color: Colors.white, size: 16),
+                    ),
                   ),
                 ),
               ],
-            ),
-          ),
-        ),
-      ],
+            );
+          }),
+          // New images
+          ..._newImages.asMap().entries.map((entry) {
+            return Stack(
+              children: [
+                Container(
+                  width: 100,
+                  height: 100,
+                  margin: const EdgeInsets.only(right: 12),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    image: DecorationImage(
+                      image: FileImage(entry.value),
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 4,
+                  right: 16,
+                  child: GestureDetector(
+                    onTap: () => _removeNewImage(entry.key),
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.close, color: Colors.white, size: 16),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          }),
+        ],
+      ),
     );
   }
 
@@ -503,15 +546,14 @@ class _CreateCampaignScreenState extends State<CreateCampaignScreen> {
           ),
         ),
         const SizedBox(width: 12),
-        GestureDetector(
-          onTap: onAdd,
-          child: Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: primary,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(Icons.add, color: Colors.white),
+        Container(
+          decoration: BoxDecoration(
+            color: primary,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: IconButton(
+            onPressed: onAdd,
+            icon: const Icon(Icons.add, color: Colors.white),
           ),
         ),
       ],
@@ -519,59 +561,21 @@ class _CreateCampaignScreenState extends State<CreateCampaignScreen> {
   }
 
   Widget _buildItemList(List<String> items, Function(int) onRemove) {
-    if (items.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.grey.shade50,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey.shade200),
-        ),
-        child: Center(
-          child: Text(
-            'No items added yet',
-            style: TextStyle(color: Colors.grey.shade500),
-          ),
-        ),
-      );
-    }
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: ListView.separated(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        itemCount: items.length,
-        separatorBuilder: (context, index) => Divider(
-          height: 1,
-          color: Colors.grey.shade200,
-        ),
-        itemBuilder: (context, index) {
-          return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('•  ', style: TextStyle(color: primary, fontSize: 16)),
-                Expanded(
-                  child: Text(
-                    items[index],
-                    style: const TextStyle(fontSize: 14),
-                  ),
-                ),
-                GestureDetector(
-                  onTap: () => onRemove(index),
-                  child: Icon(Icons.close, color: Colors.red.shade400, size: 20),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
+    if (items.isEmpty) return const SizedBox();
+    
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: items.asMap().entries.map((entry) {
+        return Chip(
+          label: Text(entry.value),
+          deleteIcon: const Icon(Icons.close, size: 18),
+          onDeleted: () => onRemove(entry.key),
+          backgroundColor: primary.withOpacity(0.1),
+          labelStyle: TextStyle(color: primary),
+          deleteIconColor: primary,
+        );
+      }).toList(),
     );
   }
 }
