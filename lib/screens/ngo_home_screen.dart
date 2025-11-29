@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/ngo_registration_service.dart';
 import '../services/local_storage_service.dart';
 import 'user_type_screen.dart';
+import 'ngo_public_profile_screen.dart';
+import 'ngo_volunteers_screen.dart';
+import 'create_campaign_screen.dart';
+import 'campaign_list_screen.dart';
 
 class NgoHomeScreen extends StatefulWidget {
   final NgoRegistrationRequest ngoData;
@@ -15,6 +20,31 @@ class NgoHomeScreen extends StatefulWidget {
 class _NgoHomeScreenState extends State<NgoHomeScreen> {
   static const Color primary = Color(0xFF0099B8);
   int _selectedIndex = 0;
+  String? _ngoLogo;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadNgoLogo();
+  }
+
+  Future<void> _loadNgoLogo() async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('ngo_registrations')
+          .doc(widget.ngoData.id)
+          .get();
+      
+      if (doc.exists && mounted) {
+        final data = doc.data()!;
+        setState(() {
+          _ngoLogo = data['ngoLogo'] ?? widget.ngoData.profileImageUrl;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading NGO logo: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -143,8 +173,8 @@ class _NgoHomeScreenState extends State<NgoHomeScreen> {
   }
 
   Widget _buildHeader() {
-    // Check if NGO has uploaded a profile image
-    final String? profileImageUrl = widget.ngoData.profileImageUrl;
+    // Check if NGO has uploaded a profile image - prioritize _ngoLogo from Firestore
+    final String? profileImageUrl = _ngoLogo ?? widget.ngoData.profileImageUrl;
     final bool hasProfileImage = profileImageUrl != null && profileImageUrl.isNotEmpty;
     
     return Container(
@@ -272,16 +302,16 @@ class _NgoHomeScreenState extends State<NgoHomeScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _buildQuickTaskItem(Icons.checklist, 'Quick Task'),
-          _buildQuickTaskItem(Icons.calendar_month, 'Event Calendar'),
-          _buildQuickTaskItem(Icons.trending_up, 'Progress'),
-          _buildQuickTaskItem(Icons.person_add_outlined, 'Add Admin'),
+          _buildQuickTaskItem('assets/icons8-task-completed-48.png', 'Quick Task'),
+          _buildQuickTaskItem('assets/shield.png', 'Event Calendar'),
+          _buildQuickTaskItem('assets/progress (1).png', 'Progress'),
+          _buildQuickTaskItem('assets/new-user.png', 'Add Admin'),
         ],
       ),
     );
   }
 
-  Widget _buildQuickTaskItem(IconData icon, String label) {
+  Widget _buildQuickTaskItem(String imagePath, String label) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -291,7 +321,12 @@ class _NgoHomeScreenState extends State<NgoHomeScreen> {
             color: Colors.grey.shade100,
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Icon(icon, color: primary, size: 24),
+          child: Image.asset(
+            imagePath,
+            width: 28,
+            height: 28,
+            fit: BoxFit.contain,
+          ),
         ),
         const SizedBox(height: 6),
         Text(
@@ -309,37 +344,75 @@ class _NgoHomeScreenState extends State<NgoHomeScreen> {
   Widget _buildFeaturesGrid() {
     // Light cyan background color for all cards
     final Color cardBgColor = const Color(0xFFE8F6F8);
-    // Teal icon color for all icons
-    final Color iconColor = primary;
     
     return Column(
       children: [
         Row(
           children: [
-            Expanded(child: _buildFeatureCard(Icons.campaign, 'Campaign', cardBgColor, iconColor)),
+            Expanded(child: _buildFeatureCardWithImage('assets/Email campaign-amico.png', 'Campaign', cardBgColor)),
             const SizedBox(width: 12),
-            Expanded(child: _buildFeatureCard(Icons.favorite_border, 'Donation', cardBgColor, iconColor)),
+            Expanded(child: _buildFeatureCardWithImage('assets/Charity-cuate.png', 'Donation', cardBgColor)),
             const SizedBox(width: 12),
-            Expanded(child: _buildFeatureCard(Icons.volunteer_activism, 'Volunteer', cardBgColor, iconColor)),
+            Expanded(child: _buildFeatureCardWithImage('assets/Team spirit-pana.png', 'Volunteer', cardBgColor)),
           ],
         ),
         const SizedBox(height: 12),
         Row(
           children: [
-            Expanded(child: _buildFeatureCard(Icons.public, 'Collaboration', cardBgColor, iconColor)),
+            Expanded(child: _buildFeatureCardWithImage('assets/Shared goals-amico.png', 'Collaboration', cardBgColor)),
             const SizedBox(width: 12),
-            Expanded(child: _buildFeatureCard(Icons.account_balance, 'Govt. Schemes', cardBgColor, iconColor)),
+            Expanded(child: _buildFeatureCardWithImage('assets/—Pngtree—government icon_4270824.png', 'Govt. Schemes', cardBgColor)),
             const SizedBox(width: 12),
-            Expanded(child: _buildFeatureCard(Icons.people_outline, 'Connection', cardBgColor, iconColor)),
+            Expanded(child: _buildFeatureCardWithImage('assets/Online connection-rafiki.png', 'Connection', cardBgColor)),
           ],
         ),
       ],
     );
   }
 
+  Widget _buildFeatureCardWithImage(String imagePath, String label, Color bgColor) {
+    return GestureDetector(
+      onTap: () => _onFeatureCardTap(label),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey.shade300, width: 1),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 70,
+              height: 70,
+              child: Image.asset(
+                imagePath,
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) {
+                  return Icon(Icons.image, color: primary, size: 35);
+                },
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              label,
+              style: TextStyle(
+                color: Colors.grey.shade800,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildFeatureCard(IconData icon, String label, Color bgColor, Color iconColor) {
     return GestureDetector(
-      onTap: () {},
+      onTap: () => _onFeatureCardTap(label),
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
         decoration: BoxDecoration(
@@ -521,21 +594,35 @@ class _NgoHomeScreenState extends State<NgoHomeScreen> {
             ),
           ),
           const SizedBox(height: 24),
-          _buildCreateOption(Icons.campaign, 'Create Campaign', 'Start a new fundraising campaign', Colors.blue),
+          _buildCreateOption(
+            Icons.campaign,
+            'Create Campaign',
+            'Start a new fundraising campaign',
+            primary,
+            () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => CreateCampaignScreen(
+                  ngoId: widget.ngoData.id,
+                  ngoName: widget.ngoData.ngoName,
+                ),
+              ),
+            ),
+          ),
           const SizedBox(height: 12),
-          _buildCreateOption(Icons.event, 'Create Event', 'Organize a volunteer event', Colors.green),
+          _buildCreateOption(Icons.event, 'Create Event', 'Organize a volunteer event', primary, () {}),
           const SizedBox(height: 12),
-          _buildCreateOption(Icons.article, 'Post Update', 'Share news with your community', Colors.orange),
+          _buildCreateOption(Icons.article, 'Post Update', 'Share news with your community', primary, () {}),
           const SizedBox(height: 12),
-          _buildCreateOption(Icons.photo_library, 'Share Gallery', 'Upload photos of your work', Colors.purple),
+          _buildCreateOption(Icons.photo_library, 'Share Gallery', 'Upload photos of your work', primary, () {}),
         ],
       ),
     );
   }
 
-  Widget _buildCreateOption(IconData icon, String title, String subtitle, Color color) {
+  Widget _buildCreateOption(IconData icon, String title, String subtitle, Color color, VoidCallback onTap) {
     return GestureDetector(
-      onTap: () {},
+      onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
@@ -606,9 +693,47 @@ class _NgoHomeScreenState extends State<NgoHomeScreen> {
     );
   }
 
+  void _onFeatureCardTap(String label) {
+    switch (label) {
+      case 'Volunteer':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => NgoVolunteersScreen(
+              ngoId: widget.ngoData.id,
+              ngoName: widget.ngoData.ngoName,
+            ),
+          ),
+        );
+        break;
+      case 'Campaign':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => CampaignListScreen(
+              ngoId: widget.ngoData.id,
+            ),
+          ),
+        );
+        break;
+      case 'Donation':
+      case 'Collaboration':
+      case 'Govt. Schemes':
+      case 'Connection':
+      default:
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('$label - Coming Soon!'),
+            duration: const Duration(seconds: 1),
+          ),
+        );
+        break;
+    }
+  }
+
   Widget _buildProfileTab() {
-    // Check if NGO has uploaded a profile image
-    final String? profileImageUrl = widget.ngoData.profileImageUrl;
+    // Check if NGO has uploaded a profile image - prioritize _ngoLogo from Firestore
+    final String? profileImageUrl = _ngoLogo ?? widget.ngoData.profileImageUrl;
     final bool hasProfileImage = profileImageUrl != null && profileImageUrl.isNotEmpty;
     
     return SingleChildScrollView(
@@ -714,6 +839,85 @@ class _NgoHomeScreenState extends State<NgoHomeScreen> {
                   ),
                 ),
               ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // How volunteers see your NGO - Preview Box
+          GestureDetector(
+            onTap: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => NgoPublicProfileScreen(
+                    ngoData: widget.ngoData,
+                    isEditable: true,
+                  ),
+                ),
+              );
+              // Reload logo after returning from profile edit
+              _loadNgoLogo();
+            },
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: primary.withOpacity(0.3), width: 1.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.shade200,
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      Icons.visibility,
+                      color: primary,
+                      size: 28,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'How volunteers see your NGO',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Preview and update your public profile',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    Icons.arrow_forward_ios,
+                    color: primary,
+                    size: 18,
+                  ),
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 16),

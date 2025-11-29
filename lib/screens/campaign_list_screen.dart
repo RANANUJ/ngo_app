@@ -1,8 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'campaign_detail_screen.dart';
 
 class CampaignListScreen extends StatefulWidget {
-  const CampaignListScreen({Key? key}) : super(key: key);
+  final String? ngoId; // If provided, show only this NGO's campaigns
+  final bool isVolunteerView; // If true, show all active campaigns for volunteers
+
+  const CampaignListScreen({
+    Key? key,
+    this.ngoId,
+    this.isVolunteerView = false,
+  }) : super(key: key);
 
   @override
   State<CampaignListScreen> createState() => _CampaignListScreenState();
@@ -11,79 +19,30 @@ class CampaignListScreen extends StatefulWidget {
 class _CampaignListScreenState extends State<CampaignListScreen> {
   static const Color primary = Color(0xFF0099B8);
   final TextEditingController _searchController = TextEditingController();
-
-  final List<Map<String, dynamic>> campaigns = [
-    {
-      'title': 'Yoga camp',
-      'description': 'A community yoga camp designed to promote physical wellness, mental peace, and healthy living.',
-      'participants': '250+',
-      'images': [
-        'https://images.unsplash.com/photo-1599901860904-17e6ed7083a0?w=800',
-        'https://images.unsplash.com/photo-1545205597-3d9d02c29597?w=800',
-      ],
-      'purpose': [
-        'To encourage people to adopt yoga as a daily habit for overall well-being.',
-        'To build community bonding through shared health activities.',
-      ],
-      'target': [
-        'Local residents of all age groups (youth, adults, elderly).',
-        'Special focus on individuals dealing with stress, anxiety, or sedentary lifestyles.',
-      ],
-    },
-    {
-      'title': 'Yoga camp',
-      'description': 'A community yoga camp designed to promote physical wellness, mental peace, and healthy living.',
-      'participants': '250+',
-      'images': [
-        'https://images.unsplash.com/photo-1599901860904-17e6ed7083a0?w=800',
-      ],
-      'purpose': [
-        'To encourage people to adopt yoga as a daily habit for overall well-being.',
-        'To build community bonding through shared health activities.',
-      ],
-      'target': [
-        'Local residents of all age groups (youth, adults, elderly).',
-        'Special focus on individuals dealing with stress.',
-      ],
-    },
-    {
-      'title': 'Yoga camp',
-      'description': 'A community yoga camp designed to promote physical wellness, mental peace, and healthy living.',
-      'participants': '250+',
-      'images': [
-        'https://images.unsplash.com/photo-1599901860904-17e6ed7083a0?w=800',
-      ],
-      'purpose': [
-        'To encourage people to adopt yoga as a daily habit for overall well-being.',
-        'To build community bonding through shared health activities.',
-      ],
-      'target': [
-        'Local residents of all age groups (youth, adults, elderly).',
-        'Special focus on individuals dealing with stress.',
-      ],
-    },
-    {
-      'title': 'Yoga camp',
-      'description': 'A community yoga camp designed to promote physical wellness, mental peace, and healthy living.',
-      'participants': '250+',
-      'images': [
-        'https://images.unsplash.com/photo-1599901860904-17e6ed7083a0?w=800',
-      ],
-      'purpose': [
-        'To encourage people to adopt yoga as a daily habit for overall well-being.',
-        'To build community bonding through shared health activities.',
-      ],
-      'target': [
-        'Local residents of all age groups (youth, adults, elderly).',
-        'Special focus on individuals dealing with stress.',
-      ],
-    },
-  ];
+  String _searchQuery = '';
 
   @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  Query<Map<String, dynamic>> _getCampaignsQuery() {
+    // Use simple queries without composite indexes
+    if (widget.ngoId != null && !widget.isVolunteerView) {
+      // NGO viewing their own campaigns - simple where query
+      return FirebaseFirestore.instance
+          .collection('campaigns')
+          .where('ngoId', isEqualTo: widget.ngoId);
+    } else if (widget.isVolunteerView) {
+      // Volunteer viewing all active campaigns
+      return FirebaseFirestore.instance
+          .collection('campaigns')
+          .where('status', isEqualTo: 'active');
+    }
+    
+    // Default - all campaigns
+    return FirebaseFirestore.instance.collection('campaigns');
   }
 
   @override
@@ -98,7 +57,7 @@ class _CampaignListScreenState extends State<CampaignListScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'Campaign',
+          widget.isVolunteerView ? 'CSR Campaigns' : 'My Campaigns',
           style: TextStyle(
             color: primary,
             fontSize: 20,
@@ -121,8 +80,13 @@ class _CampaignListScreenState extends State<CampaignListScreen> {
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
             child: TextField(
               controller: _searchController,
+              onChanged: (value) {
+                setState(() {
+                  _searchQuery = value.toLowerCase();
+                });
+              },
               decoration: InputDecoration(
-                hintText: 'Search',
+                hintText: 'Search campaigns',
                 hintStyle: TextStyle(color: Colors.grey.shade500),
                 prefixIcon: Icon(Icons.search, color: Colors.grey.shade500),
                 filled: true,
@@ -138,32 +102,81 @@ class _CampaignListScreenState extends State<CampaignListScreen> {
 
           // Campaign list
           Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: campaigns.length + 1, // +1 for "See more" button
-              itemBuilder: (context, index) {
-                if (index == campaigns.length) {
-                  // See more button
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
+            child: StreamBuilder<QuerySnapshot>(
+              stream: _getCampaignsQuery().snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Text('Error: ${snapshot.error}'),
+                  );
+                }
+
+                final docs = snapshot.data?.docs ?? [];
+                
+                // Filter by search query and sort by createdAt locally
+                var campaigns = docs.where((doc) {
+                  if (_searchQuery.isEmpty) return true;
+                  final data = doc.data() as Map<String, dynamic>;
+                  final title = (data['title'] ?? '').toString().toLowerCase();
+                  final description = (data['description'] ?? '').toString().toLowerCase();
+                  return title.contains(_searchQuery) || description.contains(_searchQuery);
+                }).toList();
+
+                // Sort by createdAt descending (newest first)
+                campaigns.sort((a, b) {
+                  final aData = a.data() as Map<String, dynamic>;
+                  final bData = b.data() as Map<String, dynamic>;
+                  final aTime = aData['createdAt'] as Timestamp?;
+                  final bTime = bData['createdAt'] as Timestamp?;
+                  if (aTime == null && bTime == null) return 0;
+                  if (aTime == null) return 1;
+                  if (bTime == null) return -1;
+                  return bTime.compareTo(aTime);
+                });
+
+                if (campaigns.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        TextButton.icon(
-                          onPressed: () {},
-                          icon: Text(
-                            'See more',
-                            style: TextStyle(color: primary, fontWeight: FontWeight.w500),
+                        Icon(Icons.campaign_outlined, size: 64, color: Colors.grey.shade400),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No campaigns found',
+                          style: TextStyle(
+                            color: Colors.grey.shade600,
+                            fontSize: 16,
                           ),
-                          label: Icon(Icons.keyboard_arrow_down, color: primary),
                         ),
+                        if (!widget.isVolunteerView) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            'Create your first campaign!',
+                            style: TextStyle(
+                              color: Colors.grey.shade500,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   );
                 }
 
-                final campaign = campaigns[index];
-                return _buildCampaignCard(campaign);
+                return ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: campaigns.length,
+                  itemBuilder: (context, index) {
+                    final doc = campaigns[index];
+                    final campaign = doc.data() as Map<String, dynamic>;
+                    campaign['id'] = doc.id;
+                    return _buildCampaignCard(campaign);
+                  },
+                );
               },
             ),
           ),
@@ -173,12 +186,18 @@ class _CampaignListScreenState extends State<CampaignListScreen> {
   }
 
   Widget _buildCampaignCard(Map<String, dynamic> campaign) {
+    final images = List<String>.from(campaign['images'] ?? []);
+    final imageUrl = images.isNotEmpty ? images[0] : '';
+
     return GestureDetector(
       onTap: () {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => CampaignDetailScreen(campaign: campaign),
+            builder: (context) => CampaignDetailScreen(
+              campaign: campaign,
+              isVolunteerView: widget.isVolunteerView,
+            ),
           ),
         );
       },
@@ -204,18 +223,25 @@ class _CampaignListScreenState extends State<CampaignListScreen> {
               // Campaign image
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: Image.network(
-                  campaign['images'][0],
-                  width: 80,
-                  height: 80,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    width: 80,
-                    height: 80,
-                    color: Colors.grey.shade200,
-                    child: const Icon(Icons.image, color: Colors.grey),
-                  ),
-                ),
+                child: imageUrl.isNotEmpty
+                    ? Image.network(
+                        imageUrl,
+                        width: 80,
+                        height: 80,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => Container(
+                          width: 80,
+                          height: 80,
+                          color: Colors.grey.shade200,
+                          child: const Icon(Icons.image, color: Colors.grey),
+                        ),
+                      )
+                    : Container(
+                        width: 80,
+                        height: 80,
+                        color: Colors.grey.shade200,
+                        child: const Icon(Icons.campaign, color: Colors.grey),
+                      ),
               ),
               const SizedBox(width: 12),
 
@@ -225,7 +251,7 @@ class _CampaignListScreenState extends State<CampaignListScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      campaign['title'],
+                      campaign['title'] ?? 'Campaign',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -234,7 +260,7 @@ class _CampaignListScreenState extends State<CampaignListScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      campaign['description'],
+                      campaign['description'] ?? '',
                       style: TextStyle(
                         fontSize: 12,
                         color: Colors.grey.shade600,
@@ -246,13 +272,26 @@ class _CampaignListScreenState extends State<CampaignListScreen> {
                     const SizedBox(height: 8),
                     Row(
                       children: [
+                        Icon(Icons.people_outline, size: 14, color: Colors.grey.shade500),
+                        const SizedBox(width: 4),
                         Text(
-                          '${campaign['participants']} people joined',
+                          '${campaign['participants'] ?? '0'}+ people joined',
                           style: TextStyle(
                             fontSize: 11,
                             color: Colors.grey.shade500,
                           ),
                         ),
+                        if (widget.isVolunteerView && campaign['ngoName'] != null) ...[
+                          const Spacer(),
+                          Text(
+                            'by ${campaign['ngoName']}',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: primary,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ],

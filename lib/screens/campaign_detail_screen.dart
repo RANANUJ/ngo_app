@@ -1,9 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class CampaignDetailScreen extends StatefulWidget {
   final Map<String, dynamic> campaign;
+  final bool isVolunteerView;
 
-  const CampaignDetailScreen({Key? key, required this.campaign}) : super(key: key);
+  const CampaignDetailScreen({
+    Key? key,
+    required this.campaign,
+    this.isVolunteerView = false,
+  }) : super(key: key);
 
   @override
   State<CampaignDetailScreen> createState() => _CampaignDetailScreenState();
@@ -13,6 +20,91 @@ class _CampaignDetailScreenState extends State<CampaignDetailScreen> {
   static const Color primary = Color(0xFF0099B8);
   int _currentImageIndex = 0;
   final PageController _pageController = PageController();
+  bool _isJoining = false;
+  bool _hasJoined = false;
+  
+  // Expansion states for View more/less
+  bool _isDescriptionExpanded = false;
+  bool _isPurposeExpanded = false;
+  bool _isTargetExpanded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.isVolunteerView) {
+      _checkIfJoined();
+    }
+  }
+
+  Future<void> _checkIfJoined() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null || widget.campaign['id'] == null) return;
+
+    final doc = await FirebaseFirestore.instance
+        .collection('campaign_participants')
+        .doc('${widget.campaign['id']}_${user.uid}')
+        .get();
+
+    if (mounted) {
+      setState(() {
+        _hasJoined = doc.exists;
+      });
+    }
+  }
+
+  Future<void> _joinCampaign() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please login to join')),
+      );
+      return;
+    }
+
+    setState(() => _isJoining = true);
+
+    try {
+      final campaignId = widget.campaign['id'];
+      
+      // Add participant
+      await FirebaseFirestore.instance
+          .collection('campaign_participants')
+          .doc('${campaignId}_${user.uid}')
+          .set({
+        'campaignId': campaignId,
+        'userId': user.uid,
+        'joinedAt': FieldValue.serverTimestamp(),
+      });
+
+      // Update participant count
+      await FirebaseFirestore.instance
+          .collection('campaigns')
+          .doc(campaignId)
+          .update({
+        'participants': FieldValue.increment(1),
+      });
+
+      if (mounted) {
+        setState(() {
+          _hasJoined = true;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Successfully joined the campaign!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error joining campaign: $e')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isJoining = false);
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -145,25 +237,36 @@ class _CampaignDetailScreenState extends State<CampaignDetailScreen> {
             _buildSectionTitle('Short Description of Campaign'),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-              child: RichText(
-                text: TextSpan(
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey.shade700,
-                    height: 1.4,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    campaign['description'] ?? '',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey.shade700,
+                      height: 1.5,
+                    ),
+                    maxLines: _isDescriptionExpanded ? null : 5,
+                    overflow: _isDescriptionExpanded ? null : TextOverflow.ellipsis,
                   ),
-                  children: [
-                    TextSpan(text: campaign['description'] ?? ''),
-                    const TextSpan(text: ' '),
-                    TextSpan(
-                      text: 'View more',
+                  const SizedBox(height: 4),
+                  GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _isDescriptionExpanded = !_isDescriptionExpanded;
+                      });
+                    },
+                    child: Text(
+                      _isDescriptionExpanded ? 'View less' : 'View more',
                       style: TextStyle(
                         color: primary,
                         decoration: TextDecoration.underline,
+                        fontSize: 14,
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
 
@@ -176,7 +279,7 @@ class _CampaignDetailScreenState extends State<CampaignDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  ...purposes.map((purpose) => Padding(
+                  ...((_isPurposeExpanded ? purposes : purposes.take(3)).map((purpose) => Padding(
                     padding: const EdgeInsets.only(bottom: 6),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -194,18 +297,23 @@ class _CampaignDetailScreenState extends State<CampaignDetailScreen> {
                         ),
                       ],
                     ),
-                  )),
-                  GestureDetector(
-                    onTap: () {},
-                    child: Text(
-                      'View more',
-                      style: TextStyle(
-                        color: primary,
-                        decoration: TextDecoration.underline,
-                        fontSize: 14,
+                  ))),
+                  if (purposes.length > 3)
+                    GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _isPurposeExpanded = !_isPurposeExpanded;
+                        });
+                      },
+                      child: Text(
+                        _isPurposeExpanded ? 'View less' : 'View more',
+                        style: TextStyle(
+                          color: primary,
+                          decoration: TextDecoration.underline,
+                          fontSize: 14,
+                        ),
                       ),
                     ),
-                  ),
                 ],
               ),
             ),
@@ -219,7 +327,7 @@ class _CampaignDetailScreenState extends State<CampaignDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  ...targets.map((target) => Padding(
+                  ...((_isTargetExpanded ? targets : targets.take(3)).map((target) => Padding(
                     padding: const EdgeInsets.only(bottom: 6),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -237,18 +345,23 @@ class _CampaignDetailScreenState extends State<CampaignDetailScreen> {
                         ),
                       ],
                     ),
-                  )),
-                  GestureDetector(
-                    onTap: () {},
-                    child: Text(
-                      'View more',
-                      style: TextStyle(
-                        color: primary,
-                        decoration: TextDecoration.underline,
-                        fontSize: 14,
+                  ))),
+                  if (targets.length > 3)
+                    GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _isTargetExpanded = !_isTargetExpanded;
+                        });
+                      },
+                      child: Text(
+                        _isTargetExpanded ? 'View less' : 'View more',
+                        style: TextStyle(
+                          color: primary,
+                          decoration: TextDecoration.underline,
+                          fontSize: 14,
+                        ),
                       ),
                     ),
-                  ),
                 ],
               ),
             ),
@@ -259,87 +372,100 @@ class _CampaignDetailScreenState extends State<CampaignDetailScreen> {
       ),
 
       // Bottom action bar
-      bottomNavigationBar: Container(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, -2),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            // Join Campaign button
-            Expanded(
-              child: ElevatedButton(
-                onPressed: () {},
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: primary,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+      bottomNavigationBar: widget.isVolunteerView
+          ? Container(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, -2),
                   ),
-                  elevation: 0,
-                ),
-                child: const Text(
-                  'Join Campaign',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+                ],
               ),
-            ),
-            const SizedBox(width: 16),
-
-            // Share button
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey.shade300),
-                    borderRadius: BorderRadius.circular(8),
+              child: Row(
+                children: [
+                  // Join Campaign button
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: _hasJoined || _isJoining ? null : _joinCampaign,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _hasJoined ? Colors.green : primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        elevation: 0,
+                        disabledBackgroundColor: _hasJoined ? Colors.green : Colors.grey,
+                      ),
+                      child: _isJoining
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : Text(
+                              _hasJoined ? 'Joined ✓' : 'Join Campaign',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                    ),
                   ),
-                  child: Icon(Icons.share_outlined, color: Colors.grey.shade600, size: 22),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Share',
-                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
-                ),
-              ],
-            ),
-            const SizedBox(width: 12),
+                  const SizedBox(width: 16),
 
-            // Contact button
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey.shade300),
-                    borderRadius: BorderRadius.circular(8),
+                  // Share button
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey.shade300),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(Icons.share_outlined, color: Colors.grey.shade600, size: 22),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Share',
+                        style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                      ),
+                    ],
                   ),
-                  child: Icon(Icons.phone_outlined, color: Colors.grey.shade600, size: 22),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Contact',
-                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
+                  const SizedBox(width: 12),
+
+                  // Contact button
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey.shade300),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(Icons.phone_outlined, color: Colors.grey.shade600, size: 22),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Contact',
+                        style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            )
+          : null,
     );
   }
 

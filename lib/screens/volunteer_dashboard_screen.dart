@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'user_type_screen.dart';
+import 'discover_ngo_screen.dart';
+import 'campaign_list_screen.dart';
 
 class VolunteerDashboardScreen extends StatefulWidget {
   const VolunteerDashboardScreen({Key? key}) : super(key: key);
@@ -590,11 +592,12 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
     required Color bgColor,
   }) {
     return GestureDetector(
-      onTap: () => _showComingSoon(label),
+      onTap: () => _handleFeatureTap(label),
       child: Container(
         decoration: BoxDecoration(
-          color: bgColor,
+          color: Colors.white,
           borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey.shade300, width: 1),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -603,17 +606,17 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
               borderRadius: BorderRadius.circular(8),
               child: Image.asset(
                 imagePath,
-                width: 60,
-                height: 60,
+                width: 75,
+                height: 75,
                 fit: BoxFit.contain,
                 errorBuilder: (context, error, stackTrace) => Container(
-                  width: 60,
-                  height: 60,
+                  width: 75,
+                  height: 75,
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Icon(Icons.image, color: primary, size: 30),
+                  child: Icon(Icons.image, color: primary, size: 35),
                 ),
               ),
             ),
@@ -636,6 +639,24 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
         ),
       ),
     );
+  }
+
+  void _handleFeatureTap(String label) {
+    if (label == 'Discover NGO') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const DiscoverNgoScreen()),
+      );
+    } else if (label == 'CSR Integration') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const CampaignListScreen(isVolunteerView: true),
+        ),
+      );
+    } else {
+      _showComingSoon(label);
+    }
   }
 
   Widget _buildExploreTab() {
