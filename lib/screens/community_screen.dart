@@ -7,6 +7,8 @@ import 'create_community_screen.dart';
 import 'create_post_screen.dart';
 import 'community_events_screen.dart';
 import 'ask_experts_screen.dart';
+import 'all_communities_screen.dart';
+import 'all_posts_screen.dart';
 
 class CommunityScreen extends StatefulWidget {
   final String? userId;
@@ -165,18 +167,51 @@ class _CommunityScreenState extends State<CommunityScreen>
             const SizedBox(height: 16),
             // Popular Community Section
             _buildSectionHeader('Popular Community', () {
-              // Navigate to all communities
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => AllCommunitiesScreen(
+                    userId: widget.userId,
+                    userName: widget.userName,
+                    userPhoto: widget.userPhoto,
+                    userType: widget.userType,
+                  ),
+                ),
+              );
             }),
             const SizedBox(height: 12),
             _buildPopularCommunities(),
             const SizedBox(height: 24),
             // Your Community Section
-            _buildSectionHeader('Your Community', () {}),
+            _buildSectionHeader('Your Community', () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => AllCommunitiesScreen(
+                    userId: widget.userId,
+                    userName: widget.userName,
+                    userPhoto: widget.userPhoto,
+                    userType: widget.userType,
+                  ),
+                ),
+              );
+            }),
             const SizedBox(height: 12),
             _buildYourCommunities(),
             const SizedBox(height: 24),
             // Recent Posts Section
-            _buildSectionHeader('Recent Post', () {}),
+            _buildSectionHeader('Recent Post', () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => AllPostsScreen(
+                    userId: widget.userId,
+                    userName: widget.userName,
+                    userPhoto: widget.userPhoto,
+                  ),
+                ),
+              );
+            }),
             const SizedBox(height: 12),
             _buildRecentPosts(),
             const SizedBox(height: 80),

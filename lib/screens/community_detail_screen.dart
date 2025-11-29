@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'community_post_detail_screen.dart';
 import 'create_post_screen.dart';
+import 'edit_community_screen.dart';
 
 class CommunityDetailScreen extends StatefulWidget {
   final String communityId;
@@ -30,6 +31,7 @@ class _CommunityDetailScreenState extends State<CommunityDetailScreen>
   late TabController _tabController;
   bool _isMember = false;
   bool _isLoading = true;
+  bool _isCreator = false;
   Map<String, dynamic>? _communityData;
 
   @override
@@ -54,8 +56,10 @@ class _CommunityDetailScreenState extends State<CommunityDetailScreen>
           .get();
 
       if (doc.exists) {
+        final userId = widget.userId ?? FirebaseAuth.instance.currentUser?.uid;
         setState(() {
           _communityData = doc.data();
+          _isCreator = _communityData?['creatorId'] == userId;
           _isLoading = false;
         });
       }
@@ -76,6 +80,193 @@ class _CommunityDetailScreenState extends State<CommunityDetailScreen>
         .get();
 
     setState(() => _isMember = memberDoc.exists);
+  }
+
+  void _showCommunityOptions() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            if (_isCreator) ...[
+              ListTile(
+                leading: Icon(Icons.edit, color: primary),
+                title: const Text('Edit Community'),
+                subtitle: const Text('Update name, description, privacy'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _editCommunity();
+                },
+              ),
+              ListTile(
+                leading: Icon(
+                  _communityData?['isPublic'] == true ? Icons.lock : Icons.public,
+                  color: Colors.orange,
+                ),
+                title: Text(
+                  _communityData?['isPublic'] == true 
+                      ? 'Make Private' 
+                      : 'Make Public',
+                ),
+                subtitle: Text(
+                  _communityData?['isPublic'] == true 
+                      ? 'Only invited members can join' 
+                      : 'Anyone can find and join',
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  _togglePrivacy();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete, color: Colors.red),
+                title: const Text('Delete Community', style: TextStyle(color: Colors.red)),
+                subtitle: const Text('This action cannot be undone'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _confirmDeleteCommunity();
+                },
+              ),
+              const Divider(),
+            ],
+            ListTile(
+              leading: Icon(Icons.share, color: Colors.grey.shade700),
+              title: const Text('Share Community'),
+              onTap: () => Navigator.pop(context),
+            ),
+            ListTile(
+              leading: Icon(Icons.flag_outlined, color: Colors.grey.shade700),
+              title: const Text('Report Community'),
+              onTap: () => Navigator.pop(context),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _editCommunity() async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => EditCommunityScreen(
+          communityId: widget.communityId,
+          communityData: _communityData!,
+        ),
+      ),
+    );
+
+    if (result == true) {
+      _loadCommunityData();
+    }
+  }
+
+  Future<void> _togglePrivacy() async {
+    try {
+      final newPrivacy = !(_communityData?['isPublic'] ?? true);
+      await FirebaseFirestore.instance
+          .collection('communities')
+          .doc(widget.communityId)
+          .update({'isPublic': newPrivacy});
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            newPrivacy 
+                ? 'Community is now Public' 
+                : 'Community is now Private',
+          ),
+          backgroundColor: Colors.green,
+        ),
+      );
+      _loadCommunityData();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
+    }
+  }
+
+  void _confirmDeleteCommunity() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Community'),
+        content: const Text(
+          'Are you sure you want to delete this community? This will remove all posts, members, and data. This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _deleteCommunity();
+            },
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteCommunity() async {
+    try {
+      // Delete all members
+      final members = await FirebaseFirestore.instance
+          .collection('communities')
+          .doc(widget.communityId)
+          .collection('members')
+          .get();
+
+      for (var doc in members.docs) {
+        await doc.reference.delete();
+      }
+
+      // Delete all posts in this community
+      final posts = await FirebaseFirestore.instance
+          .collection('community_posts')
+          .where('communityId', isEqualTo: widget.communityId)
+          .get();
+
+      for (var doc in posts.docs) {
+        await doc.reference.delete();
+      }
+
+      // Delete the community
+      await FirebaseFirestore.instance
+          .collection('communities')
+          .doc(widget.communityId)
+          .delete();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Community deleted'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      Navigator.pop(context);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error deleting community: $e')),
+      );
+    }
   }
 
   Future<void> _toggleMembership() async {
@@ -171,7 +362,7 @@ class _CommunityDetailScreenState extends State<CommunityDetailScreen>
             actions: [
               IconButton(
                 icon: const Icon(Icons.more_vert, color: Colors.white),
-                onPressed: () {},
+                onPressed: _showCommunityOptions,
               ),
             ],
             flexibleSpace: FlexibleSpaceBar(

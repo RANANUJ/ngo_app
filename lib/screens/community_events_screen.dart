@@ -149,7 +149,7 @@ class _CommunityEventsScreenState extends State<CommunityEventsScreen> {
         }
 
         return SizedBox(
-          height: 220,
+          height: 250,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -233,7 +233,7 @@ class _CommunityEventsScreenState extends State<CommunityEventsScreen> {
         }
 
         return SizedBox(
-          height: 220,
+          height: 250,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -256,7 +256,7 @@ class _CommunityEventsScreenState extends State<CommunityEventsScreen> {
 
     return Container(
       width: 280,
-      margin: const EdgeInsets.only(right: 16),
+      margin: const EdgeInsets.only(right: 16, bottom: 8),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -279,11 +279,11 @@ class _CommunityEventsScreenState extends State<CommunityEventsScreen> {
                 child: imageUrl != null && imageUrl.toString().isNotEmpty
                     ? Image.network(
                         imageUrl.toString(),
-                        height: 120,
+                        height: 100,
                         width: double.infinity,
                         fit: BoxFit.cover,
                         errorBuilder: (_, __, ___) => Container(
-                          height: 120,
+                          height: 100,
                           color: primary.withOpacity(0.2),
                           child: Center(
                             child: Icon(Icons.event, color: primary, size: 40),
@@ -291,7 +291,7 @@ class _CommunityEventsScreenState extends State<CommunityEventsScreen> {
                         ),
                       )
                     : Container(
-                        height: 120,
+                        height: 100,
                         color: primary.withOpacity(0.2),
                         child: Center(
                           child: Icon(Icons.event, color: primary, size: 40),
@@ -304,7 +304,7 @@ class _CommunityEventsScreenState extends State<CommunityEventsScreen> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: eventType == 'Campaign' ? Colors.blue : Colors.orange,
+                    color: eventType == 'Campaign' ? primary : Colors.orange,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
@@ -320,47 +320,54 @@ class _CommunityEventsScreenState extends State<CommunityEventsScreen> {
             ],
           ),
           // Content
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  description,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey.shade600,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 8),
-                if (eventDate != null)
-                  Row(
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(Icons.calendar_today, size: 14, color: primary),
-                      const SizedBox(width: 4),
                       Text(
-                        _formatDate(eventDate),
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: primary,
-                          fontWeight: FontWeight.w500,
+                        title,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        description,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade600,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
-              ],
+                  if (eventDate != null)
+                    Row(
+                      children: [
+                        Icon(Icons.calendar_today, size: 14, color: primary),
+                        const SizedBox(width: 4),
+                        Text(
+                          _formatDate(eventDate),
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: primary,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                ],
+              ),
             ),
           ),
         ],
