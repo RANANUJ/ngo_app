@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'screens/splash_screen.dart';
+import 'utils/seed_government_schemes.dart';
 
 // IMPORTANT: Add your platform config files from the Firebase console:
 // - Android: place `google-services.json` into `android/app/`
@@ -14,6 +15,10 @@ Future<void> main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  
+  // Seed government schemes (will reseed if less than 10 schemes exist)
+  await GovernmentSchemeSeeder.seedSchemes();
+  
   runApp(const MainApp());
 }
 

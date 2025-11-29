@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/ngo_registration_service.dart';
+import 'government_schemes_screen.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({Key? key}) : super(key: key);
@@ -51,6 +52,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           ),
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.account_balance, color: Colors.white),
+            tooltip: 'Government Schemes',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const GovernmentSchemesScreen(isAdmin: true),
+                ),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.white),
             onPressed: () {
@@ -559,6 +572,7 @@ class _RegistrationDetailsSheet extends StatelessWidget {
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
+              
               Expanded(
                 child: ListView(
                   controller: scrollController,

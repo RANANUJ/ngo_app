@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 import 'user_type_screen.dart';
 import 'discover_ngo_screen.dart';
 import 'campaign_list_screen.dart';
+import 'government_schemes_screen.dart';
 
 class VolunteerDashboardScreen extends StatefulWidget {
   const VolunteerDashboardScreen({Key? key}) : super(key: key);
@@ -16,17 +21,98 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
   static const Color orange = Color(0xFFFF6B35);
   int _currentIndex = 0;
   
-  String get userName {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user?.displayName != null && user!.displayName!.isNotEmpty) {
-      return user.displayName!.split(' ').first; // Get first name
-    }
-    return 'User';
+  // Profile data
+  String? _profilePhotoUrl;
+  String _userName = 'User';
+  String _userEmail = '';
+  String _userPhone = '';
+  String _userBio = '';
+  String _userLocation = '';
+  
+  // Stats
+  int _eventsJoined = 0;
+  int _ngosFollowed = 0;
+  int _totalDonated = 0;
+  int _hoursVolunteered = 0;
+  int _campaignsJoined = 0;
+  
+  bool _isLoadingProfile = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserProfile();
   }
 
-  String? get userPhotoUrl {
-    return FirebaseAuth.instance.currentUser?.photoURL;
+  Future<void> _loadUserProfile() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    try {
+      // Load profile from Firestore
+      final doc = await FirebaseFirestore.instance
+          .collection('volunteers')
+          .doc(user.uid)
+          .get();
+
+      if (doc.exists) {
+        final data = doc.data()!;
+        setState(() {
+          _profilePhotoUrl = data['photoUrl'] ?? user.photoURL;
+          _userName = data['displayName'] ?? user.displayName ?? 'User';
+          _userEmail = data['email'] ?? user.email ?? '';
+          _userPhone = data['phone'] ?? '';
+          _userBio = data['bio'] ?? '';
+          _userLocation = data['location'] ?? '';
+          _eventsJoined = data['eventsJoined'] ?? 0;
+          _ngosFollowed = data['ngosFollowed'] ?? 0;
+          _totalDonated = data['totalDonated'] ?? 0;
+          _hoursVolunteered = data['hoursVolunteered'] ?? 0;
+        });
+      } else {
+        // Create initial profile document
+        await FirebaseFirestore.instance
+            .collection('volunteers')
+            .doc(user.uid)
+            .set({
+          'displayName': user.displayName ?? 'User',
+          'email': user.email ?? '',
+          'photoUrl': user.photoURL,
+          'phone': '',
+          'bio': '',
+          'location': '',
+          'eventsJoined': 0,
+          'ngosFollowed': 0,
+          'totalDonated': 0,
+          'hoursVolunteered': 0,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+        setState(() {
+          _userName = user.displayName ?? 'User';
+          _userEmail = user.email ?? '';
+          _profilePhotoUrl = user.photoURL;
+        });
+      }
+
+      // Load campaigns joined count
+      final campaignsCount = await FirebaseFirestore.instance
+          .collection('campaign_participants')
+          .where('userId', isEqualTo: user.uid)
+          .get();
+      
+      setState(() {
+        _campaignsJoined = campaignsCount.docs.length;
+        _isLoadingProfile = false;
+      });
+    } catch (e) {
+      debugPrint('Error loading profile: $e');
+      setState(() => _isLoadingProfile = false);
+    }
   }
+
+  String get userName => _userName.split(' ').first;
+
+  String? get userPhotoUrl => _profilePhotoUrl;
 
   @override
   Widget build(BuildContext context) {
@@ -647,11 +733,18 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
         context,
         MaterialPageRoute(builder: (context) => const DiscoverNgoScreen()),
       );
-    } else if (label == 'CSR Integration') {
+    } else if (label == 'Volunteer') {
       Navigator.push(
         context,
         MaterialPageRoute(
           builder: (context) => const CampaignListScreen(isVolunteerView: true),
+        ),
+      );
+    } else if (label == 'Govt Prog.') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const GovernmentSchemesScreen(),
         ),
       );
     } else {
@@ -725,6 +818,10 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
   Widget _buildProfileTab() {
     final user = FirebaseAuth.instance.currentUser;
     
+    if (_isLoadingProfile) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -756,13 +853,15 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
                         color: primary.withOpacity(0.1),
                         border: Border.all(color: primary.withOpacity(0.3), width: 3),
                       ),
-                      child: userPhotoUrl != null
+                      child: _profilePhotoUrl != null && _profilePhotoUrl!.isNotEmpty
                           ? ClipOval(
                               child: Image.network(
-                                userPhotoUrl!,
+                                _profilePhotoUrl!,
                                 fit: BoxFit.cover,
                                 width: 100,
                                 height: 100,
+                                errorBuilder: (context, error, stackTrace) =>
+                                    Icon(Icons.person, size: 50, color: primary),
                               ),
                             )
                           : Icon(Icons.person, size: 50, color: primary),
@@ -771,7 +870,7 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
                       bottom: 0,
                       right: 0,
                       child: GestureDetector(
-                        onTap: () => _showComingSoon('Change Photo'),
+                        onTap: _pickAndUploadProfilePhoto,
                         child: Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
@@ -787,7 +886,7 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  user?.displayName ?? 'User',
+                  _userName,
                   style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
@@ -795,15 +894,45 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  user?.email ?? '',
+                  _userEmail,
                   style: TextStyle(
                     color: Colors.grey.shade600,
                     fontSize: 14,
                   ),
                 ),
+                if (_userLocation.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.location_on, size: 14, color: Colors.grey.shade500),
+                      const SizedBox(width: 4),
+                      Text(
+                        _userLocation,
+                        style: TextStyle(
+                          color: Colors.grey.shade500,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+                if (_userBio.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    _userBio,
+                    style: TextStyle(
+                      color: Colors.grey.shade600,
+                      fontSize: 13,
+                    ),
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
                 const SizedBox(height: 16),
                 OutlinedButton.icon(
-                  onPressed: () => _showComingSoon('Edit Profile'),
+                  onPressed: _showEditProfileDialog,
                   icon: const Icon(Icons.edit, size: 18),
                   label: const Text('Edit Profile'),
                   style: OutlinedButton.styleFrom(
@@ -821,7 +950,7 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
           
           const SizedBox(height: 20),
           
-          // Stats
+          // Stats - Real-time data
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
@@ -835,13 +964,76 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
                 ),
               ],
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
+            child: Column(
               children: [
-                _buildStatItem('0', 'Events\nJoined', Colors.blue),
-                _buildStatItem('0', 'NGOs\nFollowed', Colors.green),
-                _buildStatItem('₹0', 'Total\nDonated', Colors.orange),
-                _buildStatItem('0', 'Hours\nVolunteered', Colors.purple),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _buildStatItem('$_campaignsJoined', 'Campaigns\nJoined', Colors.blue),
+                    _buildStatItem('$_ngosFollowed', 'NGOs\nFollowed', Colors.green),
+                    _buildStatItem('₹$_totalDonated', 'Total\nDonated', Colors.orange),
+                    _buildStatItem('$_hoursVolunteered', 'Hours\nVolunteered', Colors.purple),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          
+          const SizedBox(height: 20),
+          
+          // Achievements Section
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [primary, primary.withOpacity(0.8)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.emoji_events, color: Colors.amber, size: 24),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Your Impact',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  _campaignsJoined > 0
+                      ? 'Great job! You\'ve joined $_campaignsJoined campaign${_campaignsJoined > 1 ? 's' : ''} so far.'
+                      : 'Start your journey by joining a campaign!',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                LinearProgressIndicator(
+                  value: (_campaignsJoined / 10).clamp(0.0, 1.0),
+                  backgroundColor: Colors.white.withOpacity(0.3),
+                  valueColor: const AlwaysStoppedAnimation<Color>(Colors.amber),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${((_campaignsJoined / 10) * 100).clamp(0, 100).toInt()}% to next badge',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.8),
+                    fontSize: 12,
+                  ),
+                ),
               ],
             ),
           ),
@@ -863,11 +1055,28 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
             ),
             child: Column(
               children: [
+                _buildMenuItem(Icons.campaign, 'My Campaigns', () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const CampaignListScreen(isVolunteerView: true),
+                    ),
+                  );
+                }),
+                _buildMenuDivider(),
                 _buildMenuItem(Icons.history, 'Donation History', () => _showComingSoon('Donation History')),
+                _buildMenuDivider(),
                 _buildMenuItem(Icons.event_available, 'My Events', () => _showComingSoon('My Events')),
+                _buildMenuDivider(),
                 _buildMenuItem(Icons.favorite_border, 'Saved NGOs', () => _showComingSoon('Saved NGOs')),
+                _buildMenuDivider(),
+                _buildMenuItem(Icons.notifications_outlined, 'Notifications', () => _showComingSoon('Notifications')),
+                _buildMenuDivider(),
                 _buildMenuItem(Icons.settings, 'Settings', () => _showComingSoon('Settings')),
+                _buildMenuDivider(),
                 _buildMenuItem(Icons.help_outline, 'Help & Support', () => _showComingSoon('Help')),
+                _buildMenuDivider(),
+                _buildMenuItem(Icons.privacy_tip_outlined, 'Privacy Policy', () => _showComingSoon('Privacy Policy')),
               ],
             ),
           ),
@@ -895,6 +1104,211 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
         ],
       ),
     );
+  }
+
+  Widget _buildMenuDivider() {
+    return Divider(height: 1, color: Colors.grey.shade200, indent: 56);
+  }
+
+  Future<void> _pickAndUploadProfilePhoto() async {
+    try {
+      final picker = ImagePicker();
+      final XFile? image = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 512,
+        maxHeight: 512,
+        imageQuality: 80,
+      );
+
+      if (image == null) return;
+
+      // Show loading
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        Navigator.pop(context);
+        return;
+      }
+
+      // Upload to Firebase Storage
+      final ref = FirebaseStorage.instance
+          .ref()
+          .child('volunteer_photos')
+          .child('${user.uid}.jpg');
+
+      await ref.putFile(File(image.path));
+      final photoUrl = await ref.getDownloadURL();
+
+      // Update Firestore
+      await FirebaseFirestore.instance
+          .collection('volunteers')
+          .doc(user.uid)
+          .update({'photoUrl': photoUrl});
+
+      // Update Firebase Auth profile
+      await user.updatePhotoURL(photoUrl);
+
+      setState(() {
+        _profilePhotoUrl = photoUrl;
+      });
+
+      Navigator.pop(context);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Profile photo updated successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error updating photo: $e')),
+      );
+    }
+  }
+
+  void _showEditProfileDialog() {
+    final nameController = TextEditingController(text: _userName);
+    final phoneController = TextEditingController(text: _userPhone);
+    final bioController = TextEditingController(text: _userBio);
+    final locationController = TextEditingController(text: _userLocation);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Edit Profile'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                decoration: InputDecoration(
+                  labelText: 'Full Name',
+                  prefixIcon: const Icon(Icons.person_outline),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: phoneController,
+                keyboardType: TextInputType.phone,
+                decoration: InputDecoration(
+                  labelText: 'Phone Number',
+                  prefixIcon: const Icon(Icons.phone_outlined),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: locationController,
+                decoration: InputDecoration(
+                  labelText: 'Location',
+                  prefixIcon: const Icon(Icons.location_on_outlined),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: bioController,
+                maxLines: 3,
+                decoration: InputDecoration(
+                  labelText: 'Bio',
+                  prefixIcon: const Icon(Icons.info_outline),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  hintText: 'Tell us about yourself...',
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _updateProfile(
+                name: nameController.text.trim(),
+                phone: phoneController.text.trim(),
+                bio: bioController.text.trim(),
+                location: locationController.text.trim(),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primary,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text('Save', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _updateProfile({
+    required String name,
+    required String phone,
+    required String bio,
+    required String location,
+  }) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      // Update Firestore
+      await FirebaseFirestore.instance
+          .collection('volunteers')
+          .doc(user.uid)
+          .update({
+        'displayName': name,
+        'phone': phone,
+        'bio': bio,
+        'location': location,
+      });
+
+      // Update Firebase Auth display name
+      await user.updateDisplayName(name);
+
+      setState(() {
+        _userName = name;
+        _userPhone = phone;
+        _userBio = bio;
+        _userLocation = location;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Profile updated successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error updating profile: $e')),
+      );
+    }
   }
 
   Widget _buildStatItem(String value, String label, Color color) {

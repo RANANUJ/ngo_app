@@ -7,6 +7,7 @@ import 'ngo_public_profile_screen.dart';
 import 'ngo_volunteers_screen.dart';
 import 'create_campaign_screen.dart';
 import 'campaign_list_screen.dart';
+import 'government_schemes_screen.dart';
 
 class NgoHomeScreen extends StatefulWidget {
   final NgoRegistrationRequest ngoData;
@@ -716,9 +717,16 @@ class _NgoHomeScreenState extends State<NgoHomeScreen> {
           ),
         );
         break;
+      case 'Govt. Schemes':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const GovernmentSchemesScreen(),
+          ),
+        );
+        break;
       case 'Donation':
       case 'Collaboration':
-      case 'Govt. Schemes':
       case 'Connection':
       default:
         ScaffoldMessenger.of(context).showSnackBar(
