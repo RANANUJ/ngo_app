@@ -9,6 +9,7 @@ import 'discover_ngo_screen.dart';
 import 'campaign_list_screen.dart';
 import 'government_schemes_screen.dart';
 import 'volunteer_opportunities_screen.dart';
+import 'community_screen.dart';
 
 class VolunteerDashboardScreen extends StatefulWidget {
   const VolunteerDashboardScreen({Key? key}) : super(key: key);
@@ -779,23 +780,12 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
   }
 
   Widget _buildCommunityTab() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.groups, size: 80, color: Colors.grey.shade400),
-          const SizedBox(height: 16),
-          Text(
-            'Community Hub',
-            style: TextStyle(fontSize: 18, color: Colors.grey.shade600),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Connect with volunteers & NGOs',
-            style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
-          ),
-        ],
-      ),
+    final user = FirebaseAuth.instance.currentUser;
+    return CommunityScreen(
+      userId: user?.uid,
+      userName: _userName,
+      userPhoto: _profilePhotoUrl,
+      userType: 'volunteer',
     );
   }
 

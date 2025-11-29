@@ -10,6 +10,7 @@ import 'campaign_list_screen.dart';
 import 'government_schemes_screen.dart';
 import 'ngo_opportunities_screen.dart';
 import 'event_calendar_screen.dart';
+import 'community_screen.dart';
 
 class NgoHomeScreen extends StatefulWidget {
   final NgoRegistrationRequest ngoData;
@@ -785,21 +786,11 @@ class _NgoHomeScreenState extends State<NgoHomeScreen> {
   }
 
   Widget _buildCommunityTab() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.people, size: 64, color: Colors.grey.shade400),
-          const SizedBox(height: 16),
-          Text(
-            'Community Coming Soon',
-            style: TextStyle(
-              color: Colors.grey.shade600,
-              fontSize: 16,
-            ),
-          ),
-        ],
-      ),
+    return CommunityScreen(
+      userId: widget.ngoData.id,
+      userName: widget.ngoData.ngoName,
+      userPhoto: _ngoLogo ?? widget.ngoData.profileImageUrl,
+      userType: 'ngo',
     );
   }
 
