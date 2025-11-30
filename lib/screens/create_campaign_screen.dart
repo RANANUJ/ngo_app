@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'dart:io';
+import 'location_picker_screen.dart';
 
 class CreateCampaignScreen extends StatefulWidget {
   final String ngoId;
@@ -26,12 +28,15 @@ class _CreateCampaignScreenState extends State<CreateCampaignScreen> {
   final _descriptionController = TextEditingController();
   final _purposeController = TextEditingController();
   final _targetController = TextEditingController();
+  final _locationController = TextEditingController();
   
   final List<File> _selectedImages = [];
   final List<String> _purposes = [];
   final List<String> _targets = [];
   
   DateTime? _selectedDate;
+  double? _latitude;
+  double? _longitude;
   bool _isLoading = false;
   final ImagePicker _picker = ImagePicker();
 
@@ -41,6 +46,7 @@ class _CreateCampaignScreenState extends State<CreateCampaignScreen> {
     _descriptionController.dispose();
     _purposeController.dispose();
     _targetController.dispose();
+    _locationController.dispose();
     super.dispose();
   }
 
@@ -156,6 +162,9 @@ class _CreateCampaignScreenState extends State<CreateCampaignScreen> {
         'purpose': _purposes,
         'target': _targets,
         'eventDate': _selectedDate != null ? Timestamp.fromDate(_selectedDate!) : null,
+        'location': _locationController.text.trim(),
+        'latitude': _latitude,
+        'longitude': _longitude,
         'participants': '0',
         'createdAt': FieldValue.serverTimestamp(),
         'status': 'active',
@@ -279,6 +288,49 @@ class _CreateCampaignScreenState extends State<CreateCampaignScreen> {
                   ),
                 ),
               ),
+              
+              const SizedBox(height: 24),
+              
+              // Location
+              _buildSectionTitle('Event Location'),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _locationController,
+                decoration: _inputDecoration('Enter location address').copyWith(
+                  suffixIcon: IconButton(
+                    icon: Icon(Icons.location_on, color: primary),
+                    onPressed: _openLocationPicker,
+                  ),
+                ),
+              ),
+              if (_latitude != null && _longitude != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Row(
+                    children: [
+                      Icon(Icons.check_circle, color: Colors.green, size: 16),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          'Location coordinates saved',
+                          style: TextStyle(color: Colors.green, fontSize: 12),
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: _previewLocation,
+                        child: Text(
+                          'Preview on Map',
+                          style: TextStyle(
+                            color: primary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               
               const SizedBox(height: 24),
               
@@ -573,5 +625,49 @@ class _CreateCampaignScreenState extends State<CreateCampaignScreen> {
         },
       ),
     );
+  }
+
+  void _openLocationPicker() async {
+    final result = await Navigator.push<Map<String, dynamic>>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => LocationPickerScreen(
+          initialLatitude: _latitude,
+          initialLongitude: _longitude,
+          initialAddress: _locationController.text,
+        ),
+      ),
+    );
+
+    if (result != null) {
+      setState(() {
+        _locationController.text = result['address'] ?? '';
+        _latitude = result['latitude'];
+        _longitude = result['longitude'];
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Location selected successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
+  }
+
+  void _previewLocation() async {
+    if (_latitude == null || _longitude == null) return;
+    
+    final url = 'https://www.google.com/maps/search/?api=1&query=$_latitude,$_longitude';
+    final uri = Uri.parse(url);
+    
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open maps')),
+        );
+      }
+    }
   }
 }

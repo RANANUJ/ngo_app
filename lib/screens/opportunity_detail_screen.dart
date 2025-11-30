@@ -563,6 +563,8 @@ class _OpportunityDetailScreenState extends State<OpportunityDetailScreen> {
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
               child: Column(
                 children: [
+                  if (opportunity['eventDate'] != null)
+                    _buildDetailRow(Icons.calendar_today, 'Event Date', _formatDate((opportunity['eventDate'] as Timestamp).toDate())),
                   _buildDetailRow(Icons.location_on, 'Location', opportunity['location'] ?? 'Not specified', onTap: _openLocation),
                   _buildDetailRow(Icons.access_time, 'Time', opportunity['time'] ?? 'Flexible'),
                   _buildDetailRow(Icons.people, 'Volunteers Needed', '${opportunity['volunteersNeeded'] ?? 'Not specified'}'),
@@ -733,5 +735,13 @@ class _OpportunityDetailScreenState extends State<OpportunityDetailScreen> {
         ),
       ),
     );
+  }
+
+  String _formatDate(DateTime date) {
+    final months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    return '${months[date.month - 1]} ${date.day}, ${date.year}';
   }
 }

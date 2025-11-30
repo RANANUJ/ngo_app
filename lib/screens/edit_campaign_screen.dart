@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'dart:io';
+import 'location_picker_screen.dart';
 
 class EditCampaignScreen extends StatefulWidget {
   final String campaignId;
@@ -24,6 +26,7 @@ class _EditCampaignScreenState extends State<EditCampaignScreen> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _titleController;
   late TextEditingController _descriptionController;
+  late TextEditingController _locationController;
   final _purposeController = TextEditingController();
   final _targetController = TextEditingController();
   
@@ -33,6 +36,8 @@ class _EditCampaignScreenState extends State<EditCampaignScreen> {
   List<String> _targets = [];
   
   DateTime? _selectedDate;
+  double? _latitude;
+  double? _longitude;
   bool _isLoading = false;
   final ImagePicker _picker = ImagePicker();
 
@@ -41,9 +46,12 @@ class _EditCampaignScreenState extends State<EditCampaignScreen> {
     super.initState();
     _titleController = TextEditingController(text: widget.campaignData['title'] ?? '');
     _descriptionController = TextEditingController(text: widget.campaignData['description'] ?? '');
+    _locationController = TextEditingController(text: widget.campaignData['location'] ?? '');
     _existingImages = List<String>.from(widget.campaignData['images'] ?? []);
     _purposes = List<String>.from(widget.campaignData['purpose'] ?? []);
     _targets = List<String>.from(widget.campaignData['target'] ?? []);
+    _latitude = widget.campaignData['latitude'] as double?;
+    _longitude = widget.campaignData['longitude'] as double?;
     
     final eventDate = widget.campaignData['eventDate'];
     if (eventDate != null && eventDate is Timestamp) {
@@ -55,6 +63,7 @@ class _EditCampaignScreenState extends State<EditCampaignScreen> {
   void dispose() {
     _titleController.dispose();
     _descriptionController.dispose();
+    _locationController.dispose();
     _purposeController.dispose();
     _targetController.dispose();
     super.dispose();
@@ -183,6 +192,9 @@ class _EditCampaignScreenState extends State<EditCampaignScreen> {
         'purpose': _purposes,
         'target': _targets,
         'eventDate': _selectedDate != null ? Timestamp.fromDate(_selectedDate!) : null,
+        'location': _locationController.text.trim(),
+        'latitude': _latitude,
+        'longitude': _longitude,
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
@@ -304,6 +316,49 @@ class _EditCampaignScreenState extends State<EditCampaignScreen> {
                   ),
                 ),
               ),
+              
+              const SizedBox(height: 24),
+              
+              // Location
+              _buildSectionTitle('Event Location'),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _locationController,
+                decoration: _inputDecoration('Enter location address').copyWith(
+                  suffixIcon: IconButton(
+                    icon: Icon(Icons.location_on, color: primary),
+                    onPressed: _openLocationPicker,
+                  ),
+                ),
+              ),
+              if (_latitude != null && _longitude != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Row(
+                    children: [
+                      Icon(Icons.check_circle, color: Colors.green, size: 16),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          'Location coordinates saved',
+                          style: TextStyle(color: Colors.green, fontSize: 12),
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: _previewLocation,
+                        child: Text(
+                          'Preview on Map',
+                          style: TextStyle(
+                            color: primary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               
               const SizedBox(height: 24),
               
@@ -577,5 +632,49 @@ class _EditCampaignScreenState extends State<EditCampaignScreen> {
         );
       }).toList(),
     );
+  }
+
+  void _openLocationPicker() async {
+    final result = await Navigator.push<Map<String, dynamic>>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => LocationPickerScreen(
+          initialLatitude: _latitude,
+          initialLongitude: _longitude,
+          initialAddress: _locationController.text,
+        ),
+      ),
+    );
+
+    if (result != null) {
+      setState(() {
+        _locationController.text = result['address'] ?? '';
+        _latitude = result['latitude'];
+        _longitude = result['longitude'];
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Location selected successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
+  }
+
+  void _previewLocation() async {
+    if (_latitude == null || _longitude == null) return;
+    
+    final url = 'https://www.google.com/maps/search/?api=1&query=$_latitude,$_longitude';
+    final uri = Uri.parse(url);
+    
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open maps')),
+        );
+      }
+    }
   }
 }

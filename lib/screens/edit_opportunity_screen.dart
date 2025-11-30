@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'location_picker_screen.dart';
 
 class EditOpportunityScreen extends StatefulWidget {
   final String opportunityId;
@@ -154,45 +155,31 @@ class _EditOpportunityScreenState extends State<EditOpportunityScreen> {
     });
   }
 
-  void _openLocationPicker() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Enter Coordinates'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              decoration: const InputDecoration(labelText: 'Latitude'),
-              keyboardType: TextInputType.number,
-              onChanged: (value) {
-                _latitude = double.tryParse(value);
-              },
-            ),
-            TextField(
-              decoration: const InputDecoration(labelText: 'Longitude'),
-              keyboardType: TextInputType.number,
-              onChanged: (value) {
-                _longitude = double.tryParse(value);
-              },
-            ),
-          ],
+  void _openLocationPicker() async {
+    final result = await Navigator.push<Map<String, dynamic>>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => LocationPickerScreen(
+          initialLatitude: _latitude,
+          initialLongitude: _longitude,
+          initialAddress: _locationController.text,
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              setState(() {});
-              Navigator.pop(context);
-            },
-            child: const Text('Save'),
-          ),
-        ],
       ),
     );
+
+    if (result != null) {
+      setState(() {
+        _locationController.text = result['address'] ?? '';
+        _latitude = result['latitude'];
+        _longitude = result['longitude'];
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Location selected successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
   }
 
   Future<List<String>> _uploadNewImages() async {

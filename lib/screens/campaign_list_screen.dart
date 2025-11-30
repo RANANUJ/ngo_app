@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'campaign_detail_screen.dart';
 
 class CampaignListScreen extends StatefulWidget {
@@ -188,6 +189,10 @@ class _CampaignListScreenState extends State<CampaignListScreen> {
   Widget _buildCampaignCard(Map<String, dynamic> campaign) {
     final images = List<String>.from(campaign['images'] ?? []);
     final imageUrl = images.isNotEmpty ? images[0] : '';
+    final eventDate = (campaign['eventDate'] as Timestamp?)?.toDate();
+    final location = campaign['location'] as String?;
+    final latitude = campaign['latitude'] as double?;
+    final longitude = campaign['longitude'] as double?;
 
     return GestureDetector(
       onTap: () {
@@ -232,18 +237,18 @@ class _CampaignListScreenState extends State<CampaignListScreen> {
                     ? Image.network(
                         imageUrl,
                         width: 80,
-                        height: 80,
+                        height: 100,
                         fit: BoxFit.cover,
                         errorBuilder: (context, error, stackTrace) => Container(
                           width: 80,
-                          height: 80,
+                          height: 100,
                           color: Colors.grey.shade200,
                           child: const Icon(Icons.image, color: Colors.grey),
                         ),
                       )
                     : Container(
                         width: 80,
-                        height: 80,
+                        height: 100,
                         color: Colors.grey.shade200,
                         child: const Icon(Icons.campaign, color: Colors.grey),
                       ),
@@ -271,29 +276,79 @@ class _CampaignListScreenState extends State<CampaignListScreen> {
                         color: Colors.grey.shade600,
                         height: 1.3,
                       ),
-                      maxLines: 3,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 6),
+                    // Date row
+                    if (eventDate != null)
+                      Row(
+                        children: [
+                          Icon(Icons.calendar_today, size: 12, color: primary),
+                          const SizedBox(width: 4),
+                          Text(
+                            _formatDate(eventDate),
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: primary,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    // Location row
+                    if (location != null && location.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      GestureDetector(
+                        onTap: () => _openLocation(location, latitude, longitude),
+                        child: Row(
+                          children: [
+                            Icon(Icons.location_on, size: 12, color: const Color(0xFF0099B8)),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                location,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: const Color(0xFF0099B8),
+                                  fontWeight: FontWeight.w500,
+                                  decoration: (latitude != null && longitude != null)
+                                      ? TextDecoration.underline
+                                      : null,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if (latitude != null && longitude != null)
+                              Icon(Icons.open_in_new, size: 10, color: const Color(0xFF0099B8)),
+                          ],
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 4),
                     Row(
                       children: [
-                        Icon(Icons.people_outline, size: 14, color: Colors.grey.shade500),
+                        Icon(Icons.people_outline, size: 12, color: Colors.grey.shade500),
                         const SizedBox(width: 4),
                         Text(
-                          '${campaign['participants'] ?? '0'}+ people joined',
+                          '${campaign['participants'] ?? '0'}+ joined',
                           style: TextStyle(
-                            fontSize: 11,
+                            fontSize: 10,
                             color: Colors.grey.shade500,
                           ),
                         ),
                         if (widget.isVolunteerView && campaign['ngoName'] != null) ...[
                           const Spacer(),
-                          Text(
-                            'by ${campaign['ngoName']}',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: primary,
-                              fontWeight: FontWeight.w500,
+                          Flexible(
+                            child: Text(
+                              'by ${campaign['ngoName']}',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: primary,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ],
@@ -307,5 +362,36 @@ class _CampaignListScreenState extends State<CampaignListScreen> {
         ),
       ),
     );
+  }
+
+  String _formatDate(DateTime date) {
+    final months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    return '${months[date.month - 1]} ${date.day}, ${date.year}';
+  }
+
+  Future<void> _openLocation(String address, double? lat, double? lng) async {
+    String url;
+    if (lat != null && lng != null) {
+      // Use coordinates
+      url = 'https://www.google.com/maps/search/?api=1&query=$lat,$lng';
+    } else {
+      // Use address
+      url = 'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(address)}';
+    }
+    
+    final uri = Uri.parse(url);
+    
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open maps')),
+        );
+      }
+    }
   }
 }

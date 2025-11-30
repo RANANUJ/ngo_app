@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'edit_campaign_screen.dart';
 
 class CampaignDetailScreen extends StatefulWidget {
@@ -311,6 +312,110 @@ class _CampaignDetailScreenState extends State<CampaignDetailScreen> {
               ),
             ),
 
+            // Event Date and Location
+            if (campaign['eventDate'] != null || (campaign['location'] != null && (campaign['location'] as String).isNotEmpty))
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: primary.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: primary.withOpacity(0.2)),
+                  ),
+                  child: Column(
+                    children: [
+                      // Event Date
+                      if (campaign['eventDate'] != null)
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: primary.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Icon(Icons.calendar_today, color: primary, size: 20),
+                            ),
+                            const SizedBox(width: 12),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Event Date',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
+                                Text(
+                                  _formatDate((campaign['eventDate'] as Timestamp).toDate()),
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: primary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      // Location
+                      if (campaign['location'] != null && (campaign['location'] as String).isNotEmpty) ...[
+                        if (campaign['eventDate'] != null) const SizedBox(height: 12),
+                        GestureDetector(
+                          onTap: () => _openLocation(
+                            campaign['location'],
+                            campaign['latitude'] as double?,
+                            campaign['longitude'] as double?,
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF0099B8).withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Icon(Icons.location_on, color: Color(0xFF0099B8), size: 20),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Location',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey.shade600,
+                                      ),
+                                    ),
+                                    Text(
+                                      campaign['location'],
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: const Color(0xFF0099B8),
+                                        decoration: (campaign['latitude'] != null && campaign['longitude'] != null)
+                                            ? TextDecoration.underline
+                                            : null,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (campaign['latitude'] != null && campaign['longitude'] != null)
+                                Icon(Icons.open_in_new, color: const Color(0xFF0099B8), size: 18),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+
             // Page indicators
             if (images.length > 1)
               Padding(
@@ -583,5 +688,34 @@ class _CampaignDetailScreenState extends State<CampaignDetailScreen> {
         ),
       ),
     );
+  }
+
+  String _formatDate(DateTime date) {
+    final months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    return '${months[date.month - 1]} ${date.day}, ${date.year}';
+  }
+
+  Future<void> _openLocation(String address, double? lat, double? lng) async {
+    String url;
+    if (lat != null && lng != null) {
+      url = 'https://www.google.com/maps/search/?api=1&query=$lat,$lng';
+    } else {
+      url = 'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(address)}';
+    }
+    
+    final uri = Uri.parse(url);
+    
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open maps')),
+        );
+      }
+    }
   }
 }

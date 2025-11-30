@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'opportunity_detail_screen.dart';
 
 class VolunteerOpportunitiesScreen extends StatefulWidget {
@@ -346,6 +347,10 @@ class _VolunteerOpportunitiesScreenState extends State<VolunteerOpportunitiesScr
       {bool showApplyButton = true, String? status}) {
     final images = List<String>.from(data['images'] ?? []);
     final imageUrl = images.isNotEmpty ? images[0] : '';
+    final eventDate = (data['eventDate'] as Timestamp?)?.toDate();
+    final location = data['location'] as String?;
+    final latitude = data['latitude'] as double?;
+    final longitude = data['longitude'] as double?;
 
     return GestureDetector(
       onTap: () {
@@ -382,18 +387,18 @@ class _VolunteerOpportunitiesScreenState extends State<VolunteerOpportunitiesScr
                     ? Image.network(
                         imageUrl,
                         width: 100,
-                        height: 100,
+                        height: 120,
                         fit: BoxFit.cover,
                         errorBuilder: (context, error, stackTrace) => Container(
                           width: 100,
-                          height: 100,
+                          height: 120,
                           color: Colors.grey.shade200,
                           child: const Icon(Icons.volunteer_activism, color: Colors.grey),
                         ),
                       )
                     : Container(
                         width: 100,
-                        height: 100,
+                        height: 120,
                         color: Colors.grey.shade200,
                         child: const Icon(Icons.volunteer_activism, color: Colors.grey, size: 40),
                       ),
@@ -405,22 +410,96 @@ class _VolunteerOpportunitiesScreenState extends State<VolunteerOpportunitiesScr
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      data['ngoName'] ?? 'NGO Name',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: primary,
-                      ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            data['ngoName'] ?? 'NGO Name',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: primary,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (showApplyButton)
+                          ElevatedButton(
+                            onPressed: () => _applyForOpportunity(data),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: primary,
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              minimumSize: const Size(60, 28),
+                            ),
+                            child: const Text(
+                              'Apply',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                     const SizedBox(height: 4),
                     _buildDetailRow('Cause', data['cause'] ?? 'Not specified'),
-                    _buildDetailRow('Location', data['location'] ?? 'Not specified'),
                     _buildDetailRow('Time', data['time'] ?? 'Flexible'),
-                    _buildDetailRow('Needs', '${data['volunteersNeeded'] ?? 0}'),
-                    
+                    _buildDetailRow('Needs', '${data['volunteersNeeded'] ?? 0} volunteers'),
+                    // Event Date
+                    if (eventDate != null) ...[
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          Icon(Icons.calendar_today, size: 12, color: primary),
+                          const SizedBox(width: 4),
+                          Text(
+                            _formatDate(eventDate),
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: primary,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                    // Location (clickable)
+                    if (location != null && location.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      GestureDetector(
+                        onTap: () => _openLocation(location, latitude, longitude),
+                        child: Row(
+                          children: [
+                            Icon(Icons.location_on, size: 12, color: const Color(0xFF0099B8)),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                location,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: const Color(0xFF0099B8),
+                                  fontWeight: FontWeight.w500,
+                                  decoration: (latitude != null && longitude != null)
+                                      ? TextDecoration.underline
+                                      : null,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if (latitude != null && longitude != null)
+                              Icon(Icons.open_in_new, size: 10, color: const Color(0xFF0099B8)),
+                          ],
+                        ),
+                      ),
+                    ],
                     if (status != null) ...[
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 6),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                         decoration: BoxDecoration(
@@ -433,7 +512,7 @@ class _VolunteerOpportunitiesScreenState extends State<VolunteerOpportunitiesScr
                           status,
                           style: TextStyle(
                             color: status == 'Accepted' ? Colors.green : Colors.orange,
-                            fontSize: 12,
+                            fontSize: 11,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -442,32 +521,40 @@ class _VolunteerOpportunitiesScreenState extends State<VolunteerOpportunitiesScr
                   ],
                 ),
               ),
-
-              // Apply Now button
-              if (showApplyButton)
-                ElevatedButton(
-                  onPressed: () => _applyForOpportunity(data),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: primary,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                  ),
-                  child: const Text(
-                    'Apply Now',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
             ],
           ),
         ),
       ),
     );
+  }
+
+  String _formatDate(DateTime date) {
+    final months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    return '${months[date.month - 1]} ${date.day}, ${date.year}';
+  }
+
+  Future<void> _openLocation(String address, double? lat, double? lng) async {
+    String url;
+    if (lat != null && lng != null) {
+      url = 'https://www.google.com/maps/search/?api=1&query=$lat,$lng';
+    } else {
+      url = 'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(address)}';
+    }
+    
+    final uri = Uri.parse(url);
+    
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open maps')),
+        );
+      }
+    }
   }
 
   Widget _buildDetailRow(String label, String value) {

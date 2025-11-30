@@ -11,6 +11,7 @@ import 'government_schemes_screen.dart';
 import 'ngo_opportunities_screen.dart';
 import 'event_calendar_screen.dart';
 import 'community_screen.dart';
+import 'ngo_donation_screen.dart';
 
 class NgoHomeScreen extends StatefulWidget {
   final NgoRegistrationRequest ngoData;
@@ -837,6 +838,13 @@ class _NgoHomeScreenState extends State<NgoHomeScreen> {
         );
         break;
       case 'Donation':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => NgoDonationScreen(ngoData: widget.ngoData),
+          ),
+        );
+        break;
       case 'Connection':
       default:
         ScaffoldMessenger.of(context).showSnackBar(

@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'location_picker_screen.dart';
 
 class CreateOpportunityScreen extends StatefulWidget {
   final String ngoId;
@@ -660,95 +661,30 @@ class _CreateOpportunityScreenState extends State<CreateOpportunityScreen> {
     );
   }
 
-  void _openLocationPicker() {
-    // Show dialog to enter coordinates or use a simple location input
-    showDialog(
-      context: context,
-      builder: (context) {
-        final latController = TextEditingController(
-          text: _latitude?.toString() ?? '',
-        );
-        final lngController = TextEditingController(
-          text: _longitude?.toString() ?? '',
-        );
-        
-        return AlertDialog(
-          title: Text('Set Location Coordinates', style: TextStyle(color: primary)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'Enter GPS coordinates for precise location on map',
-                style: TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: latController,
-                keyboardType: TextInputType.numberWithOptions(decimal: true, signed: true),
-                decoration: InputDecoration(
-                  labelText: 'Latitude',
-                  hintText: 'e.g., 28.6139',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: lngController,
-                keyboardType: TextInputType.numberWithOptions(decimal: true, signed: true),
-                decoration: InputDecoration(
-                  labelText: 'Longitude',
-                  hintText: 'e.g., 77.2090',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Tip: You can get coordinates from Google Maps',
-                style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text('Cancel', style: TextStyle(color: Colors.grey)),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                final lat = double.tryParse(latController.text);
-                final lng = double.tryParse(lngController.text);
-                
-                if (lat != null && lng != null) {
-                  setState(() {
-                    _latitude = lat;
-                    _longitude = lng;
-                  });
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Location coordinates saved!'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Please enter valid coordinates'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: primary),
-              child: const Text('Save', style: TextStyle(color: Colors.white)),
-            ),
-          ],
-        );
-      },
+  void _openLocationPicker() async {
+    final result = await Navigator.push<Map<String, dynamic>>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => LocationPickerScreen(
+          initialLatitude: _latitude,
+          initialLongitude: _longitude,
+          initialAddress: _locationController.text,
+        ),
+      ),
     );
+
+    if (result != null) {
+      setState(() {
+        _locationController.text = result['address'] ?? '';
+        _latitude = result['latitude'];
+        _longitude = result['longitude'];
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Location selected successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
   }
 }

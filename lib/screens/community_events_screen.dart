@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class CommunityEventsScreen extends StatefulWidget {
   final String? userId;
@@ -253,6 +254,9 @@ class _CommunityEventsScreenState extends State<CommunityEventsScreen> {
     final imageUrl = event['imageUrl'] ?? (event['images'] as List?)?.firstOrNull;
     final eventDate = (event['eventDate'] as Timestamp?)?.toDate();
     final eventType = event['eventType'] ?? 'Event';
+    final location = event['location'] as String?;
+    final latitude = event['latitude'] as double?;
+    final longitude = event['longitude'] as double?;
 
     return Container(
       width: 280,
@@ -346,26 +350,60 @@ class _CommunityEventsScreenState extends State<CommunityEventsScreen> {
                           fontSize: 12,
                           color: Colors.grey.shade600,
                         ),
-                        maxLines: 2,
+                        maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
-                  if (eventDate != null)
-                    Row(
-                      children: [
-                        Icon(Icons.calendar_today, size: 14, color: primary),
-                        const SizedBox(width: 4),
-                        Text(
-                          _formatDate(eventDate),
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: primary,
-                            fontWeight: FontWeight.w500,
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (eventDate != null)
+                        Row(
+                          children: [
+                            Icon(Icons.calendar_today, size: 12, color: primary),
+                            const SizedBox(width: 4),
+                            Text(
+                              _formatDate(eventDate),
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: primary,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      if (location != null && location.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        GestureDetector(
+                          onTap: () => _openLocation(location, latitude, longitude),
+                          child: Row(
+                            children: [
+                              Icon(Icons.location_on, size: 12, color: const Color(0xFF0099B8)),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  location,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: const Color(0xFF0099B8),
+                                    fontWeight: FontWeight.w500,
+                                    decoration: (latitude != null && longitude != null)
+                                        ? TextDecoration.underline
+                                        : null,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              if (latitude != null && longitude != null)
+                                Icon(Icons.open_in_new, size: 10, color: const Color(0xFF0099B8)),
+                            ],
                           ),
                         ),
                       ],
-                    ),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -381,5 +419,26 @@ class _CommunityEventsScreenState extends State<CommunityEventsScreen> {
       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
     ];
     return '${months[date.month - 1]} ${date.day}, ${date.year}';
+  }
+
+  Future<void> _openLocation(String address, double? lat, double? lng) async {
+    String url;
+    if (lat != null && lng != null) {
+      url = 'https://www.google.com/maps/search/?api=1&query=$lat,$lng';
+    } else {
+      url = 'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(address)}';
+    }
+    
+    final uri = Uri.parse(url);
+    
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open maps')),
+        );
+      }
+    }
   }
 }
