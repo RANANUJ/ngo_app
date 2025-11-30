@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import 'email_verification_screen.dart';
 import 'login_screen.dart';
+import 'volunteer_dashboard_screen.dart';
 
 class IndividualRegistrationScreen extends StatefulWidget {
   const IndividualRegistrationScreen({Key? key}) : super(key: key);
@@ -103,11 +104,25 @@ class _IndividualRegistrationScreenState extends State<IndividualRegistrationScr
     );
   }
 
-  void _signInWithGoogle() {
-    // TODO: Implement Google Sign In
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Google Sign In coming soon')),
-    );
+  void _signInWithGoogle() async {
+    setState(() => _isLoading = true);
+
+    final result = await AuthService.signInWithGoogle();
+
+    setState(() => _isLoading = false);
+
+    if (result.success) {
+      // Navigate to volunteer dashboard
+      if (mounted) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const VolunteerDashboardScreen()),
+          (route) => false,
+        );
+      }
+    } else {
+      _showError(result.message);
+    }
   }
 
   void _signInWithFacebook() {

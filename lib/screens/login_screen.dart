@@ -105,10 +105,25 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  void _signInWithGoogle() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Google Sign In coming soon')),
-    );
+  void _signInWithGoogle() async {
+    setState(() => _isLoading = true);
+
+    final result = await AuthService.signInWithGoogle();
+
+    setState(() => _isLoading = false);
+
+    if (result.success) {
+      // Navigate to volunteer dashboard
+      if (mounted) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const VolunteerDashboardScreen()),
+          (route) => false,
+        );
+      }
+    } else {
+      _showError(result.message);
+    }
   }
 
   void _signInWithFacebook() {

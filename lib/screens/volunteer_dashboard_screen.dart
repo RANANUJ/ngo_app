@@ -10,6 +10,7 @@ import 'campaign_list_screen.dart';
 import 'government_schemes_screen.dart';
 import 'volunteer_opportunities_screen.dart';
 import 'community_screen.dart';
+import 'volunteer_donation_screen.dart';
 
 class VolunteerDashboardScreen extends StatefulWidget {
   const VolunteerDashboardScreen({Key? key}) : super(key: key);
@@ -20,7 +21,6 @@ class VolunteerDashboardScreen extends StatefulWidget {
 
 class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
   static const Color primary = Color(0xFF0099B8);
-  static const Color orange = Color(0xFFFF6B35);
   int _currentIndex = 0;
   
   // Profile data
@@ -441,43 +441,6 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
     );
   }
 
-  Widget _buildLiveEventsDots() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(
-              color: Colors.grey.shade400,
-              shape: BoxShape.circle,
-            ),
-          ),
-          const SizedBox(width: 6),
-          Container(
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(
-              color: Colors.grey.shade300,
-              shape: BoxShape.circle,
-            ),
-          ),
-          const SizedBox(width: 6),
-          Container(
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(
-              color: Colors.grey.shade300,
-              shape: BoxShape.circle,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildImageEventCard({
     required String imageUrl,
     double? width,
@@ -749,6 +712,15 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
           builder: (context) => const GovernmentSchemesScreen(),
         ),
       );
+    } else if (label == 'Donation Now') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const VolunteerDonationScreen(),
+        ),
+      );
+    } else if (label == 'CSR Integration') {
+      _showComingSoon('CSR Integration');
     } else {
       _showComingSoon(label);
     }
@@ -780,9 +752,8 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
   }
 
   Widget _buildCommunityTab() {
-    final user = FirebaseAuth.instance.currentUser;
     return CommunityScreen(
-      userId: user?.uid,
+      userId: FirebaseAuth.instance.currentUser?.uid,
       userName: _userName,
       userPhoto: _profilePhotoUrl,
       userType: 'volunteer',
@@ -790,8 +761,6 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
   }
 
   Widget _buildProfileTab() {
-    final user = FirebaseAuth.instance.currentUser;
-    
     if (_isLoadingProfile) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -1464,3 +1433,4 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
     }
   }
 }
+

@@ -1,38 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fl_chart/fl_chart.dart';
-import '../services/ngo_registration_service.dart';
-import 'donation_request_screen.dart';
-import 'donation_history_screen.dart';
-import 'create_donation_post_screen.dart';
-import 'emergency_donation_screen.dart';
-import 'share_resource_screen.dart';
-import 'share_impact_screen.dart';
-import 'needs_forecasting_screen.dart';
-import 'csr_integration_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'volunteer_emergency_screen.dart';
+import 'volunteer_resources_screen.dart';
+import 'volunteer_impacts_screen.dart';
+import 'volunteer_donation_request_screen.dart';
+import 'volunteer_donation_history_screen.dart';
 
-class NgoDonationScreen extends StatefulWidget {
-  final NgoRegistrationRequest ngoData;
-
-  const NgoDonationScreen({Key? key, required this.ngoData}) : super(key: key);
+class VolunteerDonationScreen extends StatefulWidget {
+  const VolunteerDonationScreen({super.key});
 
   @override
-  State<NgoDonationScreen> createState() => _NgoDonationScreenState();
+  State<VolunteerDonationScreen> createState() => _VolunteerDonationScreenState();
 }
 
-class _NgoDonationScreenState extends State<NgoDonationScreen> {
-  static const Color primary = Color(0xFF0099B8);
+class _VolunteerDonationScreenState extends State<VolunteerDonationScreen> {
+  static const Color primary = const Color(0xFF0099B8);
   
-  // Monthly donation data
+  // Weekly donation data
   List<double> currentMonthData = [0, 0, 0, 0, 0, 0, 0];
   List<double> lastMonthData = [0, 0, 0, 0, 0, 0, 0];
   bool _isLoading = true;
-  
-  // Stats
-  int _totalDonations = 0;
-  double _totalAmount = 0;
-  int _pendingRequests = 0;
-  int _approvedRequests = 0;
 
   @override
   void initState() {
@@ -42,122 +31,60 @@ class _NgoDonationScreenState extends State<NgoDonationScreen> {
 
   Future<void> _loadDonationData() async {
     try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        setState(() => _isLoading = false);
+        return;
+      }
+
       final now = DateTime.now();
       final startOfCurrentMonth = DateTime(now.year, now.month, 1);
       final startOfLastMonth = DateTime(now.year, now.month - 1, 1);
       final endOfLastMonth = DateTime(now.year, now.month, 0);
 
-      // Collect all donations from multiple sources
-      List<Map<String, dynamic>> allCurrentMonthDonations = [];
-      List<Map<String, dynamic>> allLastMonthDonations = [];
-
-      // 1. Get regular donations
+      // Get current month donations
       final currentMonthSnapshot = await FirebaseFirestore.instance
-          .collection('donations')
-          .where('ngoId', isEqualTo: widget.ngoData.id)
+          .collection('emergency_donations_records')
+          .where('donorId', isEqualTo: user.uid)
+          .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfCurrentMonth))
           .get();
-      
+
+      // Get last month donations
+      final lastMonthSnapshot = await FirebaseFirestore.instance
+          .collection('emergency_donations_records')
+          .where('donorId', isEqualTo: user.uid)
+          .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfLastMonth))
+          .where('createdAt', isLessThanOrEqualTo: Timestamp.fromDate(endOfLastMonth))
+          .get();
+
+      // Process current month data by week
+      Map<int, double> currentWeeklyData = {};
       for (var doc in currentMonthSnapshot.docs) {
         final data = doc.data();
-        final createdAt = data['createdAt'] as Timestamp?;
-        if (createdAt != null) {
-          final date = createdAt.toDate();
-          if (date.isAfter(startOfCurrentMonth) || date.isAtSameMomentAs(startOfCurrentMonth)) {
-            allCurrentMonthDonations.add(data);
-          } else if (date.isAfter(startOfLastMonth) && date.isBefore(startOfCurrentMonth)) {
-            allLastMonthDonations.add(data);
-          }
-        }
-      }
-
-      // 2. Get emergency donations records
-      final emergencySnapshot = await FirebaseFirestore.instance
-          .collection('emergency_donations_records')
-          .where('ngoId', isEqualTo: widget.ngoData.id)
-          .get();
-      
-      for (var doc in emergencySnapshot.docs) {
-        final data = doc.data();
-        final createdAt = data['createdAt'] as Timestamp?;
-        if (createdAt != null) {
-          final date = createdAt.toDate();
-          if (date.isAfter(startOfCurrentMonth) || date.isAtSameMomentAs(startOfCurrentMonth)) {
-            allCurrentMonthDonations.add(data);
-          } else if (date.isAfter(startOfLastMonth) && date.isBefore(startOfCurrentMonth)) {
-            allLastMonthDonations.add(data);
-          }
-        }
-      }
-
-      // 3. Get impact donations
-      final impactSnapshot = await FirebaseFirestore.instance
-          .collection('impact_donations')
-          .where('ngoId', isEqualTo: widget.ngoData.id)
-          .get();
-      
-      for (var doc in impactSnapshot.docs) {
-        final data = doc.data();
-        final createdAt = data['createdAt'] as Timestamp?;
-        if (createdAt != null) {
-          final date = createdAt.toDate();
-          if (date.isAfter(startOfCurrentMonth) || date.isAtSameMomentAs(startOfCurrentMonth)) {
-            allCurrentMonthDonations.add(data);
-          } else if (date.isAfter(startOfLastMonth) && date.isBefore(startOfCurrentMonth)) {
-            allLastMonthDonations.add(data);
-          }
-        }
-      }
-
-      // Get donation requests stats
-      final requestsSnapshot = await FirebaseFirestore.instance
-          .collection('donation_requests')
-          .where('ngoId', isEqualTo: widget.ngoData.id)
-          .get();
-
-      // Process current month data by day of week (0=Mon, 6=Sun)
-      Map<int, double> currentDayData = {};
-      double totalAmount = 0;
-      for (var data in allCurrentMonthDonations) {
-        final createdAt = data['createdAt'] as Timestamp?;
-        if (createdAt != null) {
-          final date = createdAt.toDate();
-          final dayOfWeek = (date.weekday - 1) % 7; // Monday = 0, Sunday = 6
+        final date = (data['createdAt'] as Timestamp?)?.toDate();
+        if (date != null) {
+          final weekOfMonth = ((date.day - 1) / 7).floor();
           final amount = (data['amount'] ?? 0).toDouble();
-          currentDayData[dayOfWeek] = (currentDayData[dayOfWeek] ?? 0) + amount;
-          totalAmount += amount;
+          currentWeeklyData[weekOfMonth] = (currentWeeklyData[weekOfMonth] ?? 0) + amount;
         }
       }
 
-      // Process last month data by day of week
-      Map<int, double> lastDayData = {};
-      for (var data in allLastMonthDonations) {
-        final createdAt = data['createdAt'] as Timestamp?;
-        if (createdAt != null) {
-          final date = createdAt.toDate();
-          final dayOfWeek = (date.weekday - 1) % 7;
+      // Process last month data by week
+      Map<int, double> lastWeeklyData = {};
+      for (var doc in lastMonthSnapshot.docs) {
+        final data = doc.data();
+        final date = (data['createdAt'] as Timestamp?)?.toDate();
+        if (date != null) {
+          final weekOfMonth = ((date.day - 1) / 7).floor();
           final amount = (data['amount'] ?? 0).toDouble();
-          lastDayData[dayOfWeek] = (lastDayData[dayOfWeek] ?? 0) + amount;
+          lastWeeklyData[weekOfMonth] = (lastWeeklyData[weekOfMonth] ?? 0) + amount;
         }
-      }
-
-      // Count pending and approved requests
-      int pending = 0;
-      int approved = 0;
-      for (var doc in requestsSnapshot.docs) {
-        final status = doc.data()['status'] ?? 'pending';
-        if (status == 'pending') pending++;
-        if (status == 'approved') approved++;
       }
 
       if (mounted) {
         setState(() {
-          // Convert to list for chart (scale to thousands for better visualization)
-          currentMonthData = List.generate(7, (i) => (currentDayData[i] ?? 0) / 1000);
-          lastMonthData = List.generate(7, (i) => (lastDayData[i] ?? 0) / 1000);
-          _totalDonations = allCurrentMonthDonations.length + allLastMonthDonations.length;
-          _totalAmount = totalAmount;
-          _pendingRequests = pending;
-          _approvedRequests = approved;
+          currentMonthData = List.generate(7, (i) => (currentWeeklyData[i] ?? 0) / 1000);
+          lastMonthData = List.generate(7, (i) => (lastWeeklyData[i] ?? 0) / 1000);
           _isLoading = false;
         });
       }
@@ -210,8 +137,8 @@ class _NgoDonationScreenState extends State<NgoDonationScreen> {
                       _buildFeatureGrid(),
                       const SizedBox(height: 24),
                       
-                      // Create Donation Post Button
-                      _buildCreatePostButton(),
+                      // View Donation Opportunities Button
+                      _buildViewOpportunitiesButton(),
                       const SizedBox(height: 16),
                     ],
                   ),
@@ -351,7 +278,7 @@ class _NgoDonationScreenState extends State<NgoDonationScreen> {
         ? lastMonthData.reduce((a, b) => a > b ? a : b) 
         : 0;
     double max = maxCurrent > maxLast ? maxCurrent : maxLast;
-    return max > 0 ? max * 1.2 : 10; // Add 20% padding or default to 10
+    return max > 0 ? max * 1.2 : 10;
   }
 
   Widget _buildLegendItem(String label, Color color) {
@@ -385,9 +312,7 @@ class _NgoDonationScreenState extends State<NgoDonationScreen> {
         color: const Color(0xFFFFE4E4),
         onTap: () => Navigator.push(
           context,
-          MaterialPageRoute(
-            builder: (context) => EmergencyDonationScreen(ngoData: widget.ngoData),
-          ),
+          MaterialPageRoute(builder: (_) => const VolunteerEmergencyScreen()),
         ),
       ),
       _FeatureItem(
@@ -396,21 +321,14 @@ class _NgoDonationScreenState extends State<NgoDonationScreen> {
         color: const Color(0xFFE8F5F5),
         onTap: () => Navigator.push(
           context,
-          MaterialPageRoute(
-            builder: (context) => DonationRequestScreen(ngoData: widget.ngoData),
-          ),
+          MaterialPageRoute(builder: (_) => const VolunteerDonationRequestScreen()),
         ),
       ),
       _FeatureItem(
         title: 'CSR integration',
         imagePath: 'assets/csr.png',
         color: const Color(0xFFF5F5F5),
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => CsrIntegrationScreen(ngoData: widget.ngoData),
-          ),
-        ),
+        onTap: () => _showComingSoon('CSR Integration'),
       ),
       _FeatureItem(
         title: 'Share Resource',
@@ -418,9 +336,7 @@ class _NgoDonationScreenState extends State<NgoDonationScreen> {
         color: const Color(0xFFE3F2FD),
         onTap: () => Navigator.push(
           context,
-          MaterialPageRoute(
-            builder: (context) => ShareResourceScreen(ngoData: widget.ngoData),
-          ),
+          MaterialPageRoute(builder: (_) => const VolunteerResourcesScreen()),
         ),
       ),
       _FeatureItem(
@@ -429,9 +345,7 @@ class _NgoDonationScreenState extends State<NgoDonationScreen> {
         color: const Color(0xFFFFF3E0),
         onTap: () => Navigator.push(
           context,
-          MaterialPageRoute(
-            builder: (context) => ShareImpactScreen(ngoData: widget.ngoData),
-          ),
+          MaterialPageRoute(builder: (_) => const VolunteerImpactsScreen()),
         ),
       ),
       _FeatureItem(
@@ -440,21 +354,14 @@ class _NgoDonationScreenState extends State<NgoDonationScreen> {
         color: const Color(0xFFD7CCC8),
         onTap: () => Navigator.push(
           context,
-          MaterialPageRoute(
-            builder: (context) => DonationHistoryScreen(ngoData: widget.ngoData),
-          ),
+          MaterialPageRoute(builder: (_) => const VolunteerDonationHistoryScreen()),
         ),
       ),
       _FeatureItem(
         title: 'Needs\nForecasting',
         imagePath: 'assets/demand-forecasting-feature-image.webp',
         color: const Color(0xFFFFF9C4),
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => NeedsForecastingScreen(ngoData: widget.ngoData),
-          ),
-        ),
+        onTap: () => _showComingSoon('Needs Forecasting'),
       ),
     ];
 
@@ -515,7 +422,7 @@ class _NgoDonationScreenState extends State<NgoDonationScreen> {
                         color: feature.color,
                         borderRadius: BorderRadius.circular(7),
                       ),
-                      child: Icon(
+                      child: const Icon(
                         Icons.image,
                         size: 32,
                         color: primary,
@@ -546,16 +453,14 @@ class _NgoDonationScreenState extends State<NgoDonationScreen> {
     );
   }
 
-  Widget _buildCreatePostButton() {
+  Widget _buildViewOpportunitiesButton() {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
         onPressed: () {
           Navigator.push(
             context,
-            MaterialPageRoute(
-              builder: (context) => CreateDonationPostScreen(ngoData: widget.ngoData),
-            ),
+            MaterialPageRoute(builder: (_) => const VolunteerEmergencyScreen()),
           );
         },
         style: ElevatedButton.styleFrom(
@@ -567,13 +472,23 @@ class _NgoDonationScreenState extends State<NgoDonationScreen> {
           elevation: 2,
         ),
         child: const Text(
-          'Create Donation Post',
+          'View Donation Opportunities',
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
             color: Colors.white,
           ),
         ),
+      ),
+    );
+  }
+
+  void _showComingSoon(String feature) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('$feature - Coming Soon!'),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
   }
@@ -592,3 +507,5 @@ class _FeatureItem {
     required this.onTap,
   });
 }
+
+

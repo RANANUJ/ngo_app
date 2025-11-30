@@ -528,6 +528,7 @@ class _CreateEmergencyTabState extends State<_CreateEmergencyTab> {
         'longitude': _longitude,
         'images': imageUrls,
         'status': 'active',
+        'urgencyLevel': 'high',
         'donorsCount': 0,
         'createdAt': FieldValue.serverTimestamp(),
       });

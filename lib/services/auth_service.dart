@@ -1,8 +1,10 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 class AuthService {
   static final FirebaseAuth _auth = FirebaseAuth.instance;
+  static final GoogleSignIn _googleSignIn = GoogleSignIn();
 
   // Get current user
   static User? get currentUser => _auth.currentUser;
@@ -171,6 +173,7 @@ class AuthService {
 
   /// Sign out
   static Future<void> signOut() async {
+    await signOutGoogle();
     await _auth.signOut();
   }
 
@@ -192,6 +195,68 @@ class AuthService {
         success: false,
         message: 'Error: ${e.toString()}',
       );
+    }
+  }
+
+  /// Sign in with Google
+  static Future<AuthResult> signInWithGoogle() async {
+    try {
+      // Trigger the authentication flow
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+
+      if (googleUser == null) {
+        // User cancelled the sign-in
+        return AuthResult(
+          success: false,
+          message: 'Google sign-in was cancelled.',
+        );
+      }
+
+      // Obtain the auth details from the request
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+
+      // Create a new credential
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      // Sign in to Firebase with the Google credential
+      final UserCredential userCredential = await _auth.signInWithCredential(credential);
+
+      if (userCredential.user != null) {
+        return AuthResult(
+          success: true,
+          message: 'Google sign-in successful!',
+          user: userCredential.user,
+        );
+      }
+
+      return AuthResult(
+        success: false,
+        message: 'Google sign-in failed. Please try again.',
+      );
+    } on FirebaseAuthException catch (e) {
+      print('FirebaseAuthException during Google sign-in: ${e.code} - ${e.message}');
+      return AuthResult(
+        success: false,
+        message: _getAuthErrorMessage(e.code),
+      );
+    } catch (e) {
+      print('Error during Google sign-in: $e');
+      return AuthResult(
+        success: false,
+        message: 'An error occurred during Google sign-in. Please try again.',
+      );
+    }
+  }
+
+  /// Sign out from Google
+  static Future<void> signOutGoogle() async {
+    try {
+      await _googleSignIn.signOut();
+    } catch (e) {
+      print('Error signing out from Google: $e');
     }
   }
 

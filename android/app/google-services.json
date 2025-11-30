@@ -1,6 +1,7 @@
 {
   "project_info": {
     "project_number": "996182230556",
+    "firebase_url": "https://connect-ngo-82057-default-rtdb.firebaseio.com",
     "project_id": "connect-ngo-82057",
     "storage_bucket": "connect-ngo-82057.firebasestorage.app"
   },
@@ -12,7 +13,20 @@
           "package_name": "com.example.ngo_app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "996182230556-sdublfehd16vv582tdj5pvafhvnoo4l2.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.ngo_app",
+            "certificate_hash": "e1c4dc6cc3d1c91642d50c65c34a52f4df9e008e"
+          }
+        },
+        {
+          "client_id": "996182230556-cdma02re86molsv182f64kqd828j88ts.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyDO1aYGsSiFBVEeJFzIvtJa6ySYGDm7_Z8"
@@ -20,7 +34,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "996182230556-cdma02re86molsv182f64kqd828j88ts.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "996182230556-5ekti97u9nggm2eibjs65du1enlh90dg.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.ngoApp"
+              }
+            }
+          ]
         }
       }
     }

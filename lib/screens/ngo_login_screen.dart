@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:async';
-import 'dart:math';
 import '../services/ngo_registration_service.dart';
 import '../services/local_storage_service.dart';
 import 'ngo_home_screen.dart';
@@ -18,11 +18,13 @@ class _NgoLoginScreenState extends State<NgoLoginScreen> {
   
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _otpController = TextEditingController();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
   
   bool _isOtpSent = false;
   bool _isLoading = false;
   bool _isVerifying = false;
-  String? _generatedOtp;
+  String? _verificationId;
+  int? _resendToken;
   String? _registrationId;
   NgoRegistrationRequest? _ngoData;
   
@@ -79,30 +81,57 @@ class _NgoLoginScreenState extends State<NgoLoginScreen> {
       _ngoData = registration;
       _registrationId = registration.id;
       
-      // Generate a 6-digit OTP (in production, send via SMS)
-      _generatedOtp = (100000 + Random().nextInt(900000)).toString();
-      
-      // In production, integrate with SMS gateway
-      // For demo, we'll show the OTP in a snackbar
-      debugPrint('Generated OTP: $_generatedOtp');
-      
-      setState(() {
-        _isOtpSent = true;
-        _isLoading = false;
-      });
-      
-      _startResendTimer();
-      
-      // Show OTP for demo purposes
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Demo OTP: $_generatedOtp'),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 10),
-          ),
-        );
-      }
+      // Use Firebase Phone Authentication to send real OTP
+      await _auth.verifyPhoneNumber(
+        phoneNumber: '+91$phone',
+        timeout: const Duration(seconds: 60),
+        forceResendingToken: _resendToken,
+        verificationCompleted: (PhoneAuthCredential credential) async {
+          // Auto-verification (Android only) - automatically sign in
+          setState(() {
+            _isVerifying = true;
+          });
+          await _signInWithCredential(credential);
+        },
+        verificationFailed: (FirebaseAuthException e) {
+          setState(() {
+            _isLoading = false;
+          });
+          String errorMessage = 'Verification failed';
+          if (e.code == 'invalid-phone-number') {
+            errorMessage = 'Invalid phone number format';
+          } else if (e.code == 'too-many-requests') {
+            errorMessage = 'Too many requests. Please try again later';
+          } else if (e.code == 'quota-exceeded') {
+            errorMessage = 'SMS quota exceeded. Please try again later';
+          } else {
+            errorMessage = e.message ?? 'Verification failed';
+          }
+          _showError(errorMessage);
+        },
+        codeSent: (String verificationId, int? resendToken) {
+          setState(() {
+            _verificationId = verificationId;
+            _resendToken = resendToken;
+            _isOtpSent = true;
+            _isLoading = false;
+          });
+          _startResendTimer();
+          
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('OTP sent successfully! Please check your SMS'),
+                backgroundColor: Colors.green,
+                duration: Duration(seconds: 3),
+              ),
+            );
+          }
+        },
+        codeAutoRetrievalTimeout: (String verificationId) {
+          _verificationId = verificationId;
+        },
+      );
     } catch (e) {
       setState(() {
         _isLoading = false;
@@ -119,12 +148,44 @@ class _NgoLoginScreenState extends State<NgoLoginScreen> {
       return;
     }
 
+    if (_verificationId == null) {
+      _showError('Verification failed. Please request a new OTP');
+      return;
+    }
+
     setState(() {
       _isVerifying = true;
     });
 
-    // Verify OTP
-    if (enteredOtp == _generatedOtp) {
+    try {
+      // Create credential with verification ID and OTP
+      PhoneAuthCredential credential = PhoneAuthProvider.credential(
+        verificationId: _verificationId!,
+        smsCode: enteredOtp,
+      );
+      
+      await _signInWithCredential(credential);
+    } catch (e) {
+      setState(() {
+        _isVerifying = false;
+      });
+      
+      String errorMessage = 'Invalid OTP. Please try again.';
+      if (e is FirebaseAuthException) {
+        if (e.code == 'invalid-verification-code') {
+          errorMessage = 'Invalid OTP. Please check and try again.';
+        } else if (e.code == 'session-expired') {
+          errorMessage = 'OTP expired. Please request a new one.';
+        }
+      }
+      _showError(errorMessage);
+    }
+  }
+
+  Future<void> _signInWithCredential(PhoneAuthCredential credential) async {
+    try {
+      await _auth.signInWithCredential(credential);
+      
       // Save login state
       final localStorageService = LocalStorageService();
       await localStorageService.saveNgoLogin(_registrationId!, _ngoData!.ngoName);
@@ -146,11 +207,20 @@ class _NgoLoginScreenState extends State<NgoLoginScreen> {
           (route) => false,
         );
       }
-    } else {
+    } on FirebaseAuthException catch (e) {
       setState(() {
         _isVerifying = false;
       });
-      _showError('Invalid OTP. Please try again.');
+      
+      String errorMessage = 'Authentication failed';
+      if (e.code == 'invalid-verification-code') {
+        errorMessage = 'Invalid OTP. Please check and try again.';
+      } else if (e.code == 'session-expired') {
+        errorMessage = 'OTP expired. Please request a new one.';
+      } else {
+        errorMessage = e.message ?? 'Authentication failed';
+      }
+      _showError(errorMessage);
     }
   }
 
