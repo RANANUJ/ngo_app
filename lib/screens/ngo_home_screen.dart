@@ -12,6 +12,7 @@ import 'ngo_opportunities_screen.dart';
 import 'event_calendar_screen.dart';
 import 'community_screen.dart';
 import 'ngo_donation_screen.dart';
+import 'ngo_explore_screen.dart';
 
 class NgoHomeScreen extends StatefulWidget {
   final NgoRegistrationRequest ngoData;
@@ -674,22 +675,7 @@ class _NgoHomeScreenState extends State<NgoHomeScreen> {
   }
 
   Widget _buildExploreTab() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.search, size: 64, color: Colors.grey.shade400),
-          const SizedBox(height: 16),
-          Text(
-            'Explore NGOs & Campaigns',
-            style: TextStyle(
-              color: Colors.grey.shade600,
-              fontSize: 16,
-            ),
-          ),
-        ],
-      ),
-    );
+    return const NgoExploreScreen();
   }
 
   Widget _buildCreateTab() {

@@ -1,0 +1,681 @@
+import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+class NgoExploreScreen extends StatefulWidget {
+  const NgoExploreScreen({Key? key}) : super(key: key);
+
+  @override
+  State<NgoExploreScreen> createState() => _NgoExploreScreenState();
+}
+
+class _NgoExploreScreenState extends State<NgoExploreScreen> with SingleTickerProviderStateMixin {
+  static const Color primary = Color(0xFF0099B8);
+  
+  late TabController _tabController;
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 3, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Search Bar
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    hintText: 'Search here',
+                    hintStyle: TextStyle(color: Colors.grey.shade500, fontSize: 14),
+                    prefixIcon: Icon(Icons.search, color: Colors.grey.shade500),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  ),
+                ),
+              ),
+            ),
+            
+            // Tab Bar
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(25),
+              ),
+              child: TabBar(
+                controller: _tabController,
+                indicator: BoxDecoration(
+                  color: primary,
+                  borderRadius: BorderRadius.circular(25),
+                ),
+                labelColor: Colors.white,
+                unselectedLabelColor: Colors.grey.shade600,
+                labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                unselectedLabelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                indicatorSize: TabBarIndicatorSize.tab,
+                dividerColor: Colors.transparent,
+                tabs: const [
+                  Tab(text: 'My Feed'),
+                  Tab(text: 'NGOs'),
+                  Tab(text: 'Volunteer'),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            
+            // Tab Content
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  _buildFeedGrid(), // All posts
+                  _buildNgosGrid(), // Posts by NGOs
+                  _buildVolunteerGrid(), // Posts by Volunteers
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+      
+      // Bottom Action Bar
+      bottomNavigationBar: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, -2),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            _buildBottomAction(Icons.add_circle_outline, false),
+            _buildBottomAction(Icons.favorite_border, false),
+            _buildBottomAction(Icons.camera_alt, true),
+            _buildBottomAction(Icons.bookmark_border, false),
+            _buildBottomAction(Icons.person_outline, false),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBottomAction(IconData icon, bool isHighlighted) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: isHighlighted 
+          ? BoxDecoration(
+              color: primary,
+              borderRadius: BorderRadius.circular(12),
+            )
+          : null,
+      child: Icon(
+        icon, 
+        color: isHighlighted ? Colors.white : Colors.grey.shade700,
+        size: 24,
+      ),
+    );
+  }
+
+  // My Feed - All posts
+  Widget _buildFeedGrid() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('community_posts')
+          .orderBy('createdAt', descending: true)
+          .limit(30)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        
+        if (snapshot.hasError) {
+          return Center(child: Text('Error: ${snapshot.error}'));
+        }
+        
+        final posts = snapshot.data?.docs ?? [];
+        
+        if (posts.isEmpty) {
+          return _buildEmptyState('No posts yet', 'Be the first to share something!');
+        }
+        
+        return _buildStaggeredGrid(posts);
+      },
+    );
+  }
+
+  // NGOs tab - Posts by NGO members
+  Widget _buildNgosGrid() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('community_posts')
+          .where('userType', isEqualTo: 'ngo')
+          .orderBy('createdAt', descending: true)
+          .limit(30)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        
+        if (snapshot.hasError) {
+          // If index error, try without ordering
+          return _buildNgosGridFallback();
+        }
+        
+        final posts = snapshot.data?.docs ?? [];
+        
+        if (posts.isEmpty) {
+          return _buildEmptyState('No NGO posts yet', 'NGO members haven\'t posted anything yet');
+        }
+        
+        return _buildStaggeredGrid(posts);
+      },
+    );
+  }
+
+  Widget _buildNgosGridFallback() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('community_posts')
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        
+        final allPosts = snapshot.data?.docs ?? [];
+        final ngoPosts = allPosts.where((doc) {
+          final data = doc.data() as Map<String, dynamic>;
+          return data['userType'] == 'ngo';
+        }).toList();
+        
+        if (ngoPosts.isEmpty) {
+          return _buildEmptyState('No NGO posts yet', 'NGO members haven\'t posted anything yet');
+        }
+        
+        return _buildStaggeredGrid(ngoPosts);
+      },
+    );
+  }
+
+  // Volunteer tab - Posts by Volunteers
+  Widget _buildVolunteerGrid() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('community_posts')
+          .where('userType', isEqualTo: 'volunteer')
+          .orderBy('createdAt', descending: true)
+          .limit(30)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        
+        if (snapshot.hasError) {
+          // If index error, try without ordering
+          return _buildVolunteerGridFallback();
+        }
+        
+        final posts = snapshot.data?.docs ?? [];
+        
+        if (posts.isEmpty) {
+          return _buildEmptyState('No volunteer posts yet', 'Volunteers haven\'t posted anything yet');
+        }
+        
+        return _buildStaggeredGrid(posts);
+      },
+    );
+  }
+
+  Widget _buildVolunteerGridFallback() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('community_posts')
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        
+        final allPosts = snapshot.data?.docs ?? [];
+        final volunteerPosts = allPosts.where((doc) {
+          final data = doc.data() as Map<String, dynamic>;
+          return data['userType'] == 'volunteer';
+        }).toList();
+        
+        if (volunteerPosts.isEmpty) {
+          return _buildEmptyState('No volunteer posts yet', 'Volunteers haven\'t posted anything yet');
+        }
+        
+        return _buildStaggeredGrid(volunteerPosts);
+      },
+    );
+  }
+
+  Widget _buildEmptyState(String title, String subtitle) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.photo_library_outlined, size: 64, color: Colors.grey.shade400),
+          const SizedBox(height: 16),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey.shade700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            subtitle,
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey.shade500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStaggeredGrid(List<QueryDocumentSnapshot> posts) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        children: _buildGridRows(posts),
+      ),
+    );
+  }
+
+  List<Widget> _buildGridRows(List<QueryDocumentSnapshot> posts) {
+    List<Widget> rows = [];
+    int index = 0;
+    int rowType = 0;
+
+    while (index < posts.length) {
+      switch (rowType % 4) {
+        case 0:
+          // Row type 1: 2 equal squares
+          rows.add(
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                children: [
+                  Expanded(child: _buildGridItem(posts.length > index ? posts[index++] : null, 1)),
+                  const SizedBox(width: 8),
+                  Expanded(child: _buildGridItem(posts.length > index ? posts[index++] : null, 1)),
+                ],
+              ),
+            ),
+          );
+          break;
+        case 1:
+          // Row type 2: 1 large + 2 stacked small
+          rows.add(
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: _buildGridItem(posts.length > index ? posts[index++] : null, 2),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      children: [
+                        _buildGridItem(posts.length > index ? posts[index++] : null, 1),
+                        const SizedBox(height: 8),
+                        _buildGridItem(posts.length > index ? posts[index++] : null, 1),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+          break;
+        case 2:
+          // Row type 3: 3 equal squares
+          rows.add(
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                children: [
+                  Expanded(child: _buildGridItem(posts.length > index ? posts[index++] : null, 1)),
+                  const SizedBox(width: 8),
+                  Expanded(child: _buildGridItem(posts.length > index ? posts[index++] : null, 1)),
+                  const SizedBox(width: 8),
+                  Expanded(child: _buildGridItem(posts.length > index ? posts[index++] : null, 1)),
+                ],
+              ),
+            ),
+          );
+          break;
+        case 3:
+          // Row type 4: 2 stacked small + 1 large
+          rows.add(
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      children: [
+                        _buildGridItem(posts.length > index ? posts[index++] : null, 1),
+                        const SizedBox(height: 8),
+                        _buildGridItem(posts.length > index ? posts[index++] : null, 1),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _buildGridItem(posts.length > index ? posts[index++] : null, 2),
+                  ),
+                ],
+              ),
+            ),
+          );
+          break;
+      }
+      rowType++;
+    }
+
+    return rows;
+  }
+
+  Widget _buildGridItem(QueryDocumentSnapshot? doc, int sizeMultiplier) {
+    if (doc == null) {
+      return const SizedBox.shrink();
+    }
+
+    final data = doc.data() as Map<String, dynamic>;
+    final baseHeight = (MediaQuery.of(context).size.width - 48) / 3;
+    final height = baseHeight * sizeMultiplier + (sizeMultiplier > 1 ? 8 : 0);
+    
+    final imageUrl = data['imageUrl'] as String?;
+    final content = data['content'] as String? ?? '';
+    final userName = data['userName'] as String? ?? 'User';
+    final userType = data['userType'] as String? ?? '';
+    
+    return GestureDetector(
+      onTap: () => _showPostDetail(data, doc.id),
+      child: Container(
+        height: height,
+        decoration: BoxDecoration(
+          color: Colors.grey.shade200,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              if (imageUrl != null && imageUrl.isNotEmpty)
+                Image.network(
+                  imageUrl,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => _buildTextPost(content, userName, userType),
+                )
+              else
+                _buildTextPost(content, userName, userType),
+              
+              // Overlay with user info for image posts
+              if (imageUrl != null && imageUrl.isNotEmpty)
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.bottomCenter,
+                        end: Alignment.topCenter,
+                        colors: [
+                          Colors.black.withOpacity(0.7),
+                          Colors.transparent,
+                        ],
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          userType == 'ngo' ? Icons.business : Icons.person,
+                          color: Colors.white,
+                          size: 12,
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            userName,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTextPost(String content, String userName, String userType) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: userType == 'ngo' 
+              ? [primary.withOpacity(0.8), primary]
+              : [Colors.purple.shade400, Colors.purple.shade600],
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                userType == 'ngo' ? Icons.business : Icons.person,
+                color: Colors.white,
+                size: 14,
+              ),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  userName,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Expanded(
+            child: Text(
+              content,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                height: 1.3,
+              ),
+              maxLines: 6,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showPostDetail(Map<String, dynamic> data, String postId) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.85,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          children: [
+            // Handle
+            Container(
+              margin: const EdgeInsets.only(top: 12),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            
+            // Header
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 20,
+                    backgroundColor: primary.withOpacity(0.1),
+                    backgroundImage: data['userPhoto'] != null 
+                        ? NetworkImage(data['userPhoto']) 
+                        : null,
+                    child: data['userPhoto'] == null 
+                        ? Icon(
+                            data['userType'] == 'ngo' ? Icons.business : Icons.person,
+                            color: primary,
+                          )
+                        : null,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          data['userName'] ?? 'User',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 16,
+                          ),
+                        ),
+                        Text(
+                          data['userType'] == 'ngo' ? 'NGO Member' : 'Volunteer',
+                          style: TextStyle(
+                            color: Colors.grey.shade600,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+            ),
+            
+            // Content
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (data['imageUrl'] != null && data['imageUrl'].isNotEmpty)
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.network(
+                          data['imageUrl'],
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    const SizedBox(height: 16),
+                    Text(
+                      data['content'] ?? '',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        height: 1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    // Stats
+                    Row(
+                      children: [
+                        Icon(Icons.favorite_border, color: Colors.grey.shade600, size: 20),
+                        const SizedBox(width: 4),
+                        Text('${data['likesCount'] ?? 0}'),
+                        const SizedBox(width: 16),
+                        Icon(Icons.comment_outlined, color: Colors.grey.shade600, size: 20),
+                        const SizedBox(width: 4),
+                        Text('${data['commentsCount'] ?? 0}'),
+                        const SizedBox(width: 16),
+                        Icon(Icons.share_outlined, color: Colors.grey.shade600, size: 20),
+                        const SizedBox(width: 4),
+                        Text('${data['sharesCount'] ?? 0}'),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
