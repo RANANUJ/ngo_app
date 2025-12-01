@@ -18,11 +18,14 @@ class _NgoLoginScreenState extends State<NgoLoginScreen> {
   
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _otpController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
   final FirebaseAuth _auth = FirebaseAuth.instance;
   
   bool _isOtpSent = false;
   bool _isLoading = false;
   bool _isVerifying = false;
+  bool _usePasswordLogin = false; // Toggle between OTP and password login
+  bool _obscurePassword = true;
   String? _verificationId;
   int? _resendToken;
   String? _registrationId;
@@ -35,6 +38,7 @@ class _NgoLoginScreenState extends State<NgoLoginScreen> {
   void dispose() {
     _phoneController.dispose();
     _otpController.dispose();
+    _passwordController.dispose();
     _timer?.cancel();
     super.dispose();
   }
@@ -132,6 +136,72 @@ class _NgoLoginScreenState extends State<NgoLoginScreen> {
           _verificationId = verificationId;
         },
       );
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      _showError('Error: $e');
+    }
+  }
+
+  Future<void> _loginWithPassword() async {
+    final phone = _phoneController.text.trim();
+    final password = _passwordController.text.trim();
+    
+    if (phone.isEmpty || phone.length < 10) {
+      _showError('Please enter a valid 10-digit phone number');
+      return;
+    }
+
+    if (password.isEmpty) {
+      _showError('Please enter your password');
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final registrationService = NgoRegistrationService();
+      final registration = await registrationService.verifyLoginWithPassword(phone, password);
+      
+      if (registration == null) {
+        _showError('Invalid phone number or password. Please check your credentials.');
+        setState(() {
+          _isLoading = false;
+        });
+        return;
+      }
+
+      _ngoData = registration;
+      _registrationId = registration.id;
+      
+      // Save login state
+      final localStorageService = LocalStorageService();
+      await localStorageService.saveNgoLogin(_registrationId!, _ngoData!.ngoName);
+      
+      setState(() {
+        _isLoading = false;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Welcome, ${_ngoData!.ngoName}!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        
+        // Navigate to NGO Home Screen
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(
+            builder: (context) => NgoHomeScreen(ngoData: _ngoData!),
+          ),
+          (route) => false,
+        );
+      }
     } catch (e) {
       setState(() {
         _isLoading = false;
@@ -283,7 +353,7 @@ class _NgoLoginScreenState extends State<NgoLoginScreen> {
             // Title
             Center(
               child: Text(
-                _isOtpSent ? 'Verify OTP' : 'Login with Phone',
+                _isOtpSent ? 'Verify OTP' : (_usePasswordLogin ? 'Login with Password' : 'Login with Phone'),
                 style: const TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
@@ -298,7 +368,9 @@ class _NgoLoginScreenState extends State<NgoLoginScreen> {
               child: Text(
                 _isOtpSent 
                     ? 'Enter the 6-digit OTP sent to your phone'
-                    : 'Enter the phone number used during registration',
+                    : (_usePasswordLogin 
+                        ? 'Enter your phone number and password'
+                        : 'Enter the phone number used during registration'),
                 style: TextStyle(
                   fontSize: 14,
                   color: Colors.grey.shade600,
@@ -364,13 +436,57 @@ class _NgoLoginScreenState extends State<NgoLoginScreen> {
                 ),
               ),
               
+              // Password field (shown when password login is selected)
+              if (_usePasswordLogin) ...[
+                const SizedBox(height: 16),
+                Text(
+                  'Password',
+                  style: TextStyle(
+                    color: primary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _passwordController,
+                  obscureText: _obscurePassword,
+                  decoration: InputDecoration(
+                    hintText: 'Enter your password',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey.shade300),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey.shade300),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: primary, width: 2),
+                    ),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                        color: Colors.grey.shade600,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _obscurePassword = !_obscurePassword;
+                        });
+                      },
+                    ),
+                  ),
+                ),
+              ],
+              
               const SizedBox(height: 24),
               
-              // Send OTP Button
+              // Login Button (Send OTP or Login with Password)
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _isLoading ? null : _sendOtp,
+                  onPressed: _isLoading ? null : (_usePasswordLogin ? _loginWithPassword : _sendOtp),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: primary,
                     foregroundColor: Colors.white,
@@ -389,13 +505,36 @@ class _NgoLoginScreenState extends State<NgoLoginScreen> {
                             strokeWidth: 2,
                           ),
                         )
-                      : const Text(
-                          'Send OTP',
-                          style: TextStyle(
+                      : Text(
+                          _usePasswordLogin ? 'Login' : 'Send OTP',
+                          style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
+                ),
+              ),
+              
+              const SizedBox(height: 16),
+              
+              // Toggle between OTP and Password login
+              Center(
+                child: TextButton(
+                  onPressed: () {
+                    setState(() {
+                      _usePasswordLogin = !_usePasswordLogin;
+                      _passwordController.clear();
+                    });
+                  },
+                  child: Text(
+                    _usePasswordLogin 
+                        ? 'Login with OTP instead' 
+                        : 'Login with Password instead',
+                    style: TextStyle(
+                      color: primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
               ),
             ] else ...[

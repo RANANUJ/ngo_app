@@ -19,6 +19,97 @@ class _ShareImpactScreenState extends State<ShareImpactScreen> {
   static const Color primary = Color(0xFF0099B8);
 
   @override
+  void initState() {
+    super.initState();
+    _addSampleImpactsIfNeeded();
+  }
+
+  Future<void> _addSampleImpactsIfNeeded() async {
+    try {
+      // Check if impacts already exist for this NGO
+      final existing = await FirebaseFirestore.instance
+          .collection('impact_stories')
+          .where('ngoId', isEqualTo: widget.ngoData.id)
+          .limit(1)
+          .get();
+      
+      if (existing.docs.isNotEmpty) return; // Already has impacts
+      
+      // Sample impact stories data
+      final sampleImpacts = [
+        {
+          'title': '500 Children Educated This Year',
+          'description': 'Through our education program, we successfully enrolled 500 underprivileged children in schools across 15 villages. We provided them with books, uniforms, and school supplies. Our teachers conducted regular classes and mentoring sessions.',
+          'beneficiaries': 500,
+          'category': 'Education',
+        },
+        {
+          'title': 'Clean Water for 3 Villages',
+          'description': 'Installed water purification systems in 3 remote villages, providing clean drinking water to over 2,000 residents. The project included training local communities on maintenance and water conservation practices.',
+          'beneficiaries': 2000,
+          'category': 'Healthcare',
+        },
+        {
+          'title': 'Women Empowerment Workshop',
+          'description': 'Conducted skill development workshops for 150 women, teaching them tailoring, handicrafts, and small business management. 80% of participants have started their own small businesses.',
+          'beneficiaries': 150,
+          'category': 'Livelihood',
+        },
+        {
+          'title': 'Free Health Camp Success',
+          'description': 'Organized a week-long free health camp providing medical check-ups, medicines, and health awareness to 1,200 people. Specialists included general physicians, eye doctors, and dentists.',
+          'beneficiaries': 1200,
+          'category': 'Healthcare',
+        },
+        {
+          'title': 'Tree Plantation Drive',
+          'description': 'Planted 5,000 trees across the district with help from local schools and community volunteers. This initiative will help combat climate change and improve air quality in urban areas.',
+          'beneficiaries': 10000,
+          'category': 'Environment',
+        },
+        {
+          'title': 'Food Distribution During Crisis',
+          'description': 'Distributed food packages to 800 families affected by recent floods. Each package contained rice, dal, oil, and essential groceries to sustain a family for two weeks.',
+          'beneficiaries': 3200,
+          'category': 'Food',
+        },
+        {
+          'title': 'Digital Literacy Program',
+          'description': 'Trained 200 youth in basic computer skills, internet usage, and online job applications. 60 participants secured jobs in IT and BPO sectors within 3 months of completion.',
+          'beneficiaries': 200,
+          'category': 'Education',
+        },
+        {
+          'title': 'Senior Citizens Support',
+          'description': 'Provided monthly ration kits and medical assistance to 100 abandoned senior citizens. Regular health check-ups and companionship visits improved their quality of life significantly.',
+          'beneficiaries': 100,
+          'category': 'Elderly Care',
+        },
+      ];
+      
+      // Add each impact story
+      for (var i = 0; i < sampleImpacts.length; i++) {
+        await FirebaseFirestore.instance.collection('impact_stories').add({
+          'ngoId': widget.ngoData.id,
+          'ngoName': widget.ngoData.ngoName,
+          'ngoLogo': widget.ngoData.profileImageUrl,
+          'title': sampleImpacts[i]['title'],
+          'description': sampleImpacts[i]['description'],
+          'beneficiaries': sampleImpacts[i]['beneficiaries'],
+          'category': sampleImpacts[i]['category'],
+          'images': <String>[],
+          'donationsReceived': (i + 1) * 5000,
+          'createdAt': Timestamp.fromDate(DateTime.now().subtract(Duration(days: i * 5))),
+        });
+      }
+      
+      debugPrint('Added ${sampleImpacts.length} sample impact stories');
+    } catch (e) {
+      debugPrint('Error adding sample impacts: $e');
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return DefaultTabController(
       length: 2,

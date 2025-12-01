@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'post_feed_screen.dart';
 
 class NgoExploreScreen extends StatefulWidget {
   const NgoExploreScreen({Key? key}) : super(key: key);
@@ -96,48 +98,6 @@ class _NgoExploreScreenState extends State<NgoExploreScreen> with SingleTickerPr
             ),
           ],
         ),
-      ),
-      
-      // Bottom Action Bar
-      bottomNavigationBar: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, -2),
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            _buildBottomAction(Icons.add_circle_outline, false),
-            _buildBottomAction(Icons.favorite_border, false),
-            _buildBottomAction(Icons.camera_alt, true),
-            _buildBottomAction(Icons.bookmark_border, false),
-            _buildBottomAction(Icons.person_outline, false),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBottomAction(IconData icon, bool isHighlighted) {
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: isHighlighted 
-          ? BoxDecoration(
-              color: primary,
-              borderRadius: BorderRadius.circular(12),
-            )
-          : null,
-      child: Icon(
-        icon, 
-        color: isHighlighted ? Colors.white : Colors.grey.shade700,
-        size: 24,
       ),
     );
   }
@@ -312,12 +272,12 @@ class _NgoExploreScreenState extends State<NgoExploreScreen> with SingleTickerPr
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
-        children: _buildGridRows(posts),
+        children: _buildGridRows(posts, posts),
       ),
     );
   }
 
-  List<Widget> _buildGridRows(List<QueryDocumentSnapshot> posts) {
+  List<Widget> _buildGridRows(List<QueryDocumentSnapshot> posts, List<QueryDocumentSnapshot> allPosts) {
     List<Widget> rows = [];
     int index = 0;
     int rowType = 0;
@@ -331,9 +291,9 @@ class _NgoExploreScreenState extends State<NgoExploreScreen> with SingleTickerPr
               padding: const EdgeInsets.only(bottom: 8),
               child: Row(
                 children: [
-                  Expanded(child: _buildGridItem(posts.length > index ? posts[index++] : null, 1)),
+                  Expanded(child: _buildGridItem(posts.length > index ? posts[index++] : null, 1, allPosts)),
                   const SizedBox(width: 8),
-                  Expanded(child: _buildGridItem(posts.length > index ? posts[index++] : null, 1)),
+                  Expanded(child: _buildGridItem(posts.length > index ? posts[index++] : null, 1, allPosts)),
                 ],
               ),
             ),
@@ -348,15 +308,15 @@ class _NgoExploreScreenState extends State<NgoExploreScreen> with SingleTickerPr
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
-                    child: _buildGridItem(posts.length > index ? posts[index++] : null, 2),
+                    child: _buildGridItem(posts.length > index ? posts[index++] : null, 2, allPosts),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Column(
                       children: [
-                        _buildGridItem(posts.length > index ? posts[index++] : null, 1),
+                        _buildGridItem(posts.length > index ? posts[index++] : null, 1, allPosts),
                         const SizedBox(height: 8),
-                        _buildGridItem(posts.length > index ? posts[index++] : null, 1),
+                        _buildGridItem(posts.length > index ? posts[index++] : null, 1, allPosts),
                       ],
                     ),
                   ),
@@ -372,11 +332,11 @@ class _NgoExploreScreenState extends State<NgoExploreScreen> with SingleTickerPr
               padding: const EdgeInsets.only(bottom: 8),
               child: Row(
                 children: [
-                  Expanded(child: _buildGridItem(posts.length > index ? posts[index++] : null, 1)),
+                  Expanded(child: _buildGridItem(posts.length > index ? posts[index++] : null, 1, allPosts)),
                   const SizedBox(width: 8),
-                  Expanded(child: _buildGridItem(posts.length > index ? posts[index++] : null, 1)),
+                  Expanded(child: _buildGridItem(posts.length > index ? posts[index++] : null, 1, allPosts)),
                   const SizedBox(width: 8),
-                  Expanded(child: _buildGridItem(posts.length > index ? posts[index++] : null, 1)),
+                  Expanded(child: _buildGridItem(posts.length > index ? posts[index++] : null, 1, allPosts)),
                 ],
               ),
             ),
@@ -393,15 +353,15 @@ class _NgoExploreScreenState extends State<NgoExploreScreen> with SingleTickerPr
                   Expanded(
                     child: Column(
                       children: [
-                        _buildGridItem(posts.length > index ? posts[index++] : null, 1),
+                        _buildGridItem(posts.length > index ? posts[index++] : null, 1, allPosts),
                         const SizedBox(height: 8),
-                        _buildGridItem(posts.length > index ? posts[index++] : null, 1),
+                        _buildGridItem(posts.length > index ? posts[index++] : null, 1, allPosts),
                       ],
                     ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: _buildGridItem(posts.length > index ? posts[index++] : null, 2),
+                    child: _buildGridItem(posts.length > index ? posts[index++] : null, 2, allPosts),
                   ),
                 ],
               ),
@@ -415,7 +375,7 @@ class _NgoExploreScreenState extends State<NgoExploreScreen> with SingleTickerPr
     return rows;
   }
 
-  Widget _buildGridItem(QueryDocumentSnapshot? doc, int sizeMultiplier) {
+  Widget _buildGridItem(QueryDocumentSnapshot? doc, int sizeMultiplier, List<QueryDocumentSnapshot> allPosts) {
     if (doc == null) {
       return const SizedBox.shrink();
     }
@@ -425,12 +385,26 @@ class _NgoExploreScreenState extends State<NgoExploreScreen> with SingleTickerPr
     final height = baseHeight * sizeMultiplier + (sizeMultiplier > 1 ? 8 : 0);
     
     final imageUrl = data['imageUrl'] as String?;
+    final videoUrl = data['videoUrl'] as String?;
     final content = data['content'] as String? ?? '';
     final userName = data['userName'] as String? ?? 'User';
     final userType = data['userType'] as String? ?? '';
     
+    final int postIndex = allPosts.indexWhere((p) => p.id == doc.id);
+    
     return GestureDetector(
-      onTap: () => _showPostDetail(data, doc.id),
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PostFeedScreen(
+              posts: allPosts,
+              initialIndex: postIndex >= 0 ? postIndex : 0,
+              userId: FirebaseAuth.instance.currentUser?.uid,
+            ),
+          ),
+        );
+      },
       child: Container(
         height: height,
         decoration: BoxDecoration(
@@ -442,7 +416,17 @@ class _NgoExploreScreenState extends State<NgoExploreScreen> with SingleTickerPr
           child: Stack(
             fit: StackFit.expand,
             children: [
-              if (imageUrl != null && imageUrl.isNotEmpty)
+              if (videoUrl != null && videoUrl.isNotEmpty)
+                Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    Container(color: Colors.grey.shade900),
+                    const Center(
+                      child: Icon(Icons.play_circle_fill, color: Colors.white, size: 40),
+                    ),
+                  ],
+                )
+              else if (imageUrl != null && imageUrl.isNotEmpty)
                 Image.network(
                   imageUrl,
                   fit: BoxFit.cover,
@@ -451,8 +435,8 @@ class _NgoExploreScreenState extends State<NgoExploreScreen> with SingleTickerPr
               else
                 _buildTextPost(content, userName, userType),
               
-              // Overlay with user info for image posts
-              if (imageUrl != null && imageUrl.isNotEmpty)
+              // Overlay with user info for image/video posts
+              if ((imageUrl != null && imageUrl.isNotEmpty) || (videoUrl != null && videoUrl.isNotEmpty))
                 Positioned(
                   bottom: 0,
                   left: 0,
@@ -551,130 +535,6 @@ class _NgoExploreScreenState extends State<NgoExploreScreen> with SingleTickerPr
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  void _showPostDetail(Map<String, dynamic> data, String postId) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        height: MediaQuery.of(context).size.height * 0.85,
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: Column(
-          children: [
-            // Handle
-            Container(
-              margin: const EdgeInsets.only(top: 12),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            
-            // Header
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 20,
-                    backgroundColor: primary.withOpacity(0.1),
-                    backgroundImage: data['userPhoto'] != null 
-                        ? NetworkImage(data['userPhoto']) 
-                        : null,
-                    child: data['userPhoto'] == null 
-                        ? Icon(
-                            data['userType'] == 'ngo' ? Icons.business : Icons.person,
-                            color: primary,
-                          )
-                        : null,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          data['userName'] ?? 'User',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 16,
-                          ),
-                        ),
-                        Text(
-                          data['userType'] == 'ngo' ? 'NGO Member' : 'Volunteer',
-                          style: TextStyle(
-                            color: Colors.grey.shade600,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
-              ),
-            ),
-            
-            // Content
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (data['imageUrl'] != null && data['imageUrl'].isNotEmpty)
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Image.network(
-                          data['imageUrl'],
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                    const SizedBox(height: 16),
-                    Text(
-                      data['content'] ?? '',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        height: 1.5,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    // Stats
-                    Row(
-                      children: [
-                        Icon(Icons.favorite_border, color: Colors.grey.shade600, size: 20),
-                        const SizedBox(width: 4),
-                        Text('${data['likesCount'] ?? 0}'),
-                        const SizedBox(width: 16),
-                        Icon(Icons.comment_outlined, color: Colors.grey.shade600, size: 20),
-                        const SizedBox(width: 4),
-                        Text('${data['commentsCount'] ?? 0}'),
-                        const SizedBox(width: 16),
-                        Icon(Icons.share_outlined, color: Colors.grey.shade600, size: 20),
-                        const SizedBox(width: 4),
-                        Text('${data['sharesCount'] ?? 0}'),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

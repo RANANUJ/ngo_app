@@ -80,6 +80,7 @@ class _DonationHistoryScreenState extends State<DonationHistoryScreen> {
                 }
 
                 if (snapshot.hasError) {
+                  debugPrint('Donation history error: ${snapshot.error}');
                   return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -95,7 +96,8 @@ class _DonationHistoryScreenState extends State<DonationHistoryScreen> {
                   );
                 }
 
-                final docs = snapshot.data?.docs ?? [];
+                // Filter by date in memory
+                final docs = _filterByDate(snapshot.data?.docs ?? []);
                 
                 if (docs.isEmpty) {
                   return Center(
@@ -177,6 +179,15 @@ class _DonationHistoryScreenState extends State<DonationHistoryScreen> {
   }
 
   Stream<QuerySnapshot> _getFilteredStream() {
+    // Simple query without composite index requirement
+    // Filter in memory to avoid index issues
+    return FirebaseFirestore.instance
+        .collection('donations')
+        .where('ngoId', isEqualTo: widget.ngoData.id)
+        .snapshots();
+  }
+
+  List<QueryDocumentSnapshot> _filterByDate(List<QueryDocumentSnapshot> docs) {
     final now = DateTime.now();
     DateTime? startDate;
     
@@ -194,16 +205,27 @@ class _DonationHistoryScreenState extends State<DonationHistoryScreen> {
         startDate = null;
     }
 
-    Query<Map<String, dynamic>> query = FirebaseFirestore.instance
-        .collection('donations')
-        .where('ngoId', isEqualTo: widget.ngoData.id)
-        .where('status', isEqualTo: 'completed');
+    var filtered = docs;
     
     if (startDate != null) {
-      query = query.where('completedAt', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate));
+      filtered = docs.where((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        final createdAt = data['createdAt'] as Timestamp?;
+        if (createdAt == null) return false;
+        return createdAt.toDate().isAfter(startDate!) || 
+               createdAt.toDate().isAtSameMomentAs(startDate);
+      }).toList();
     }
     
-    return query.orderBy('completedAt', descending: true).snapshots();
+    // Sort by createdAt descending
+    filtered.sort((a, b) {
+      final aTime = (a.data() as Map<String, dynamic>)['createdAt'] as Timestamp?;
+      final bTime = (b.data() as Map<String, dynamic>)['createdAt'] as Timestamp?;
+      if (aTime == null || bTime == null) return 0;
+      return bTime.compareTo(aTime);
+    });
+    
+    return filtered;
   }
 
   Widget _buildSummaryItem(String label, String value) {
@@ -232,13 +254,13 @@ class _DonationHistoryScreenState extends State<DonationHistoryScreen> {
   Widget _buildDonationCard(Map<String, dynamic> data) {
     final donorName = data['donorName'] ?? 'Anonymous';
     final amount = (data['amount'] ?? 0).toDouble();
-    final type = data['type'] ?? 'General';
-    final completedAt = data['completedAt'] as Timestamp?;
-    final paymentMethod = data['paymentMethod'] ?? 'Online';
+    final type = data['donorType'] ?? data['type'] ?? 'Donor';
+    final createdAt = data['createdAt'] as Timestamp?;
+    final message = data['message'] as String?;
     
     String dateStr = 'N/A';
-    if (completedAt != null) {
-      final date = completedAt.toDate();
+    if (createdAt != null) {
+      final date = createdAt.toDate();
       dateStr = '${date.day} ${_getMonthName(date.month).substring(0, 3)} ${date.year}';
     }
 
@@ -302,13 +324,18 @@ class _DonationHistoryScreenState extends State<DonationHistoryScreen> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Text(
-                      paymentMethod,
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.grey.shade600,
+                    if (message != null && message.isNotEmpty)
+                      Expanded(
+                        child: Text(
+                          message,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey.shade600,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                    ),
                   ],
                 ),
                 const SizedBox(height: 4),

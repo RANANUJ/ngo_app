@@ -19,6 +19,96 @@ class _ShareResourceScreenState extends State<ShareResourceScreen> {
   static const Color primary = Color(0xFF0099B8);
   
   @override
+  void initState() {
+    super.initState();
+    _addSampleResourcesIfNeeded();
+  }
+  
+  Future<void> _addSampleResourcesIfNeeded() async {
+    try {
+      // Check if resources already exist for this NGO
+      final existing = await FirebaseFirestore.instance
+          .collection('shared_resources')
+          .where('ngoId', isEqualTo: widget.ngoData.id)
+          .limit(1)
+          .get();
+      
+      if (existing.docs.isNotEmpty) return; // Already has resources
+      
+      // Sample resources data
+      final sampleResources = [
+        {
+          'title': 'Winter Clothes Bundle',
+          'description': 'A collection of warm winter clothes including jackets, sweaters, and blankets for those in need during the cold season.',
+          'quantity': 50,
+          'category': 'Clothing',
+        },
+        {
+          'title': 'School Supplies Kit',
+          'description': 'Educational supplies including notebooks, pens, pencils, geometry boxes, and school bags for underprivileged students.',
+          'quantity': 100,
+          'category': 'Education',
+        },
+        {
+          'title': 'Food Grain Package',
+          'description': 'Essential food grains including rice, wheat, dal, and cooking oil to support families in need.',
+          'quantity': 75,
+          'category': 'Food',
+        },
+        {
+          'title': 'Medical First Aid Kits',
+          'description': 'Complete first aid kits with bandages, antiseptics, basic medicines, and health essentials for community health camps.',
+          'quantity': 30,
+          'category': 'Medical',
+        },
+        {
+          'title': 'Children\'s Books Collection',
+          'description': 'Story books, educational books, and learning materials suitable for children aged 5-15 years.',
+          'quantity': 200,
+          'category': 'Education',
+        },
+        {
+          'title': 'Hygiene Care Package',
+          'description': 'Hygiene essentials including soap, sanitizers, toothpaste, toothbrush, and sanitary products.',
+          'quantity': 120,
+          'category': 'Hygiene',
+        },
+        {
+          'title': 'Blankets for Shelter',
+          'description': 'Warm blankets and bedding materials for homeless shelters and disaster relief.',
+          'quantity': 80,
+          'category': 'Shelter',
+        },
+        {
+          'title': 'Cooking Utensils Set',
+          'description': 'Basic cooking utensils including pots, pans, plates, and cups for community kitchens.',
+          'quantity': 40,
+          'category': 'Other',
+        },
+      ];
+      
+      // Add each resource
+      for (var i = 0; i < sampleResources.length; i++) {
+        await FirebaseFirestore.instance.collection('shared_resources').add({
+          'ngoId': widget.ngoData.id,
+          'ngoName': widget.ngoData.ngoName,
+          'title': sampleResources[i]['title'],
+          'description': sampleResources[i]['description'],
+          'quantity': sampleResources[i]['quantity'],
+          'category': sampleResources[i]['category'],
+          'images': <String>[],
+          'status': 'available',
+          'createdAt': Timestamp.fromDate(DateTime.now().subtract(Duration(days: i))),
+        });
+      }
+      
+      debugPrint('Added ${sampleResources.length} sample resources');
+    } catch (e) {
+      debugPrint('Error adding sample resources: $e');
+    }
+  }
+  
+  @override
   Widget build(BuildContext context) {
     return DefaultTabController(
       length: 2,
@@ -134,8 +224,20 @@ class _ShareResourceScreenState extends State<ShareResourceScreen> {
     final quantity = data['quantity'] ?? 0;
     final category = data['category'] ?? 'Other';
     final ngoName = data['ngoName'] ?? '';
-    final images = List<String>.from(data['images'] ?? []);
     final isOwnResource = data['ngoId'] == widget.ngoData.id;
+    final createdAt = data['createdAt'] as Timestamp?;
+    
+    String timeAgo = '';
+    if (createdAt != null) {
+      final diff = DateTime.now().difference(createdAt.toDate());
+      if (diff.inDays > 0) {
+        timeAgo = '${diff.inDays}d ago';
+      } else if (diff.inHours > 0) {
+        timeAgo = '${diff.inHours}h ago';
+      } else {
+        timeAgo = 'Just now';
+      }
+    }
 
     return GestureDetector(
       onTap: () {
@@ -152,151 +254,113 @@ class _ShareResourceScreenState extends State<ShareResourceScreen> {
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withOpacity(0.1),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          border: Border.all(color: Colors.grey.shade200),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (images.isNotEmpty)
-              ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                child: Image.network(
-                  images.first,
-                  height: 120,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(
-                    height: 120,
-                    color: Colors.grey.shade200,
-                    child: const Icon(Icons.image, size: 48, color: Colors.grey),
+            // Header row
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(6),
                   ),
-                ),
-              ),
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: primary.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          category,
-                          style: const TextStyle(
-                            fontSize: 10,
-                            color: primary,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                      const Spacer(),
-                      Text(
-                        'Qty: $quantity',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: primary,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    title,
+                  child: Text(
+                    category,
                     style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: primary,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    description,
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
+                ),
+                const Spacer(),
+                Text(
+                  'Qty: $quantity',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: primary,
                   ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Icon(Icons.business, size: 14, color: Colors.grey.shade500),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          ngoName,
-                          style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      if (!isOwnResource)
-                        TextButton(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => ResourceDetailScreen(
-                                  data: data,
-                                  docId: docId,
-                                  currentNgoId: widget.ngoData.id,
-                                ),
-                              ),
-                            );
-                          },
-                          child: const Text('Request', style: TextStyle(color: primary)),
-                        ),
-                    ],
-                  ),
-                ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            
+            // Title
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
               ),
+            ),
+            const SizedBox(height: 6),
+            
+            // Description
+            Text(
+              description,
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.grey.shade600,
+                height: 1.4,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 12),
+            
+            // Footer
+            Row(
+              children: [
+                Icon(Icons.business, size: 14, color: Colors.grey.shade500),
+                const SizedBox(width: 6),
+                Text(
+                  ngoName,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '•',
+                  style: TextStyle(color: Colors.grey.shade400),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  timeAgo,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade500,
+                  ),
+                ),
+                const Spacer(),
+                if (isOwnResource)
+                  Text(
+                    'Your Resource',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.grey.shade500,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  )
+                else
+                  Icon(Icons.chevron_right, color: Colors.grey.shade400),
+              ],
             ),
           ],
         ),
       ),
     );
-  }
-
-  Future<void> _requestResource(String docId, Map<String, dynamic> data) async {
-    try {
-      await FirebaseFirestore.instance.collection('resource_requests').add({
-        'resourceId': docId,
-        'resourceTitle': data['title'],
-        'requestingNgoId': widget.ngoData.id,
-        'requestingNgoName': widget.ngoData.ngoName,
-        'ownerNgoId': data['ngoId'],
-        'ownerNgoName': data['ngoName'],
-        'status': 'pending',
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Resource request sent!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-        );
-      }
-    }
   }
 }
 

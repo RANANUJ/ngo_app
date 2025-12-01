@@ -33,7 +33,9 @@ class _NgoRegistrationScreenState extends State<NgoRegistrationScreen> {
   final TextEditingController _designationController = TextEditingController();
   final TextEditingController _mobileController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
   String? _selectedIdProof;
+  bool _obscurePassword = true;
 
   // Step 5 controllers
   final TextEditingController _missionController = TextEditingController();
@@ -65,6 +67,7 @@ class _NgoRegistrationScreenState extends State<NgoRegistrationScreen> {
     _designationController.dispose();
     _mobileController.dispose();
     _emailController.dispose();
+    _passwordController.dispose();
     _missionController.dispose();
     _areaOfWorkController.dispose();
     _volunteersController.dispose();
@@ -148,6 +151,7 @@ class _NgoRegistrationScreenState extends State<NgoRegistrationScreen> {
         panCardUploaded: _panCardUploaded,
         certificate12A80GUploaded: _certificate12A80GUploaded,
         pastWorkProofUploaded: _pastWorkProofUploaded,
+        password: _passwordController.text.trim().isEmpty ? '123456' : _passwordController.text.trim(),
       );
       debugPrint('=== REGISTRATION SUCCESS: ${registration.id} ===');
 
@@ -417,6 +421,20 @@ class _NgoRegistrationScreenState extends State<NgoRegistrationScreen> {
         _buildLabel('Email id'),
         _buildTextField(_emailController, ''),
         const SizedBox(height: 16),
+        _buildLabel('Password (Optional)'),
+        _buildPasswordField(),
+        Padding(
+          padding: const EdgeInsets.only(top: 4, left: 4),
+          child: Text(
+            'Leave empty to use default password: 123456',
+            style: TextStyle(
+              color: Colors.grey.shade500,
+              fontSize: 12,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
         _buildLabel('Upload / ID Proof'),
         _buildDropdown(
           value: _selectedIdProof,
@@ -430,6 +448,41 @@ class _NgoRegistrationScreenState extends State<NgoRegistrationScreen> {
           onUpload: () => setState(() => _idProofUploaded = true),
         ),
       ],
+    );
+  }
+
+  Widget _buildPasswordField() {
+    return TextField(
+      controller: _passwordController,
+      obscureText: _obscurePassword,
+      decoration: InputDecoration(
+        hintText: 'Enter password for login',
+        hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: Colors.grey.shade300),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: Colors.grey.shade300),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: primary),
+        ),
+        suffixIcon: IconButton(
+          icon: Icon(
+            _obscurePassword ? Icons.visibility_off : Icons.visibility,
+            color: Colors.grey.shade600,
+          ),
+          onPressed: () {
+            setState(() {
+              _obscurePassword = !_obscurePassword;
+            });
+          },
+        ),
+      ),
     );
   }
 

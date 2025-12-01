@@ -21,6 +21,10 @@ dependencies:
   http: ^1.1.0
   fl_chart: ^0.68.0
   google_sign_in: ^6.2.2
+  intl: ^0.20.2
+  video_player: ^2.8.2
+  geolocator: ^10.1.0
+  geocoding: ^2.1.1
   # firebase_messaging: ^15.2.0
 
 dev_dependencies:

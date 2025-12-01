@@ -35,6 +35,7 @@ class NgoRegistrationRequest {
   final bool panCardUploaded;
   final bool certificate12A80GUploaded;
   final bool pastWorkProofUploaded;
+  final String password; // Password for login (default: 123456)
   final DateTime submittedAt;
   final RegistrationStatus status;
   final String? rejectionReason;
@@ -66,6 +67,7 @@ class NgoRegistrationRequest {
     required this.panCardUploaded,
     required this.certificate12A80GUploaded,
     required this.pastWorkProofUploaded,
+    this.password = '123456', // Default password
     required this.submittedAt,
     this.status = RegistrationStatus.pending,
     this.rejectionReason,
@@ -120,6 +122,7 @@ class NgoRegistrationRequest {
       'panCardUploaded': panCardUploaded,
       'certificate12A80GUploaded': certificate12A80GUploaded,
       'pastWorkProofUploaded': pastWorkProofUploaded,
+      'password': password,
       'submittedAt': Timestamp.fromDate(submittedAt),
       'status': status.name,
       'rejectionReason': rejectionReason,
@@ -156,6 +159,7 @@ class NgoRegistrationRequest {
       panCardUploaded: data['panCardUploaded'] ?? false,
       certificate12A80GUploaded: data['certificate12A80GUploaded'] ?? false,
       pastWorkProofUploaded: data['pastWorkProofUploaded'] ?? false,
+      password: data['password'] ?? '123456',
       submittedAt: (data['submittedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       status: _parseStatus(data['status']),
       rejectionReason: data['rejectionReason'],
@@ -255,6 +259,7 @@ class NgoRegistrationService {
     required bool panCardUploaded,
     required bool certificate12A80GUploaded,
     required bool pastWorkProofUploaded,
+    String password = '123456', // Default password if not provided
   }) async {
     final registration = NgoRegistrationRequest(
       id: '', // Will be set by Firestore
@@ -281,6 +286,7 @@ class NgoRegistrationService {
       panCardUploaded: panCardUploaded,
       certificate12A80GUploaded: certificate12A80GUploaded,
       pastWorkProofUploaded: pastWorkProofUploaded,
+      password: password.isEmpty ? '123456' : password,
       submittedAt: DateTime.now(),
       status: RegistrationStatus.pending,
     );
@@ -319,6 +325,7 @@ class NgoRegistrationService {
         panCardUploaded: panCardUploaded,
         certificate12A80GUploaded: certificate12A80GUploaded,
         pastWorkProofUploaded: pastWorkProofUploaded,
+        password: password.isEmpty ? '123456' : password,
         submittedAt: registration.submittedAt,
         status: RegistrationStatus.pending,
       );
@@ -457,6 +464,40 @@ class NgoRegistrationService {
       return null;
     } catch (e) {
       debugPrint('Error finding registration by ID: $e');
+      return null;
+    }
+  }
+
+  /// Verify NGO login with phone and password
+  Future<NgoRegistrationRequest?> verifyLoginWithPassword(String phone, String password) async {
+    try {
+      // Try to find with the exact phone number
+      var querySnapshot = await _registrationsCollection
+          .where('mobileNo', isEqualTo: phone)
+          .where('status', isEqualTo: 'approved')
+          .limit(1)
+          .get();
+      
+      if (querySnapshot.docs.isEmpty) {
+        // Also try with +91 prefix
+        querySnapshot = await _registrationsCollection
+            .where('mobileNo', isEqualTo: '+91$phone')
+            .where('status', isEqualTo: 'approved')
+            .limit(1)
+            .get();
+      }
+      
+      if (querySnapshot.docs.isNotEmpty) {
+        final registration = NgoRegistrationRequest.fromFirestore(querySnapshot.docs.first);
+        // Verify password
+        if (registration.password == password) {
+          return registration;
+        }
+      }
+      
+      return null;
+    } catch (e) {
+      debugPrint('Error verifying login with password: $e');
       return null;
     }
   }

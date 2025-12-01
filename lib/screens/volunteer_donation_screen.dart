@@ -40,51 +40,97 @@ class _VolunteerDonationScreenState extends State<VolunteerDonationScreen> {
       final now = DateTime.now();
       final startOfCurrentMonth = DateTime(now.year, now.month, 1);
       final startOfLastMonth = DateTime(now.year, now.month - 1, 1);
-      final endOfLastMonth = DateTime(now.year, now.month, 0);
 
-      // Get current month donations
-      final currentMonthSnapshot = await FirebaseFirestore.instance
-          .collection('emergency_donations_records')
+      // Collect all donations from multiple sources
+      List<Map<String, dynamic>> allCurrentMonthDonations = [];
+      List<Map<String, dynamic>> allLastMonthDonations = [];
+
+      // 1. Get regular donations from 'donations' collection
+      final donationsSnapshot = await FirebaseFirestore.instance
+          .collection('donations')
           .where('donorId', isEqualTo: user.uid)
-          .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfCurrentMonth))
           .get();
-
-      // Get last month donations
-      final lastMonthSnapshot = await FirebaseFirestore.instance
-          .collection('emergency_donations_records')
-          .where('donorId', isEqualTo: user.uid)
-          .where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfLastMonth))
-          .where('createdAt', isLessThanOrEqualTo: Timestamp.fromDate(endOfLastMonth))
-          .get();
-
-      // Process current month data by week
-      Map<int, double> currentWeeklyData = {};
-      for (var doc in currentMonthSnapshot.docs) {
+      
+      for (var doc in donationsSnapshot.docs) {
         final data = doc.data();
-        final date = (data['createdAt'] as Timestamp?)?.toDate();
-        if (date != null) {
-          final weekOfMonth = ((date.day - 1) / 7).floor();
-          final amount = (data['amount'] ?? 0).toDouble();
-          currentWeeklyData[weekOfMonth] = (currentWeeklyData[weekOfMonth] ?? 0) + amount;
+        final createdAt = data['createdAt'] as Timestamp?;
+        if (createdAt != null) {
+          final date = createdAt.toDate();
+          if (date.isAfter(startOfCurrentMonth) || date.isAtSameMomentAs(startOfCurrentMonth)) {
+            allCurrentMonthDonations.add(data);
+          } else if (date.isAfter(startOfLastMonth) && date.isBefore(startOfCurrentMonth)) {
+            allLastMonthDonations.add(data);
+          }
         }
       }
 
-      // Process last month data by week
-      Map<int, double> lastWeeklyData = {};
-      for (var doc in lastMonthSnapshot.docs) {
+      // 2. Get emergency donations records
+      final emergencySnapshot = await FirebaseFirestore.instance
+          .collection('emergency_donations_records')
+          .where('donorId', isEqualTo: user.uid)
+          .get();
+      
+      for (var doc in emergencySnapshot.docs) {
         final data = doc.data();
-        final date = (data['createdAt'] as Timestamp?)?.toDate();
-        if (date != null) {
-          final weekOfMonth = ((date.day - 1) / 7).floor();
+        final createdAt = data['createdAt'] as Timestamp?;
+        if (createdAt != null) {
+          final date = createdAt.toDate();
+          if (date.isAfter(startOfCurrentMonth) || date.isAtSameMomentAs(startOfCurrentMonth)) {
+            allCurrentMonthDonations.add(data);
+          } else if (date.isAfter(startOfLastMonth) && date.isBefore(startOfCurrentMonth)) {
+            allLastMonthDonations.add(data);
+          }
+        }
+      }
+
+      // 3. Get impact donations
+      final impactSnapshot = await FirebaseFirestore.instance
+          .collection('impact_donations')
+          .where('donorId', isEqualTo: user.uid)
+          .get();
+      
+      for (var doc in impactSnapshot.docs) {
+        final data = doc.data();
+        final createdAt = data['createdAt'] as Timestamp?;
+        if (createdAt != null) {
+          final date = createdAt.toDate();
+          if (date.isAfter(startOfCurrentMonth) || date.isAtSameMomentAs(startOfCurrentMonth)) {
+            allCurrentMonthDonations.add(data);
+          } else if (date.isAfter(startOfLastMonth) && date.isBefore(startOfCurrentMonth)) {
+            allLastMonthDonations.add(data);
+          }
+        }
+      }
+
+      // Process current month data by day of week (Mon=0, Sun=6)
+      Map<int, double> currentDayData = {};
+      for (var data in allCurrentMonthDonations) {
+        final createdAt = data['createdAt'] as Timestamp?;
+        if (createdAt != null) {
+          final date = createdAt.toDate();
+          final dayOfWeek = (date.weekday - 1) % 7; // Monday = 0, Sunday = 6
           final amount = (data['amount'] ?? 0).toDouble();
-          lastWeeklyData[weekOfMonth] = (lastWeeklyData[weekOfMonth] ?? 0) + amount;
+          currentDayData[dayOfWeek] = (currentDayData[dayOfWeek] ?? 0) + amount;
+        }
+      }
+
+      // Process last month data by day of week
+      Map<int, double> lastDayData = {};
+      for (var data in allLastMonthDonations) {
+        final createdAt = data['createdAt'] as Timestamp?;
+        if (createdAt != null) {
+          final date = createdAt.toDate();
+          final dayOfWeek = (date.weekday - 1) % 7;
+          final amount = (data['amount'] ?? 0).toDouble();
+          lastDayData[dayOfWeek] = (lastDayData[dayOfWeek] ?? 0) + amount;
         }
       }
 
       if (mounted) {
         setState(() {
-          currentMonthData = List.generate(7, (i) => (currentWeeklyData[i] ?? 0) / 1000);
-          lastMonthData = List.generate(7, (i) => (lastWeeklyData[i] ?? 0) / 1000);
+          // Scale to thousands for better visualization
+          currentMonthData = List.generate(7, (i) => (currentDayData[i] ?? 0) / 1000);
+          lastMonthData = List.generate(7, (i) => (lastDayData[i] ?? 0) / 1000);
           _isLoading = false;
         });
       }

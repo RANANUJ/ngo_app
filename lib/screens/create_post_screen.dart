@@ -3,6 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
 import 'dart:io';
 
 class CreatePostScreen extends StatefulWidget {
@@ -31,10 +33,16 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   static const Color primary = Color(0xFF0099B8);
   final TextEditingController _contentController = TextEditingController();
   File? _selectedImage;
+  File? _selectedVideo;
   bool _isLoading = false;
+  bool _isUploadingMedia = false;
   String? _selectedCommunityId;
   String? _selectedCommunityName;
+  String? _location;
+  double? _latitude;
+  double? _longitude;
   List<Map<String, dynamic>> _userCommunities = [];
+  double _uploadProgress = 0;
 
   @override
   void initState() {
@@ -90,11 +98,104 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       source: ImageSource.gallery,
       maxWidth: 1200,
       maxHeight: 1200,
-      imageQuality: 80,
+      imageQuality: 85,
     );
 
     if (pickedFile != null) {
-      setState(() => _selectedImage = File(pickedFile.path));
+      setState(() {
+        _selectedImage = File(pickedFile.path);
+        _selectedVideo = null;
+      });
+    }
+  }
+
+  Future<void> _pickVideo() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickVideo(
+      source: ImageSource.gallery,
+      maxDuration: const Duration(minutes: 5),
+    );
+
+    if (pickedFile != null) {
+      final file = File(pickedFile.path);
+      final fileSize = await file.length();
+      
+      if (fileSize > 100 * 1024 * 1024) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Video must be less than 100MB')),
+          );
+        }
+        return;
+      }
+
+      setState(() {
+        _selectedVideo = file;
+        _selectedImage = null;
+      });
+    }
+  }
+
+  Future<void> _pickLocation() async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(color: primary),
+      ),
+    );
+
+    try {
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Location permission denied')),
+          );
+          return;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Location permission permanently denied')),
+        );
+        return;
+      }
+
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      final placemarks = await placemarkFromCoordinates(
+        position.latitude,
+        position.longitude,
+      );
+
+      Navigator.pop(context);
+
+      if (placemarks.isNotEmpty) {
+        final place = placemarks.first;
+        final locationStr = [
+          place.locality,
+          place.administrativeArea,
+          place.country,
+        ].where((e) => e != null && e.isNotEmpty).join(', ');
+
+        setState(() {
+          _location = locationStr;
+          _latitude = position.latitude;
+          _longitude = position.longitude;
+        });
+      }
+    } catch (e) {
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error getting location: $e')),
+      );
     }
   }
 
@@ -106,7 +207,15 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           .child('post_images')
           .child(fileName);
 
-      await ref.putFile(file);
+      final uploadTask = ref.putFile(file);
+      
+      uploadTask.snapshotEvents.listen((event) {
+        setState(() {
+          _uploadProgress = event.bytesTransferred / event.totalBytes;
+        });
+      });
+
+      await uploadTask;
       return await ref.getDownloadURL();
     } catch (e) {
       print('Error uploading image: $e');
@@ -114,23 +223,65 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     }
   }
 
+  Future<String?> _uploadVideo(File file) async {
+    try {
+      final fileName = '${DateTime.now().millisecondsSinceEpoch}.mp4';
+      final ref = FirebaseStorage.instance
+          .ref()
+          .child('post_videos')
+          .child(fileName);
+
+      final uploadTask = ref.putFile(
+        file,
+        SettableMetadata(contentType: 'video/mp4'),
+      );
+      
+      uploadTask.snapshotEvents.listen((event) {
+        setState(() {
+          _uploadProgress = event.bytesTransferred / event.totalBytes;
+        });
+      });
+
+      await uploadTask;
+      return await ref.getDownloadURL();
+    } catch (e) {
+      print('Error uploading video: $e');
+      return null;
+    }
+  }
+
   Future<void> _createPost() async {
-    if (_contentController.text.trim().isEmpty && _selectedImage == null) {
+    if (_contentController.text.trim().isEmpty && 
+        _selectedImage == null && 
+        _selectedVideo == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please add some content or an image')),
+        const SnackBar(content: Text('Please add some content, image or video')),
       );
       return;
     }
 
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _uploadProgress = 0;
+    });
 
     try {
       final userId = widget.userId ?? FirebaseAuth.instance.currentUser?.uid;
       if (userId == null) throw Exception('User not logged in');
 
       String? imageUrl;
+      String? videoUrl;
+
       if (_selectedImage != null) {
+        setState(() => _isUploadingMedia = true);
         imageUrl = await _uploadImage(_selectedImage!);
+        setState(() => _isUploadingMedia = false);
+      }
+
+      if (_selectedVideo != null) {
+        setState(() => _isUploadingMedia = true);
+        videoUrl = await _uploadVideo(_selectedVideo!);
+        setState(() => _isUploadingMedia = false);
       }
 
       await FirebaseFirestore.instance.collection('community_posts').add({
@@ -140,6 +291,10 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         'userType': widget.userType,
         'content': _contentController.text.trim(),
         'imageUrl': imageUrl,
+        'videoUrl': videoUrl,
+        'location': _location,
+        'latitude': _latitude,
+        'longitude': _longitude,
         'communityId': _selectedCommunityId,
         'communityName': _selectedCommunityName,
         'likesCount': 0,
@@ -149,7 +304,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      // Update community posts count if posting to a community
       if (_selectedCommunityId != null) {
         await FirebaseFirestore.instance
             .collection('communities')
@@ -173,7 +327,10 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       );
     } finally {
       if (mounted) {
-        setState(() => _isLoading = false);
+        setState(() {
+          _isLoading = false;
+          _isUploadingMedia = false;
+        });
       }
     }
   }
@@ -192,13 +349,9 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           children: [
             const Text(
               'Select Community',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
-            // General (no community)
             ListTile(
               leading: CircleAvatar(
                 backgroundColor: Colors.grey.shade200,
@@ -207,7 +360,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
               title: const Text('General'),
               subtitle: const Text('Post to everyone'),
               trailing: _selectedCommunityId == null
-                  ? Icon(Icons.check_circle, color: primary)
+                  ? const Icon(Icons.check_circle, color: primary)
                   : null,
               onTap: () {
                 setState(() {
@@ -238,12 +391,12 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                         : null,
                     child: community['imageUrl'] == null ||
                             community['imageUrl'].isEmpty
-                        ? Icon(Icons.group, color: primary)
+                        ? const Icon(Icons.group, color: primary)
                         : null,
                   ),
                   title: Text(community['name']),
                   trailing: _selectedCommunityId == community['id']
-                      ? Icon(Icons.check_circle, color: primary)
+                      ? const Icon(Icons.check_circle, color: primary)
                       : null,
                   onTap: () {
                     setState(() {
@@ -308,140 +461,238 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // User Info & Community Selector
-            ListTile(
-              leading: CircleAvatar(
-                backgroundColor: primary.withOpacity(0.2),
-                backgroundImage: widget.userPhoto != null &&
-                        widget.userPhoto!.isNotEmpty
-                    ? NetworkImage(widget.userPhoto!)
-                    : null,
-                child: widget.userPhoto == null || widget.userPhoto!.isEmpty
-                    ? Icon(Icons.person, color: primary)
-                    : null,
-              ),
-              title: Text(
-                widget.userName ?? 'User',
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
-              subtitle: GestureDetector(
-                onTap: _showCommunityPicker,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      _selectedCommunityId != null ? Icons.group : Icons.public,
-                      size: 14,
-                      color: primary,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      _selectedCommunityName ?? 'General',
-                      style: TextStyle(color: primary, fontSize: 12),
-                    ),
-                    Icon(Icons.arrow_drop_down, color: primary, size: 18),
-                  ],
-                ),
-              ),
-            ),
-            const Divider(height: 1),
-            // Content
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: TextField(
-                controller: _contentController,
-                maxLines: null,
-                minLines: 6,
-                decoration: const InputDecoration(
-                  hintText: 'What\'s on your mind?',
-                  border: InputBorder.none,
-                ),
-                style: const TextStyle(fontSize: 16),
-              ),
-            ),
-            // Selected Image Preview
-            if (_selectedImage != null)
-              Stack(
+      body: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    margin: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
+                  ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: primary.withOpacity(0.2),
+                      backgroundImage: widget.userPhoto != null &&
+                              widget.userPhoto!.isNotEmpty
+                          ? NetworkImage(widget.userPhoto!)
+                          : null,
+                      child: widget.userPhoto == null || widget.userPhoto!.isEmpty
+                          ? const Icon(Icons.person, color: primary)
+                          : null,
                     ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.file(
-                        _selectedImage!,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
+                    title: Text(
+                      widget.userName ?? 'User',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    subtitle: GestureDetector(
+                      onTap: _showCommunityPicker,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            _selectedCommunityId != null ? Icons.group : Icons.public,
+                            size: 14,
+                            color: primary,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            _selectedCommunityName ?? 'General',
+                            style: const TextStyle(color: primary, fontSize: 12),
+                          ),
+                          const Icon(Icons.arrow_drop_down, color: primary, size: 18),
+                        ],
                       ),
                     ),
                   ),
-                  Positioned(
-                    top: 24,
-                    right: 24,
-                    child: GestureDetector(
-                      onTap: () => setState(() => _selectedImage = null),
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: const BoxDecoration(
-                          color: Colors.black54,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.close,
-                          color: Colors.white,
-                          size: 20,
-                        ),
+                  const Divider(height: 1),
+                  
+                  if (_location != null)
+                    Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.location_on, color: primary, size: 16),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              _location!,
+                              style: const TextStyle(fontSize: 13, color: Colors.black87),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          GestureDetector(
+                            onTap: () => setState(() {
+                              _location = null;
+                              _latitude = null;
+                              _longitude = null;
+                            }),
+                            child: Icon(Icons.close, size: 16, color: Colors.grey.shade600),
+                          ),
+                        ],
                       ),
                     ),
+
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: TextField(
+                      controller: _contentController,
+                      maxLines: null,
+                      minLines: 6,
+                      decoration: const InputDecoration(
+                        hintText: 'What\'s on your mind?',
+                        border: InputBorder.none,
+                      ),
+                      style: const TextStyle(fontSize: 16),
+                    ),
                   ),
+
+                  if (_isUploadingMedia)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Uploading ${_selectedVideo != null ? 'video' : 'image'}... ${(_uploadProgress * 100).toStringAsFixed(0)}%',
+                            style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                          ),
+                          const SizedBox(height: 8),
+                          LinearProgressIndicator(
+                            value: _uploadProgress,
+                            backgroundColor: Colors.grey.shade200,
+                            valueColor: const AlwaysStoppedAnimation<Color>(primary),
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+                      ),
+                    ),
+
+                  if (_selectedImage != null)
+                    Stack(
+                      children: [
+                        Container(
+                          margin: const EdgeInsets.all(16),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.file(
+                              _selectedImage!,
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        ),
+                        Positioned(
+                          top: 24,
+                          right: 24,
+                          child: GestureDetector(
+                            onTap: () => setState(() => _selectedImage = null),
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: const BoxDecoration(
+                                color: Colors.black54,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.close, color: Colors.white, size: 20),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                  if (_selectedVideo != null)
+                    Stack(
+                      children: [
+                        Container(
+                          margin: const EdgeInsets.all(16),
+                          height: 200,
+                          decoration: BoxDecoration(
+                            color: Colors.black,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                Container(width: double.infinity, color: Colors.grey.shade900),
+                                Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(Icons.videocam, color: Colors.white, size: 48),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'Video selected',
+                                      style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 14),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    FutureBuilder<int>(
+                                      future: _selectedVideo!.length(),
+                                      builder: (context, snapshot) {
+                                        if (snapshot.hasData) {
+                                          final sizeMB = snapshot.data! / (1024 * 1024);
+                                          return Text(
+                                            '${sizeMB.toStringAsFixed(1)} MB',
+                                            style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 12),
+                                          );
+                                        }
+                                        return const SizedBox.shrink();
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        Positioned(
+                          top: 24,
+                          right: 24,
+                          child: GestureDetector(
+                            onTap: () => setState(() => _selectedVideo = null),
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: const BoxDecoration(
+                                color: Colors.black54,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.close, color: Colors.white, size: 20),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                 ],
               ),
-          ],
-        ),
-      ),
-      bottomNavigationBar: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border(
-            top: BorderSide(color: Colors.grey.shade200),
+            ),
           ),
-        ),
-        child: Row(
-          children: [
-            _buildActionButton(
-              Icons.image,
-              'Photo',
-              _pickImage,
+          
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border(top: BorderSide(color: Colors.grey.shade200)),
             ),
-            _buildActionButton(
-              Icons.videocam,
-              'Video',
-              () {},
+            child: Row(
+              children: [
+                _buildActionButton(Icons.image, 'Photo', _pickImage, _selectedImage != null),
+                _buildActionButton(Icons.videocam, 'Video', _pickVideo, _selectedVideo != null),
+                _buildActionButton(Icons.location_on, 'Location', _pickLocation, _location != null),
+              ],
             ),
-            _buildActionButton(
-              Icons.location_on,
-              'Location',
-              () {},
-            ),
-            _buildActionButton(
-              Icons.tag,
-              'Tag',
-              () {},
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildActionButton(IconData icon, String label, VoidCallback onTap) {
+  Widget _buildActionButton(IconData icon, String label, VoidCallback onTap, bool isActive) {
     return Expanded(
       child: InkWell(
         onTap: onTap,
@@ -450,13 +701,14 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, color: primary, size: 24),
+              Icon(icon, color: isActive ? primary : Colors.grey.shade600, size: 24),
               const SizedBox(height: 4),
               Text(
                 label,
                 style: TextStyle(
                   fontSize: 11,
-                  color: Colors.grey.shade700,
+                  color: isActive ? primary : Colors.grey.shade700,
+                  fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
                 ),
               ),
             ],

@@ -64,8 +64,8 @@ class _VolunteerDonationRequestScreenState extends State<VolunteerDonationReques
           
           // Requests List
           Expanded(
-            child: FutureBuilder<QuerySnapshot>(
-              future: _getRequestsFuture(),
+            child: StreamBuilder<QuerySnapshot>(
+              stream: _getRequestsStream(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator(color: primary));
@@ -83,58 +83,59 @@ class _VolunteerDonationRequestScreenState extends State<VolunteerDonationReques
                           'Error loading requests',
                           style: TextStyle(color: Colors.grey.shade600),
                         ),
+                      ],
+                    ),
+                  );
+                }
+
+                // Filter by category in memory to avoid composite index requirement
+                var docs = snapshot.data?.docs ?? [];
+                if (_selectedCategory != 'All') {
+                  docs = docs.where((doc) {
+                    final data = doc.data() as Map<String, dynamic>;
+                    return data['category'] == _selectedCategory;
+                  }).toList();
+                }
+                
+                // Sort by createdAt
+                docs.sort((a, b) {
+                  final aTime = (a.data() as Map<String, dynamic>)['createdAt'] as Timestamp?;
+                  final bTime = (b.data() as Map<String, dynamic>)['createdAt'] as Timestamp?;
+                  if (aTime == null || bTime == null) return 0;
+                  return bTime.compareTo(aTime);
+                });
+
+                if (docs.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.volunteer_activism, size: 80, color: Colors.grey.shade300),
                         const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: () => setState(() {}),
-                          style: ElevatedButton.styleFrom(backgroundColor: primary),
-                          child: const Text('Retry', style: TextStyle(color: Colors.white)),
+                        Text(
+                          _selectedCategory == 'All' 
+                            ? 'No donation requests available' 
+                            : 'No $_selectedCategory requests available',
+                          style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Check back later for new requests',
+                          style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
                         ),
                       ],
                     ),
                   );
                 }
 
-                final docs = snapshot.data?.docs ?? [];
-
-                if (docs.isEmpty) {
-                  return RefreshIndicator(
-                    onRefresh: () async => setState(() {}),
-                    child: SingleChildScrollView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      child: SizedBox(
-                        height: MediaQuery.of(context).size.height * 0.6,
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.volunteer_activism, size: 80, color: Colors.grey.shade300),
-                            const SizedBox(height: 16),
-                            Text(
-                              'No donation requests available',
-                              style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Check back later for new requests',
-                              style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                }
-
-                return RefreshIndicator(
-                  onRefresh: () async => setState(() {}),
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: docs.length,
-                    itemBuilder: (context, index) {
-                      final doc = docs[index];
-                      final data = doc.data() as Map<String, dynamic>;
-                      return _buildRequestCard(data, doc.id);
-                    },
-                  ),
+                return ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: docs.length,
+                  itemBuilder: (context, index) {
+                    final doc = docs[index];
+                    final data = doc.data() as Map<String, dynamic>;
+                    return _buildRequestCard(data, doc.id);
+                  },
                 );
               },
             ),
@@ -144,20 +145,12 @@ class _VolunteerDonationRequestScreenState extends State<VolunteerDonationReques
     );
   }
 
-  Future<QuerySnapshot> _getRequestsFuture() {
-    // Simple query without orderBy to avoid composite index requirement
-    if (_selectedCategory != 'All') {
-      return FirebaseFirestore.instance
-          .collection('donation_requests')
-          .where('status', isEqualTo: 'approved')
-          .where('category', isEqualTo: _selectedCategory)
-          .get();
-    }
-    
+  Stream<QuerySnapshot> _getRequestsStream() {
+    // Query donation_posts with active status for volunteers to see and donate
     return FirebaseFirestore.instance
-        .collection('donation_requests')
-        .where('status', isEqualTo: 'approved')
-        .get();
+        .collection('donation_posts')
+        .where('status', isEqualTo: 'active')
+        .snapshots();
   }
 
   Widget _buildRequestCard(Map<String, dynamic> data, String docId) {
@@ -511,9 +504,10 @@ class _VolunteerDonationRequestScreenState extends State<VolunteerDonationReques
         'createdAt': FieldValue.serverTimestamp(),
       });
 
-      // Update collected amount in request
-      await FirebaseFirestore.instance.collection('donation_requests').doc(docId).update({
+      // Update collected amount in donation post
+      await FirebaseFirestore.instance.collection('donation_posts').doc(docId).update({
         'collectedAmount': FieldValue.increment(amount),
+        'donorsCount': FieldValue.increment(1),
       });
 
       if (mounted) {

@@ -11,6 +11,10 @@ import 'government_schemes_screen.dart';
 import 'volunteer_opportunities_screen.dart';
 import 'community_screen.dart';
 import 'volunteer_donation_screen.dart';
+import 'volunteer_csr_screen.dart';
+import 'ngo_explore_screen.dart';
+import 'volunteer_events_screen.dart';
+import 'volunteer_progress_screen.dart';
 
 class VolunteerDashboardScreen extends StatefulWidget {
   const VolunteerDashboardScreen({Key? key}) : super(key: key);
@@ -134,7 +138,7 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
       case 1:
         return _buildExploreTab();
       case 2:
-        return _buildCreateTab();
+        return _buildMyFeedTab();
       case 3:
         return _buildCommunityTab();
       case 4:
@@ -144,34 +148,48 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
     }
   }
 
+  Future<void> _refreshDashboard() async {
+    // Reload all data
+    await _loadUserProfile();
+    // Trigger rebuild
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
   Widget _buildHomeTab() {
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header
-          _buildHeader(),
-          
-          const SizedBox(height: 24),
-          
-          // Quick Actions (Events, Progress, Report Help, SOS)
-          _buildQuickActions(),
-          
-          const SizedBox(height: 24),
-          
-          // Live Events Section Title
-          _buildLiveEventsSection(),
-          
-          // Live Events Scrollable Cards
-          _buildLiveEventsCards(),
-          
-          const SizedBox(height: 24),
-          
-          // Features Grid
-          _buildFeaturesGrid(),
-          
-          const SizedBox(height: 100),
-        ],
+    return RefreshIndicator(
+      onRefresh: _refreshDashboard,
+      color: primary,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            _buildHeader(),
+            
+            const SizedBox(height: 24),
+            
+            // Quick Actions (Events, Progress, Report Help, SOS)
+            _buildQuickActions(),
+            
+            const SizedBox(height: 24),
+            
+            // Live Events Section Title
+            _buildLiveEventsSection(),
+            
+            // Live Events Scrollable Cards
+            _buildLiveEventsCards(),
+            
+            const SizedBox(height: 24),
+            
+            // Features Grid
+            _buildFeaturesGrid(),
+            
+            const SizedBox(height: 100),
+          ],
+        ),
       ),
     );
   }
@@ -246,13 +264,19 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
             imagePath: 'assets/shield.png',
             label: 'Events',
             hasBadge: false,
-            onTap: () => _showComingSoon('Events'),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const VolunteerEventsScreen()),
+            ),
           ),
           _buildQuickActionWithImage(
             imagePath: 'assets/progress (1).png',
             label: 'Progress',
             hasBadge: true,
-            onTap: () => _showComingSoon('Progress'),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const VolunteerProgressScreen()),
+            ),
           ),
           _buildQuickActionWithImage(
             imagePath: null,
@@ -399,6 +423,21 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
                 decoration: const BoxDecoration(
                   color: Color(0xFFFF9800),
                   shape: BoxShape.circle,
+                ),
+              ),
+              const Spacer(),
+              GestureDetector(
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const VolunteerEventsScreen()),
+                ),
+                child: const Text(
+                  'See All',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF0099B8),
+                  ),
                 ),
               ),
             ],
@@ -720,7 +759,12 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
         ),
       );
     } else if (label == 'CSR Integration') {
-      _showComingSoon('CSR Integration');
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const VolunteerCsrScreen(),
+        ),
+      );
     } else {
       _showComingSoon(label);
     }
@@ -730,25 +774,8 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
     return const VolunteerOpportunitiesScreen(isEmbedded: true);
   }
 
-  Widget _buildCreateTab() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.add_circle_outline, size: 80, color: Colors.grey.shade400),
-          const SizedBox(height: 16),
-          Text(
-            'Create & Share',
-            style: TextStyle(fontSize: 18, color: Colors.grey.shade600),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Start a fundraiser or share your story',
-            style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
-          ),
-        ],
-      ),
-    );
+  Widget _buildMyFeedTab() {
+    return const NgoExploreScreen();
   }
 
   Widget _buildCommunityTab() {
@@ -765,42 +792,46 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
       return const Center(child: CircularProgressIndicator());
     }
     
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        children: [
-          // Profile Header
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.shade200,
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Column(
-              children: [
-                // Profile Image with Edit
-                Stack(
-                  children: [
-                    Container(
-                      width: 100,
-                      height: 100,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: primary.withOpacity(0.1),
-                        border: Border.all(color: primary.withOpacity(0.3), width: 3),
-                      ),
-                      child: _profilePhotoUrl != null && _profilePhotoUrl!.isNotEmpty
-                          ? ClipOval(
-                              child: Image.network(
-                                _profilePhotoUrl!,
-                                fit: BoxFit.cover,
+    return RefreshIndicator(
+      onRefresh: _refreshDashboard,
+      color: primary,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            // Profile Header
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.shade200,
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  // Profile Image with Edit
+                  Stack(
+                    children: [
+                      Container(
+                        width: 100,
+                        height: 100,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: primary.withOpacity(0.1),
+                          border: Border.all(color: primary.withOpacity(0.3), width: 3),
+                        ),
+                        child: _profilePhotoUrl != null && _profilePhotoUrl!.isNotEmpty
+                            ? ClipOval(
+                                child: Image.network(
+                                  _profilePhotoUrl!,
+                                  fit: BoxFit.cover,
                                 width: 100,
                                 height: 100,
                                 errorBuilder: (context, error, stackTrace) =>
@@ -1009,7 +1040,13 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
                 _buildMenuDivider(),
                 _buildMenuItem(Icons.history, 'Donation History', () => _showComingSoon('Donation History')),
                 _buildMenuDivider(),
-                _buildMenuItem(Icons.event_available, 'My Events', () => _showComingSoon('My Events')),
+                _buildMenuItem(Icons.event_available, 'My Events', () {
+                  Navigator.pop(context); // Close drawer
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const VolunteerEventsScreen()),
+                  );
+                }),
                 _buildMenuDivider(),
                 _buildMenuItem(Icons.favorite_border, 'Saved NGOs', () => _showComingSoon('Saved NGOs')),
                 _buildMenuDivider(),
@@ -1045,6 +1082,7 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
           
           const SizedBox(height: 20),
         ],
+        ),
       ),
     );
   }
@@ -1304,7 +1342,7 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
         children: [
           _buildNavItem(0, Icons.home, Icons.home_outlined, 'Home'),
           _buildNavItem(1, Icons.explore, Icons.explore_outlined, 'Explore'),
-          _buildNavItem(2, Icons.add_circle, Icons.add_circle_outline, 'Create'),
+          _buildNavItem(2, Icons.dynamic_feed, Icons.dynamic_feed_outlined, 'My Feed'),
           _buildNavItem(3, Icons.groups, Icons.groups_outlined, 'Community'),
           _buildNavItem(4, Icons.person, Icons.person_outline, 'Profile'),
         ],

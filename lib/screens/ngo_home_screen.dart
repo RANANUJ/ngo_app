@@ -13,6 +13,7 @@ import 'event_calendar_screen.dart';
 import 'community_screen.dart';
 import 'ngo_donation_screen.dart';
 import 'ngo_explore_screen.dart';
+import 'quick_task_screen.dart';
 
 class NgoHomeScreen extends StatefulWidget {
   final NgoRegistrationRequest ngoData;
@@ -402,7 +403,14 @@ class _NgoHomeScreenState extends State<NgoHomeScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _buildQuickTaskItem('assets/icons8-task-completed-48.png', 'Quick Task', null),
+          _buildQuickTaskItem('assets/icons8-task-completed-48.png', 'Quick Task', () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => QuickTaskScreen(ngoData: widget.ngoData),
+              ),
+            );
+          }),
           _buildQuickTaskItem('assets/shield.png', 'Event Calendar', () {
             Navigator.push(
               context,
