@@ -16,6 +16,15 @@ import '../ngo/ngo_explore_screen.dart';
 import 'volunteer_events_screen.dart';
 import 'volunteer_progress_screen.dart';
 import 'volunteer_sos_screen.dart';
+import 'volunteer_edit_profile_screen.dart';
+import 'volunteer_my_campaigns_screen.dart';
+import 'volunteer_donation_history_screen.dart';
+import 'volunteer_my_events_screen.dart';
+import 'volunteer_saved_ngos_screen.dart';
+import 'volunteer_notifications_screen.dart';
+import 'volunteer_settings_screen.dart';
+import 'volunteer_help_support_screen.dart';
+import 'volunteer_privacy_policy_screen.dart';
 import '../../services/cache_service.dart';
 import '../../services/notification_service.dart';
 
@@ -960,7 +969,15 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
                 ],
                 const SizedBox(height: 16),
                 OutlinedButton.icon(
-                  onPressed: _showEditProfileDialog,
+                  onPressed: () async {
+                    final result = await Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const VolunteerEditProfileScreen()),
+                    );
+                    if (result == true) {
+                      _loadUserProfile(); // Refresh profile data
+                    }
+                  },
                   icon: const Icon(Icons.edit, size: 18),
                   label: const Text('Edit Profile'),
                   style: OutlinedButton.styleFrom(
@@ -1087,30 +1104,59 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const CampaignListScreen(isVolunteerView: true),
+                      builder: (context) => const VolunteerMyCampaignsScreen(),
                     ),
                   );
                 }),
                 _buildMenuDivider(),
-                _buildMenuItem(Icons.history, 'Donation History', () => _showComingSoon('Donation History')),
-                _buildMenuDivider(),
-                _buildMenuItem(Icons.event_available, 'My Events', () {
-                  Navigator.pop(context); // Close drawer
+                _buildMenuItem(Icons.history, 'Donation History', () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const VolunteerEventsScreen()),
+                    MaterialPageRoute(builder: (_) => const VolunteerDonationHistoryScreen()),
                   );
                 }),
                 _buildMenuDivider(),
-                _buildMenuItem(Icons.favorite_border, 'Saved NGOs', () => _showComingSoon('Saved NGOs')),
+                _buildMenuItem(Icons.event_available, 'My Events', () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const VolunteerMyEventsScreen()),
+                  );
+                }),
                 _buildMenuDivider(),
-                _buildMenuItem(Icons.notifications_outlined, 'Notifications', () => _showComingSoon('Notifications')),
+                _buildMenuItem(Icons.favorite_border, 'Saved NGOs', () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const VolunteerSavedNgosScreen()),
+                  );
+                }),
                 _buildMenuDivider(),
-                _buildMenuItem(Icons.settings, 'Settings', () => _showComingSoon('Settings')),
+                _buildMenuItem(Icons.notifications_outlined, 'Notifications', () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const VolunteerNotificationsScreen()),
+                  );
+                }),
                 _buildMenuDivider(),
-                _buildMenuItem(Icons.help_outline, 'Help & Support', () => _showComingSoon('Help')),
+                _buildMenuItem(Icons.settings, 'Settings', () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const VolunteerSettingsScreen()),
+                  );
+                }),
                 _buildMenuDivider(),
-                _buildMenuItem(Icons.privacy_tip_outlined, 'Privacy Policy', () => _showComingSoon('Privacy Policy')),
+                _buildMenuItem(Icons.help_outline, 'Help & Support', () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const VolunteerHelpSupportScreen()),
+                  );
+                }),
+                _buildMenuDivider(),
+                _buildMenuItem(Icons.privacy_tip_outlined, 'Privacy Policy', () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const VolunteerPrivacyPolicyScreen()),
+                  );
+                }),
               ],
             ),
           ),
