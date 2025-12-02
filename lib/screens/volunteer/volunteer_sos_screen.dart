@@ -50,12 +50,12 @@ class _VolunteerSOSScreenState extends State<VolunteerSOSScreen> with SingleTick
 
   // Emergency Types
   final List<Map<String, dynamic>> _emergencyTypes = [
-    {'type': 'Medical', 'icon': Icons.medical_services, 'color': Colors.red},
-    {'type': 'Accident', 'icon': Icons.car_crash, 'color': Colors.orange},
-    {'type': 'Fire', 'icon': Icons.local_fire_department, 'color': Colors.deepOrange},
-    {'type': 'Natural Disaster', 'icon': Icons.flood, 'color': Colors.blue},
-    {'type': 'Personal Safety', 'icon': Icons.shield, 'color': Colors.purple},
-    {'type': 'Other', 'icon': Icons.warning, 'color': Colors.grey},
+    {'type': 'Medical', 'icon': Icons.medical_services, 'image': 'assets/medical.png', 'color': Colors.red},
+    {'type': 'Accident', 'icon': Icons.car_crash, 'image': 'assets/accident.png', 'color': Colors.orange},
+    {'type': 'Fire', 'icon': Icons.local_fire_department, 'image': 'assets/firefighter.png', 'color': Colors.deepOrange},
+    {'type': 'Natural Disaster', 'icon': Icons.flood, 'image': 'assets/disaster1.jpeg', 'color': Colors.blue},
+    {'type': 'Personal Safety', 'icon': Icons.shield, 'image': 'assets/safety.jpg', 'color': Colors.purple},
+    {'type': 'Other', 'icon': Icons.warning, 'image': null, 'color': Colors.grey},
   ];
 
   // Emergency Contacts
@@ -112,15 +112,7 @@ class _VolunteerSOSScreenState extends State<VolunteerSOSScreen> with SingleTick
     setState(() => _isLoadingLocation = true);
     
     try {
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        setState(() {
-          _currentAddress = 'Location services disabled';
-          _isLoadingLocation = false;
-        });
-        return;
-      }
-
+      // FIRST: Check and request location permission
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
@@ -134,15 +126,76 @@ class _VolunteerSOSScreenState extends State<VolunteerSOSScreen> with SingleTick
       }
 
       if (permission == LocationPermission.deniedForever) {
+        if (mounted) {
+          final shouldOpen = await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Permission Required'),
+              content: const Text('Location permission is permanently denied. Please enable it in app settings.'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                  child: const Text('Open Settings'),
+                ),
+              ],
+            ),
+          );
+          
+          if (shouldOpen == true) {
+            await Geolocator.openAppSettings();
+          }
+        }
         setState(() {
-          _currentAddress = 'Location permission permanently denied';
+          _currentAddress = 'Enable location in app settings';
           _isLoadingLocation = false;
         });
         return;
       }
 
+      // SECOND: Check if GPS/location services are enabled
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        // Prompt user to enable location services
+        if (mounted) {
+          final shouldOpen = await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Location Services Disabled'),
+              content: const Text('Please enable GPS/Location services on your device to use SOS feature.'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                  child: const Text('Open Settings'),
+                ),
+              ],
+            ),
+          );
+          
+          if (shouldOpen == true) {
+            await Geolocator.openLocationSettings();
+          }
+        }
+        setState(() {
+          _currentAddress = 'Enable GPS in device settings';
+          _isLoadingLocation = false;
+        });
+        return;
+      }
+
+      // THIRD: Get current position
       Position position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 10),
       );
 
       setState(() => _currentPosition = position);
@@ -166,8 +219,9 @@ class _VolunteerSOSScreenState extends State<VolunteerSOSScreen> with SingleTick
         });
       }
     } catch (e) {
+      debugPrint('Location error: $e');
       setState(() {
-        _currentAddress = 'Error getting location';
+        _currentAddress = 'Tap refresh to get location';
       });
     } finally {
       setState(() => _isLoadingLocation = false);
@@ -535,11 +589,26 @@ class _VolunteerSOSScreenState extends State<VolunteerSOSScreen> with SingleTick
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(
-                      type['icon'] as IconData,
-                      color: type['color'] as Color,
-                      size: 28,
-                    ),
+                    type['image'] != null
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.asset(
+                              type['image'] as String,
+                              width: 48,
+                              height: 48,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) => Icon(
+                                type['icon'] as IconData,
+                                color: type['color'] as Color,
+                                size: 40,
+                              ),
+                            ),
+                          )
+                        : Icon(
+                            type['icon'] as IconData,
+                            color: type['color'] as Color,
+                            size: 40,
+                          ),
                     const SizedBox(height: 8),
                     Text(
                       type['type'] as String,

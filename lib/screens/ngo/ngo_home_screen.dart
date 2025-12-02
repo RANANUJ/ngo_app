@@ -74,6 +74,11 @@ class _NgoHomeScreenState extends State<NgoHomeScreen> {
     try {
       // Subscribe to SOS alerts topic for push notifications
       await NotificationService().subscribeToSOSAlerts();
+      
+      // Save FCM token to Firestore for push notifications
+      await NotificationService().updateNGOFcmToken(widget.ngoData.id, widget.ngoData.id);
+      
+      debugPrint('NGO notifications initialized successfully');
     } catch (e) {
       debugPrint('Error initializing notifications: $e');
     }

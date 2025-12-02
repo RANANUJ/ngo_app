@@ -216,20 +216,18 @@ class NotificationService {
 
   /// Update FCM token for an NGO member
   Future<void> updateNGOFcmToken(String ngoId, String memberId) async {
-    if (_fcmToken == null) return;
+    if (_fcmToken == null) {
+      // Try to get the token if not available
+      _fcmToken = await _messaging.getToken();
+    }
+    
+    if (_fcmToken == null) {
+      debugPrint('FCM token is still null, cannot update');
+      return;
+    }
 
     try {
-      await FirebaseFirestore.instance
-          .collection('ngos')
-          .doc(ngoId)
-          .collection('members')
-          .doc(memberId)
-          .update({
-        'fcmToken': _fcmToken,
-        'fcmTokenUpdatedAt': FieldValue.serverTimestamp(),
-      });
-
-      // Also store in a dedicated collection for easier querying
+      // Store in a dedicated collection for easier querying by Cloud Functions
       await FirebaseFirestore.instance
           .collection('ngo_fcm_tokens')
           .doc('${ngoId}_$memberId')
@@ -238,9 +236,9 @@ class NotificationService {
         'memberId': memberId,
         'fcmToken': _fcmToken,
         'updatedAt': FieldValue.serverTimestamp(),
-      });
+      }, SetOptions(merge: true));
 
-      debugPrint('FCM token updated for NGO member: $memberId');
+      debugPrint('FCM token saved for NGO: $ngoId');
     } catch (e) {
       debugPrint('Error updating FCM token: $e');
     }

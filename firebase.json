@@ -1,1 +1,28 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"connect-ngo-82057","appId":"1:996182230556:android:4b11e2f32447fc998fc1d9","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"connect-ngo-82057","configurations":{"ios":"1:996182230556:ios:d6450cf4d962f1508fc1d9"}}}}}}
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "connect-ngo-82057",
+          "appId": "1:996182230556:android:4b11e2f32447fc998fc1d9",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "connect-ngo-82057",
+          "configurations": {
+            "ios": "1:996182230556:ios:d6450cf4d962f1508fc1d9"
+          }
+        }
+      }
+    }
+  },
+  "functions": {
+    "source": "functions",
+    "runtime": "nodejs20"
+  },
+  "firestore": {
+    "rules": "firestore.rules"
+  }
+}
