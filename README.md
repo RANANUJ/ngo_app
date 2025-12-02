@@ -1,7 +1,7 @@
 # 🌍 NGO Connect - Volunteer & NGO Management Platform
 
 <p align="center">
-  <img src="assets/logo.png" alt="NGO Connect Logo" width="150"/>
+  <img src="assets/image.png" alt="NGO Connect Logo" width="150"/>
 </p>
 
 <p align="center">
