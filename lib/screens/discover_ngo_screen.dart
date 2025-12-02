@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/ngo_registration_service.dart';
-import 'ngo_public_profile_screen.dart';
+import 'ngo/ngo_public_profile_screen.dart';
 
 class DiscoverNgoScreen extends StatefulWidget {
   const DiscoverNgoScreen({Key? key}) : super(key: key);

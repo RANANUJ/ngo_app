@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
-import 'volunteer_dashboard_screen.dart';
+import 'volunteer/volunteer_dashboard_screen.dart';
 
 class EmailVerificationScreen extends StatefulWidget {
   final String email;

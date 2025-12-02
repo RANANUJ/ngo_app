@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/ngo_verification_service.dart';
-import 'volunteer_dashboard_screen.dart';
+import 'volunteer/volunteer_dashboard_screen.dart';
 
 class VerificationResultScreen extends StatelessWidget {
   final VerificationResult result;

@@ -35,6 +35,12 @@ class NgoRegistrationRequest {
   final bool panCardUploaded;
   final bool certificate12A80GUploaded;
   final bool pastWorkProofUploaded;
+  // Document URLs for actual file storage
+  final String? idProofUrl;
+  final String? registrationCertUrl;
+  final String? panCardUrl;
+  final String? certificate12A80GUrl;
+  final String? pastWorkProofUrl;
   final String password; // Password for login (default: 123456)
   final DateTime submittedAt;
   final RegistrationStatus status;
@@ -67,6 +73,11 @@ class NgoRegistrationRequest {
     required this.panCardUploaded,
     required this.certificate12A80GUploaded,
     required this.pastWorkProofUploaded,
+    this.idProofUrl,
+    this.registrationCertUrl,
+    this.panCardUrl,
+    this.certificate12A80GUrl,
+    this.pastWorkProofUrl,
     this.password = '123456', // Default password
     required this.submittedAt,
     this.status = RegistrationStatus.pending,
@@ -122,6 +133,11 @@ class NgoRegistrationRequest {
       'panCardUploaded': panCardUploaded,
       'certificate12A80GUploaded': certificate12A80GUploaded,
       'pastWorkProofUploaded': pastWorkProofUploaded,
+      'idProofUrl': idProofUrl,
+      'registrationCertUrl': registrationCertUrl,
+      'panCardUrl': panCardUrl,
+      'certificate12A80GUrl': certificate12A80GUrl,
+      'pastWorkProofUrl': pastWorkProofUrl,
       'password': password,
       'submittedAt': Timestamp.fromDate(submittedAt),
       'status': status.name,
@@ -159,6 +175,11 @@ class NgoRegistrationRequest {
       panCardUploaded: data['panCardUploaded'] ?? false,
       certificate12A80GUploaded: data['certificate12A80GUploaded'] ?? false,
       pastWorkProofUploaded: data['pastWorkProofUploaded'] ?? false,
+      idProofUrl: data['idProofUrl'],
+      registrationCertUrl: data['registrationCertUrl'],
+      panCardUrl: data['panCardUrl'],
+      certificate12A80GUrl: data['certificate12A80GUrl'],
+      pastWorkProofUrl: data['pastWorkProofUrl'],
       password: data['password'] ?? '123456',
       submittedAt: (data['submittedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       status: _parseStatus(data['status']),
@@ -259,6 +280,11 @@ class NgoRegistrationService {
     required bool panCardUploaded,
     required bool certificate12A80GUploaded,
     required bool pastWorkProofUploaded,
+    String? idProofUrl,
+    String? registrationCertUrl,
+    String? panCardUrl,
+    String? certificate12A80GUrl,
+    String? pastWorkProofUrl,
     String password = '123456', // Default password if not provided
   }) async {
     final registration = NgoRegistrationRequest(
@@ -286,6 +312,11 @@ class NgoRegistrationService {
       panCardUploaded: panCardUploaded,
       certificate12A80GUploaded: certificate12A80GUploaded,
       pastWorkProofUploaded: pastWorkProofUploaded,
+      idProofUrl: idProofUrl,
+      registrationCertUrl: registrationCertUrl,
+      panCardUrl: panCardUrl,
+      certificate12A80GUrl: certificate12A80GUrl,
+      pastWorkProofUrl: pastWorkProofUrl,
       password: password.isEmpty ? '123456' : password,
       submittedAt: DateTime.now(),
       status: RegistrationStatus.pending,
@@ -325,6 +356,11 @@ class NgoRegistrationService {
         panCardUploaded: panCardUploaded,
         certificate12A80GUploaded: certificate12A80GUploaded,
         pastWorkProofUploaded: pastWorkProofUploaded,
+        idProofUrl: idProofUrl,
+        registrationCertUrl: registrationCertUrl,
+        panCardUrl: panCardUrl,
+        certificate12A80GUrl: certificate12A80GUrl,
+        pastWorkProofUrl: pastWorkProofUrl,
         password: password.isEmpty ? '123456' : password,
         submittedAt: registration.submittedAt,
         status: RegistrationStatus.pending,

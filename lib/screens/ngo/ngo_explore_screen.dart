@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'post_feed_screen.dart';
+import '../post_feed_screen.dart';
 
 class NgoExploreScreen extends StatefulWidget {
-  const NgoExploreScreen({Key? key}) : super(key: key);
+  final String? userId;
+  
+  const NgoExploreScreen({Key? key, this.userId}) : super(key: key);
 
   @override
   State<NgoExploreScreen> createState() => _NgoExploreScreenState();
@@ -15,11 +17,25 @@ class _NgoExploreScreenState extends State<NgoExploreScreen> with SingleTickerPr
   
   late TabController _tabController;
   final TextEditingController _searchController = TextEditingController();
+  String? _currentUserId;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    // Cache userId - prefer passed parameter, then try Firebase Auth
+    _currentUserId = widget.userId ?? FirebaseAuth.instance.currentUser?.uid;
+    debugPrint('NgoExploreScreen: User ID = $_currentUserId');
+    
+    // Listen for auth state changes in case user wasn't fully loaded
+    FirebaseAuth.instance.authStateChanges().listen((User? user) {
+      if (mounted && user != null && _currentUserId == null) {
+        setState(() {
+          _currentUserId = user.uid;
+        });
+        debugPrint('NgoExploreScreen: Auth state updated - User ID = $_currentUserId');
+      }
+    });
   }
 
   @override
@@ -400,7 +416,7 @@ class _NgoExploreScreenState extends State<NgoExploreScreen> with SingleTickerPr
             builder: (context) => PostFeedScreen(
               posts: allPosts,
               initialIndex: postIndex >= 0 ? postIndex : 0,
-              userId: FirebaseAuth.instance.currentUser?.uid,
+              userId: _currentUserId,
             ),
           ),
         );

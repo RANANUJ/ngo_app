@@ -38,6 +38,17 @@ class _PostFeedScreenState extends State<PostFeedScreen> {
     _pageController = PageController(initialPage: widget.initialIndex);
     _initializeVideoControllers();
     _initializeUser();
+    
+    // Listen for auth state changes in case user wasn't fully loaded
+    FirebaseAuth.instance.authStateChanges().listen((User? user) {
+      if (mounted && user != null && _currentUserId == null) {
+        setState(() {
+          _currentUserId = user.uid;
+          _currentUser = user;
+        });
+        debugPrint('PostFeedScreen: Auth state updated - User ID = $_currentUserId');
+      }
+    });
   }
 
   void _initializeUser() {
@@ -45,6 +56,8 @@ class _PostFeedScreenState extends State<PostFeedScreen> {
     _currentUserId = widget.userId ?? FirebaseAuth.instance.currentUser?.uid;
     _currentUser = FirebaseAuth.instance.currentUser;
     debugPrint('PostFeedScreen: Current user ID = $_currentUserId');
+    debugPrint('PostFeedScreen: Widget userId = ${widget.userId}');
+    debugPrint('PostFeedScreen: FirebaseAuth currentUser = ${FirebaseAuth.instance.currentUser?.uid}');
   }
   void _initializeVideoControllers() {
     // Pre-initialize nearby video controllers
@@ -595,6 +608,7 @@ class _PostFeedScreenState extends State<PostFeedScreen> {
       builder: (context) => _CommentsSheet(
         docId: docId,
         postData: postData,
+        userId: _currentUserId,
       ),
     );
   }
@@ -627,11 +641,13 @@ class _PostFeedScreenState extends State<PostFeedScreen> {
 class _CommentsSheet extends StatefulWidget {
   final String docId;
   final Map<String, dynamic> postData;
+  final String? userId;
 
   const _CommentsSheet({
     Key? key,
     required this.docId,
     required this.postData,
+    this.userId,
   }) : super(key: key);
 
   @override
@@ -642,6 +658,13 @@ class _CommentsSheetState extends State<_CommentsSheet> {
   static const Color primary = Color(0xFF0099B8);
   final TextEditingController _commentController = TextEditingController();
   bool _isPosting = false;
+  String? _currentUserId;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentUserId = widget.userId ?? FirebaseAuth.instance.currentUser?.uid;
+  }
 
   @override
   void dispose() {
@@ -652,13 +675,19 @@ class _CommentsSheetState extends State<_CommentsSheet> {
   Future<void> _postComment() async {
     if (_commentController.text.trim().isEmpty) return;
 
+    // Use cached userId first
+    String? userId = _currentUserId;
     User? user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      // Wait a bit and try again in case auth is still initializing
-      await Future.delayed(const Duration(milliseconds: 100));
-      user = FirebaseAuth.instance.currentUser;
-      
+    
+    if (userId == null) {
+      // Try fresh check
       if (user == null) {
+        await Future.delayed(const Duration(milliseconds: 100));
+        user = FirebaseAuth.instance.currentUser;
+      }
+      userId = user?.uid;
+      
+      if (userId == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Please login to comment')),
         );
@@ -670,14 +699,14 @@ class _CommentsSheetState extends State<_CommentsSheet> {
 
     try {
       // Get user info
-      String userName = user.displayName ?? 'User';
-      String? userPhoto = user.photoURL;
+      String userName = user?.displayName ?? 'User';
+      String? userPhoto = user?.photoURL;
       String userType = 'volunteer';
 
       // Try to get from volunteers collection
       final volunteerDoc = await FirebaseFirestore.instance
           .collection('volunteers')
-          .doc(user.uid)
+          .doc(userId)
           .get();
       
       if (volunteerDoc.exists) {
@@ -692,7 +721,7 @@ class _CommentsSheetState extends State<_CommentsSheet> {
           .doc(widget.docId)
           .collection('comments')
           .add({
-        'userId': user.uid,
+        'userId': userId,
         'userName': userName,
         'userPhoto': userPhoto,
         'userType': userType,

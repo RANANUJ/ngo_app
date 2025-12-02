@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'individual_registration_screen.dart';
-import 'ngo_registration_screen.dart';
-import 'ngo_login_screen.dart';
-import 'admin_login_screen.dart';
+import 'ngo_registration/ngo_registration.dart';
+import 'ngo/ngo_login_screen.dart';
+import 'admin/admin_login_screen.dart';
 
 class UserTypeScreen extends StatelessWidget {
   const UserTypeScreen({Key? key}) : super(key: key);

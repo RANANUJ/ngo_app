@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'campaign_list_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../campaign_list_screen.dart';
 import 'ngo_explore_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -312,7 +313,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       case 0:
         return _buildHomeTab();
       case 1:
-        return const NgoExploreScreen();
+        return NgoExploreScreen(userId: FirebaseAuth.instance.currentUser?.uid);
       case 2:
         return _buildCreateTab();
       case 3:

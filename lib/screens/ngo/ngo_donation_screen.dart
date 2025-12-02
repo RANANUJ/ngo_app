@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fl_chart/fl_chart.dart';
-import '../services/ngo_registration_service.dart';
-import 'donation_request_screen.dart';
-import 'donation_history_screen.dart';
-import 'create_donation_post_screen.dart';
-import 'emergency_donation_screen.dart';
-import 'share_resource_screen.dart';
-import 'share_impact_screen.dart';
-import 'needs_forecasting_screen.dart';
-import 'csr_integration_screen.dart';
+import '../../services/ngo_registration_service.dart';
+import '../donation_request_screen.dart';
+import '../donation_history_screen.dart';
+import '../create_donation_post_screen.dart';
+import '../emergency_donation_screen.dart';
+import '../share_resource_screen.dart';
+import '../share_impact_screen.dart';
+import '../needs_forecasting_screen.dart';
+import '../csr_integration_screen.dart';
 
 class NgoDonationScreen extends StatefulWidget {
   final NgoRegistrationRequest ngoData;

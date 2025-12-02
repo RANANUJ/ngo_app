@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'user_type_screen.dart';
-import 'ngo_verification_status_screen.dart';
-import 'ngo_home_screen.dart';
-import 'volunteer_dashboard_screen.dart';
+import 'ngo/ngo_verification_status_screen.dart';
+import 'ngo/ngo_home_screen.dart';
+import 'volunteer/volunteer_dashboard_screen.dart';
 import '../services/local_storage_service.dart';
 import '../services/ngo_registration_service.dart';
 

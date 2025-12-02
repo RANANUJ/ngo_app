@@ -4,8 +4,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:io';
-import '../services/ngo_registration_service.dart';
-import 'volunteer_registration_screen.dart';
+import '../../services/ngo_registration_service.dart';
+import '../volunteer/volunteer_registration_screen.dart';
 
 class NgoPublicProfileScreen extends StatefulWidget {
   final NgoRegistrationRequest ngoData;

@@ -4,17 +4,18 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
-import 'user_type_screen.dart';
-import 'discover_ngo_screen.dart';
-import 'campaign_list_screen.dart';
-import 'government_schemes_screen.dart';
+import '../user_type_screen.dart';
+import '../discover_ngo_screen.dart';
+import '../campaign_list_screen.dart';
+import '../government_schemes_screen.dart';
 import 'volunteer_opportunities_screen.dart';
-import 'community_screen.dart';
+import '../community_screen.dart';
 import 'volunteer_donation_screen.dart';
 import 'volunteer_csr_screen.dart';
-import 'ngo_explore_screen.dart';
+import '../ngo/ngo_explore_screen.dart';
 import 'volunteer_events_screen.dart';
 import 'volunteer_progress_screen.dart';
+import 'volunteer_sos_screen.dart';
 
 class VolunteerDashboardScreen extends StatefulWidget {
   const VolunteerDashboardScreen({Key? key}) : super(key: key);
@@ -26,6 +27,9 @@ class VolunteerDashboardScreen extends StatefulWidget {
 class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
   static const Color primary = Color(0xFF0099B8);
   int _currentIndex = 0;
+  
+  // User ID - cached on init
+  String? _userId;
   
   // Profile data
   String? _profilePhotoUrl;
@@ -47,12 +51,21 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
   @override
   void initState() {
     super.initState();
+    // Cache userId immediately
+    _userId = FirebaseAuth.instance.currentUser?.uid;
+    debugPrint('VolunteerDashboard: User ID = $_userId');
     _loadUserProfile();
   }
 
   Future<void> _loadUserProfile() async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+    if (user == null) {
+      debugPrint('VolunteerDashboard: No Firebase user found');
+      return;
+    }
+    
+    // Update userId if not set
+    _userId ??= user.uid;
 
     try {
       // Load profile from Firestore
@@ -775,12 +788,12 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
   }
 
   Widget _buildMyFeedTab() {
-    return const NgoExploreScreen();
+    return NgoExploreScreen(userId: _userId);
   }
 
   Widget _buildCommunityTab() {
     return CommunityScreen(
-      userId: FirebaseAuth.instance.currentUser?.uid,
+      userId: _userId,
       userName: _userName,
       userPhoto: _profilePhotoUrl,
       userType: 'volunteer',
@@ -1395,46 +1408,13 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
   }
 
   void _showSOSDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: const BoxDecoration(
-                color: Colors.red,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.warning, color: Colors.white, size: 24),
-            ),
-            const SizedBox(width: 12),
-            const Text('Emergency SOS'),
-          ],
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => VolunteerSOSScreen(
+          odid: _userId ?? '',
+          odname: _userName,
         ),
-        content: const Text(
-          'This will alert nearby NGOs and emergency services. Use only in case of genuine emergency.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('SOS Alert Sent! Help is on the way.'),
-                  backgroundColor: Colors.red,
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Send SOS', style: TextStyle(color: Colors.white)),
-          ),
-        ],
       ),
     );
   }

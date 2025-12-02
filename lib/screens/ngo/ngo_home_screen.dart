@@ -1,19 +1,33 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../services/ngo_registration_service.dart';
-import '../services/local_storage_service.dart';
-import 'user_type_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:image_picker/image_picker.dart';
+import '../../services/ngo_registration_service.dart';
+import '../../services/local_storage_service.dart';
+import '../user_type_screen.dart';
 import 'ngo_public_profile_screen.dart';
 import 'ngo_volunteers_screen.dart';
-import 'create_campaign_screen.dart';
-import 'campaign_list_screen.dart';
-import 'government_schemes_screen.dart';
+import '../create_campaign_screen.dart';
+import '../campaign_list_screen.dart';
+import '../government_schemes_screen.dart';
 import 'ngo_opportunities_screen.dart';
-import 'event_calendar_screen.dart';
-import 'community_screen.dart';
+import '../event_calendar_screen.dart';
+import '../community_screen.dart';
 import 'ngo_donation_screen.dart';
 import 'ngo_explore_screen.dart';
-import 'quick_task_screen.dart';
+import '../quick_task_screen.dart';
+import 'ngo_progress_screen.dart';
+import 'ngo_edit_profile_screen.dart';
+import 'ngo_reset_password_screen.dart';
+import 'ngo_reports_screen.dart';
+import 'ngo_notifications_screen.dart';
+import 'ngo_privacy_security_screen.dart';
+import 'ngo_help_support_screen.dart';
+import 'ngo_about_app_screen.dart';
+import 'ngo_sos_alerts_screen.dart';
 
 class NgoHomeScreen extends StatefulWidget {
   final NgoRegistrationRequest ngoData;
@@ -422,8 +436,18 @@ class _NgoHomeScreenState extends State<NgoHomeScreen> {
               ),
             );
           }),
-          _buildQuickTaskItem('assets/progress (1).png', 'Progress', null),
-          _buildQuickTaskItem('assets/new-user.png', 'Add Admin', null),
+          _buildQuickTaskItem('assets/progress (1).png', 'Progress', () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => NgoProgressScreen(
+                  ngoId: widget.ngoData.id!,
+                  ngoName: widget.ngoData.ngoName,
+                ),
+              ),
+            );
+          }),
+          _buildSOSAlertButton(),
         ],
       ),
     );
@@ -459,6 +483,91 @@ class _NgoHomeScreenState extends State<NgoHomeScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildSOSAlertButton() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('sos_alerts')
+          .where('status', isEqualTo: 'active')
+          .snapshots(),
+      builder: (context, snapshot) {
+        int activeCount = 0;
+        if (snapshot.hasData) {
+          activeCount = snapshot.data!.docs.length;
+        }
+
+        return GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => NgoSOSAlertsScreen(
+                  ngoId: widget.ngoData.id!,
+                  ngoName: widget.ngoData.ngoName,
+                ),
+              ),
+            );
+          },
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE53935).withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.sos,
+                      color: Color(0xFFE53935),
+                      size: 28,
+                    ),
+                  ),
+                  if (activeCount > 0)
+                    Positioned(
+                      top: -6,
+                      right: -6,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFE53935),
+                          shape: BoxShape.circle,
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 18,
+                          minHeight: 18,
+                        ),
+                        child: Text(
+                          activeCount > 9 ? '9+' : activeCount.toString(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'SOS Alerts',
+                style: TextStyle(
+                  color: activeCount > 0 ? const Color(0xFFE53935) : Colors.grey.shade700,
+                  fontSize: 11,
+                  fontWeight: activeCount > 0 ? FontWeight.bold : FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -683,7 +792,8 @@ class _NgoHomeScreenState extends State<NgoHomeScreen> {
   }
 
   Widget _buildExploreTab() {
-    return const NgoExploreScreen();
+    // Use NGO's registration ID since they don't use Firebase Auth
+    return NgoExploreScreen(userId: widget.ngoData.id);
   }
 
   Widget _buildCreateTab() {
@@ -1163,11 +1273,11 @@ class _NgoHomeScreenState extends State<NgoHomeScreen> {
                   ],
                 ),
                 const SizedBox(height: 12),
-                _buildDocumentItem('Registration Certificate', widget.ngoData.registrationCertUploaded),
-                _buildDocumentItem('PAN Card', widget.ngoData.panCardUploaded),
-                _buildDocumentItem('12A/80G Certificate', widget.ngoData.certificate12A80GUploaded),
-                _buildDocumentItem('ID Proof', widget.ngoData.idProofUploaded),
-                _buildDocumentItem('Past Work Proof', widget.ngoData.pastWorkProofUploaded),
+                _buildDocumentItemClickable('Registration Certificate', widget.ngoData.registrationCertUploaded, widget.ngoData.registrationCertUrl),
+                _buildDocumentItemClickable('PAN Card', widget.ngoData.panCardUploaded, widget.ngoData.panCardUrl),
+                _buildDocumentItemClickable('12A/80G Certificate', widget.ngoData.certificate12A80GUploaded, widget.ngoData.certificate12A80GUrl),
+                _buildDocumentItemClickable('ID Proof', widget.ngoData.idProofUploaded, widget.ngoData.idProofUrl),
+                _buildDocumentItemClickable('Past Work Proof', widget.ngoData.pastWorkProofUploaded, widget.ngoData.pastWorkProofUrl),
               ],
             ),
           ),
@@ -1199,9 +1309,7 @@ class _NgoHomeScreenState extends State<NgoHomeScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                _buildActionItem(Icons.share, 'Share Profile', 'Share your NGO profile', _shareProfile),
-                _buildActionItem(Icons.qr_code, 'QR Code', 'Generate donation QR', _generateQRCode),
-                _buildActionItem(Icons.download, 'Download Certificate', 'Get verification certificate', _downloadCertificate),
+                _buildActionItem(Icons.lock_reset, 'Password Reset', 'Change your login password', _resetPassword),
                 _buildActionItem(Icons.analytics, 'View Reports', 'Analytics & insights', _viewReports),
               ],
             ),
@@ -1370,6 +1478,203 @@ class _NgoHomeScreenState extends State<NgoHomeScreen> {
     );
   }
 
+  Widget _buildDocumentItemClickable(String name, bool uploaded, String? documentUrl) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: uploaded ? Colors.green.withOpacity(0.1) : Colors.orange.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              uploaded ? Icons.check_circle : Icons.pending,
+              color: uploaded ? Colors.green : Colors.orange,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              name,
+              style: const TextStyle(fontSize: 14),
+            ),
+          ),
+          if (uploaded && documentUrl != null && documentUrl.isNotEmpty)
+            GestureDetector(
+              onTap: () => _viewDocument(name, documentUrl),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.visibility, color: primary, size: 16),
+                    const SizedBox(width: 4),
+                    Text(
+                      'View',
+                      style: TextStyle(
+                        color: primary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else if (uploaded)
+            GestureDetector(
+              onTap: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Document URL not available')),
+                );
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.visibility, color: primary, size: 16),
+                    const SizedBox(width: 4),
+                    Text(
+                      'View',
+                      style: TextStyle(
+                        color: primary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+            Text(
+              'Pending',
+              style: TextStyle(
+                color: Colors.orange,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _viewDocument(String documentName, String documentUrl) async {
+    try {
+      final uri = Uri.parse(documentUrl);
+      
+      // Check if URL is valid and can be launched
+      if (await canLaunchUrl(uri)) {
+        final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+        if (!launched) {
+          _showDocumentPreviewDialog(documentName, documentUrl);
+        }
+      } else {
+        _showDocumentPreviewDialog(documentName, documentUrl);
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error opening document: $e')),
+      );
+    }
+  }
+
+  void _showDocumentPreviewDialog(String documentName, String documentUrl) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(documentName),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              height: 300,
+              width: double.maxFinite,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.network(
+                  documentUrl,
+                  fit: BoxFit.contain,
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return Center(
+                      child: CircularProgressIndicator(
+                        value: loadingProgress.expectedTotalBytes != null
+                            ? loadingProgress.cumulativeBytesLoaded /
+                                loadingProgress.expectedTotalBytes!
+                            : null,
+                      ),
+                    );
+                  },
+                  errorBuilder: (context, error, stackTrace) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.description, size: 64, color: Colors.grey.shade400),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Preview not available',
+                            style: TextStyle(color: Colors.grey.shade600),
+                          ),
+                          const SizedBox(height: 8),
+                          TextButton.icon(
+                            onPressed: () async {
+                              final uri = Uri.parse(documentUrl);
+                              await launchUrl(uri, mode: LaunchMode.externalApplication);
+                            },
+                            icon: const Icon(Icons.open_in_new, size: 16),
+                            label: const Text('Open in Browser'),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () async {
+              Navigator.pop(context);
+              final uri = Uri.parse(documentUrl);
+              await launchUrl(uri, mode: LaunchMode.externalApplication);
+            },
+            icon: const Icon(Icons.open_in_new, size: 16),
+            label: const Text('Open in Browser'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primary,
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildActionItem(IconData icon, String title, String subtitle, VoidCallback onTap) {
     return InkWell(
       onTap: onTap,
@@ -1449,6 +1754,9 @@ class _NgoHomeScreenState extends State<NgoHomeScreen> {
 
   // =============== PROFILE ACTION METHODS ===============
 
+  final ImagePicker _imagePicker = ImagePicker();
+  bool _isUploadingImage = false;
+
   void _pickProfileImage() {
     showModalBottomSheet(
       context: context,
@@ -1470,15 +1778,11 @@ class _NgoHomeScreenState extends State<NgoHomeScreen> {
               children: [
                 _buildImageSourceOption(Icons.camera_alt, 'Camera', () {
                   Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Camera feature coming soon!')),
-                  );
+                  _pickAndUploadImage(ImageSource.camera);
                 }),
                 _buildImageSourceOption(Icons.photo_library, 'Gallery', () {
                   Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Gallery feature coming soon!')),
-                  );
+                  _pickAndUploadImage(ImageSource.gallery);
                 }),
               ],
             ),
@@ -1487,6 +1791,87 @@ class _NgoHomeScreenState extends State<NgoHomeScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _pickAndUploadImage(ImageSource source) async {
+    try {
+      final XFile? pickedFile = await _imagePicker.pickImage(
+        source: source,
+        maxWidth: 800,
+        maxHeight: 800,
+        imageQuality: 85,
+      );
+
+      if (pickedFile == null) return;
+
+      setState(() => _isUploadingImage = true);
+
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(height: 16),
+              const Text('Uploading profile picture...'),
+            ],
+          ),
+        ),
+      );
+
+      // Upload to Firebase Storage
+      final File imageFile = File(pickedFile.path);
+      final String fileName = 'ngo_logos/${widget.ngoData.id}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      
+      final Reference storageRef = FirebaseStorage.instance.ref().child(fileName);
+      final UploadTask uploadTask = storageRef.putFile(imageFile);
+      
+      final TaskSnapshot snapshot = await uploadTask;
+      final String downloadUrl = await snapshot.ref.getDownloadURL();
+
+      // Update Firestore with new logo URL
+      await FirebaseFirestore.instance
+          .collection('ngo_registrations')
+          .doc(widget.ngoData.id)
+          .update({
+        'ngoLogo': downloadUrl,
+        'profileImageUrl': downloadUrl,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      // Update local state
+      setState(() {
+        _ngoLogo = downloadUrl;
+        _isUploadingImage = false;
+      });
+
+      // Close loading dialog
+      if (mounted) Navigator.pop(context);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Profile picture updated successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      setState(() => _isUploadingImage = false);
+      
+      // Close loading dialog if open
+      if (mounted && Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error uploading image: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   Widget _buildImageSourceOption(IconData icon, String label, VoidCallback onTap) {
@@ -1510,9 +1895,12 @@ class _NgoHomeScreenState extends State<NgoHomeScreen> {
   }
 
   void _editProfile() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Edit Profile - Coming Soon!')),
-    );
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => NgoEditProfileScreen(ngoData: widget.ngoData),
+      ),
+    ).then((_) => _loadAllData()); // Refresh data when returning
   }
 
   void _manageDocuments() {
@@ -1521,150 +1909,66 @@ class _NgoHomeScreenState extends State<NgoHomeScreen> {
     );
   }
 
-  void _shareProfile() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Share Profile - Coming Soon!')),
-    );
-  }
-
-  void _generateQRCode() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Donation QR Code'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(Icons.qr_code_2, size: 150, color: primary),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              widget.ngoData.ngoName,
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            Text(
-              'Scan to donate',
-              style: TextStyle(color: Colors.grey.shade600),
-            ),
-          ],
+  void _resetPassword() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => NgoResetPasswordScreen(
+          ngoEmail: widget.ngoData.email,
+          ngoId: widget.ngoData.id,
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-          ElevatedButton.icon(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('QR Code downloaded!')),
-              );
-            },
-            icon: const Icon(Icons.download, size: 18),
-            label: const Text('Download'),
-            style: ElevatedButton.styleFrom(backgroundColor: primary, foregroundColor: Colors.white),
-          ),
-        ],
       ),
-    );
-  }
-
-  void _downloadCertificate() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Certificate Download - Coming Soon!')),
     );
   }
 
   void _viewReports() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Reports & Analytics - Coming Soon!')),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => NgoReportsScreen(
+          ngoId: widget.ngoData.id,
+          ngoName: widget.ngoData.ngoName,
+        ),
+      ),
     );
   }
 
   void _notificationSettings() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Notification Settings - Coming Soon!')),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => NgoNotificationsScreen(
+          ngoId: widget.ngoData.id,
+          ngoName: widget.ngoData.ngoName,
+        ),
+      ),
     );
   }
 
   void _privacySettings() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Privacy Settings - Coming Soon!')),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => NgoPrivacySecurityScreen(ngoData: widget.ngoData),
+      ),
     );
   }
 
   void _helpSupport() {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const NgoHelpSupportScreen(),
       ),
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Help & Support',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 20),
-            _buildSupportOption(Icons.email, 'Email Support', 'support@ngoconnect.com'),
-            _buildSupportOption(Icons.phone, 'Phone Support', '+91 1800-XXX-XXXX'),
-            _buildSupportOption(Icons.chat, 'Live Chat', 'Available 9 AM - 6 PM'),
-            _buildSupportOption(Icons.help, 'FAQs', 'Browse common questions'),
-            const SizedBox(height: 20),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSupportOption(IconData icon, String title, String subtitle) {
-    return ListTile(
-      leading: Icon(icon, color: primary),
-      title: Text(title),
-      subtitle: Text(subtitle, style: TextStyle(color: Colors.grey.shade600)),
-      trailing: Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey.shade400),
-      onTap: () {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$title - Coming Soon!')),
-        );
-      },
     );
   }
 
   void _aboutApp() {
-    showAboutDialog(
-      context: context,
-      applicationName: 'NGO Connect',
-      applicationVersion: '1.0.0',
-      applicationIcon: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: primary.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Icon(Icons.volunteer_activism, color: primary, size: 48),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const NgoAboutAppScreen(),
       ),
-      children: [
-        const Text(
-          'NGO Connect helps NGOs manage their activities, connect with volunteers, and receive donations seamlessly.',
-        ),
-        const SizedBox(height: 16),
-        Text(
-          '© 2024 NGO Connect. All rights reserved.',
-          style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
-        ),
-      ],
     );
   }
 

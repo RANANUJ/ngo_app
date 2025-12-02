@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import 'email_verification_screen.dart';
 import 'login_screen.dart';
-import 'volunteer_dashboard_screen.dart';
+import 'volunteer/volunteer_dashboard_screen.dart';
 
 class IndividualRegistrationScreen extends StatefulWidget {
   const IndividualRegistrationScreen({Key? key}) : super(key: key);

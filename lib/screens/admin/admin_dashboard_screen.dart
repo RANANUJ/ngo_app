@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import '../services/ngo_registration_service.dart';
-import 'government_schemes_screen.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../services/ngo_registration_service.dart';
+import '../government_schemes_screen.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({Key? key}) : super(key: key);
@@ -653,11 +654,11 @@ class _RegistrationDetailsSheet extends StatelessWidget {
 
                     // Documents
                     _buildSection('Documents', [
-                      _buildDocumentRow('ID Proof', registration.idProofUploaded),
-                      _buildDocumentRow('Registration Certificate', registration.registrationCertUploaded),
-                      _buildDocumentRow('PAN Card', registration.panCardUploaded),
-                      _buildDocumentRow('12A/80G Certificate', registration.certificate12A80GUploaded),
-                      _buildDocumentRow('Past Work Proof', registration.pastWorkProofUploaded),
+                      _buildDocumentRowClickable('ID Proof', registration.idProofUploaded, registration.idProofUrl),
+                      _buildDocumentRowClickable('Registration Certificate', registration.registrationCertUploaded, registration.registrationCertUrl),
+                      _buildDocumentRowClickable('PAN Card', registration.panCardUploaded, registration.panCardUrl),
+                      _buildDocumentRowClickable('12A/80G Certificate', registration.certificate12A80GUploaded, registration.certificate12A80GUrl),
+                      _buildDocumentRowClickable('Past Work Proof', registration.pastWorkProofUploaded, registration.pastWorkProofUrl),
                     ]),
 
                     // Mission & Vision
@@ -753,6 +754,77 @@ class _RegistrationDetailsSheet extends StatelessWidget {
               fontSize: 13,
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDocumentRowClickable(String label, bool uploaded, String? documentUrl) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Icon(
+            uploaded ? Icons.check_circle : Icons.cancel,
+            color: uploaded ? Colors.green : Colors.red,
+            size: 18,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                color: Colors.grey.shade700,
+                fontSize: 13,
+              ),
+            ),
+          ),
+          if (uploaded && documentUrl != null && documentUrl.isNotEmpty)
+            GestureDetector(
+              onTap: () async {
+                final uri = Uri.parse(documentUrl);
+                if (await canLaunchUrl(uri)) {
+                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                }
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.visibility, color: primary, size: 16),
+                    const SizedBox(width: 4),
+                    Text(
+                      'View',
+                      style: TextStyle(
+                        color: primary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else if (uploaded)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                'No URL',
+                style: TextStyle(
+                  color: Colors.orange.shade700,
+                  fontSize: 10,
+                ),
+              ),
+            ),
         ],
       ),
     );
