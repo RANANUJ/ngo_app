@@ -16,6 +16,8 @@ import '../ngo/ngo_explore_screen.dart';
 import 'volunteer_events_screen.dart';
 import 'volunteer_progress_screen.dart';
 import 'volunteer_sos_screen.dart';
+import '../../services/cache_service.dart';
+import '../../services/notification_service.dart';
 
 class VolunteerDashboardScreen extends StatefulWidget {
   const VolunteerDashboardScreen({Key? key}) : super(key: key);
@@ -55,6 +57,45 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
     _userId = FirebaseAuth.instance.currentUser?.uid;
     debugPrint('VolunteerDashboard: User ID = $_userId');
     _loadUserProfile();
+    _preloadData();
+    _initializeVolunteerNotifications();
+  }
+
+  Future<void> _initializeVolunteerNotifications() async {
+    if (_userId != null) {
+      await NotificationService().updateVolunteerFcmToken(_userId!);
+    }
+  }
+
+  Future<void> _preloadData() async {
+    // Preload data in background for smoother navigation
+    DataPreloader().preloadAllData();
+    
+    // Preload NGO logos from discover screen
+    _preloadNgoLogos();
+  }
+
+  Future<void> _preloadNgoLogos() async {
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('ngo_registrations')
+          .where('status', isEqualTo: 'approved')
+          .limit(20)
+          .get();
+
+      final imageUrls = <String>[];
+      for (final doc in snapshot.docs) {
+        final logoUrl = doc.data()['ngoLogo'];
+        if (logoUrl != null && logoUrl.toString().isNotEmpty) {
+          imageUrls.add(logoUrl);
+        }
+      }
+      
+      await CacheService().preloadNetworkImages(imageUrls);
+      debugPrint('Preloaded ${imageUrls.length} NGO logos');
+    } catch (e) {
+      debugPrint('Error preloading NGO logos: $e');
+    }
   }
 
   Future<void> _loadUserProfile() async {

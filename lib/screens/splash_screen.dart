@@ -6,6 +6,7 @@ import 'ngo/ngo_home_screen.dart';
 import 'volunteer/volunteer_dashboard_screen.dart';
 import '../services/local_storage_service.dart';
 import '../services/ngo_registration_service.dart';
+import '../services/cache_service.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({Key? key}) : super(key: key);
@@ -18,18 +19,53 @@ class _SplashScreenState extends State<SplashScreen> {
   static const Color primary = Color(0xFF0099B8);
   final LocalStorageService _localStorageService = LocalStorageService();
   final NgoRegistrationService _registrationService = NgoRegistrationService();
+  
+  String _loadingStatus = 'Initializing...';
+  double _loadingProgress = 0.0;
 
   @override
   void initState() {
     super.initState();
     // Use addPostFrameCallback to ensure widget is fully built before navigation
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _checkRegistrationAndNavigate();
+      _initializeAndNavigate();
     });
   }
 
+  Future<void> _initializeAndNavigate() async {
+    // Step 1: Initialize cache service
+    _updateStatus('Loading cache...', 0.1);
+    await CacheService().initialize();
+    
+    // Step 2: Preload asset images
+    _updateStatus('Loading images...', 0.2);
+    if (mounted) {
+      await CacheService().preloadAssetImages(context);
+    }
+    
+    // Step 3: Start preloading data in background (don't wait for it)
+    _updateStatus('Fetching data...', 0.4);
+    DataPreloader().preloadAllData(); // Fire and forget
+    
+    // Step 4: Check authentication (parallel with data loading)
+    _updateStatus('Checking session...', 0.6);
+    await _checkRegistrationAndNavigate();
+  }
+
+  void _updateStatus(String status, double progress) {
+    if (mounted) {
+      setState(() {
+        _loadingStatus = status;
+        _loadingProgress = progress;
+      });
+    }
+  }
+
   Future<void> _checkRegistrationAndNavigate() async {
-    await Future.delayed(const Duration(seconds: 3));
+    // Minimum splash display time
+    await Future.delayed(const Duration(milliseconds: 1500));
+    
+    _updateStatus('Almost ready...', 0.8);
     
     if (!mounted) return;
 
@@ -143,13 +179,29 @@ class _SplashScreenState extends State<SplashScreen> {
               ),
             ),
             const SizedBox(height: 40),
-            // Loading indicator
-            SizedBox(
-              width: 30,
-              height: 30,
-              child: CircularProgressIndicator(
-                strokeWidth: 3,
-                valueColor: AlwaysStoppedAnimation<Color>(primary),
+            // Loading progress bar
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 60),
+              child: Column(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: LinearProgressIndicator(
+                      value: _loadingProgress,
+                      backgroundColor: Colors.grey.shade300,
+                      valueColor: AlwaysStoppedAnimation<Color>(primary),
+                      minHeight: 6,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    _loadingStatus,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],

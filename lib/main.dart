@@ -5,6 +5,7 @@ import 'firebase_options.dart';
 import 'screens/splash_screen.dart';
 import 'utils/seed_government_schemes.dart';
 import 'services/notification_service.dart';
+import 'services/cache_service.dart';
 
 // IMPORTANT: Add your platform config files from the Firebase console:
 // - Android: place `google-services.json` into `android/app/`
@@ -21,9 +22,14 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize Firebase first
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  
+  // Initialize cache service early
+  await CacheService().initialize();
   
   // Initialize Firebase Messaging background handler
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
@@ -31,8 +37,8 @@ Future<void> main() async {
   // Initialize notification service
   await NotificationService().initialize();
   
-  // Seed government schemes (will reseed if less than 10 schemes exist)
-  await GovernmentSchemeSeeder.seedSchemes();
+  // Seed government schemes in background (don't wait)
+  GovernmentSchemeSeeder.seedSchemes();
   
   runApp(const MainApp());
 }
@@ -42,9 +48,13 @@ class MainApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
+    return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: SplashScreen(),
+      theme: ThemeData(
+        // Enable image caching globally
+        useMaterial3: true,
+      ),
+      home: const SplashScreen(),
     );
   }
 }

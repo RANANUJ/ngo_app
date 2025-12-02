@@ -9,6 +9,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../services/ngo_registration_service.dart';
 import '../../services/local_storage_service.dart';
 import '../../services/notification_service.dart';
+import '../../services/cache_service.dart';
 import '../user_type_screen.dart';
 import 'ngo_public_profile_screen.dart';
 import 'ngo_volunteers_screen.dart';
@@ -62,6 +63,12 @@ class _NgoHomeScreenState extends State<NgoHomeScreen> {
     _loadAllData();
     _initializeNotifications();
     _listenForSOSNotifications();
+    _preloadData();
+  }
+
+  Future<void> _preloadData() async {
+    // Preload data in background for smoother navigation
+    DataPreloader().preloadAllData();
   }
 
   @override
