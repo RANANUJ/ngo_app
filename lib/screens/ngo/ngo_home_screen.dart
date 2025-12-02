@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -7,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../services/ngo_registration_service.dart';
 import '../../services/local_storage_service.dart';
+import '../../services/notification_service.dart';
 import '../user_type_screen.dart';
 import 'ngo_public_profile_screen.dart';
 import 'ngo_volunteers_screen.dart';
@@ -49,11 +51,246 @@ class _NgoHomeScreenState extends State<NgoHomeScreen> {
   int _opportunitiesCount = 0;
   int _volunteersCount = 0;
   Map<String, dynamic>? _ngoData;
+  
+  // SOS notification listener
+  StreamSubscription<QuerySnapshot>? _sosNotificationSubscription;
+  DateTime? _lastNotificationTime;
 
   @override
   void initState() {
     super.initState();
     _loadAllData();
+    _initializeNotifications();
+    _listenForSOSNotifications();
+  }
+
+  @override
+  void dispose() {
+    _sosNotificationSubscription?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _initializeNotifications() async {
+    try {
+      // Subscribe to SOS alerts topic for push notifications
+      await NotificationService().subscribeToSOSAlerts();
+    } catch (e) {
+      debugPrint('Error initializing notifications: $e');
+    }
+  }
+
+  /// Listen for real-time SOS notifications
+  void _listenForSOSNotifications() {
+    // Initialize last notification time to now to avoid showing old notifications
+    _lastNotificationTime = DateTime.now().subtract(const Duration(seconds: 5));
+    
+    _sosNotificationSubscription = FirebaseFirestore.instance
+        .collection('sos_notifications')
+        .orderBy('createdAt', descending: true)
+        .limit(1)
+        .snapshots()
+        .listen((snapshot) {
+      if (snapshot.docs.isEmpty) return;
+      
+      final doc = snapshot.docs.first;
+      final data = doc.data();
+      final createdAt = (data['createdAt'] as Timestamp?)?.toDate();
+      
+      // Only show if this is a new notification (created after we started listening)
+      if (createdAt != null && 
+          _lastNotificationTime != null && 
+          createdAt.isAfter(_lastNotificationTime!)) {
+        _lastNotificationTime = createdAt;
+        _showSOSAlertPopup(data, doc.id);
+      }
+    });
+  }
+
+  /// Show SOS alert popup dialog
+  void _showSOSAlertPopup(Map<String, dynamic> data, String notificationId) {
+    if (!mounted) return;
+    
+    final volunteerName = data['volunteerName'] ?? 'Unknown Volunteer';
+    final emergencyType = data['emergencyType'] ?? 'Emergency';
+    final address = data['address'] ?? 'Unknown location';
+    final volunteerPhone = data['volunteerPhone'];
+    
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        contentPadding: EdgeInsets.zero,
+        content: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            gradient: const LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color(0xFFE53935), Color(0xFFC62828)],
+            ),
+          ),
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Emergency Icon with animation
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.warning_rounded,
+                  color: Colors.white,
+                  size: 48,
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                '🚨 EMERGENCY SOS 🚨',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                emergencyType.toUpperCase(),
+                style: const TextStyle(
+                  color: Colors.yellow,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.person, color: Colors.white, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            volunteerName,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.location_on, color: Colors.white, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            address,
+                            style: const TextStyle(color: Colors.white70, fontSize: 14),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (volunteerPhone != null && volunteerPhone.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          const Icon(Icons.phone, color: Colors.white, size: 20),
+                          const SizedBox(width: 8),
+                          Text(
+                            volunteerPhone,
+                            style: const TextStyle(color: Colors.white, fontSize: 14),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _markNotificationAsRead(notificationId);
+                      },
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        side: const BorderSide(color: Colors.white),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                      ),
+                      child: const Text('Dismiss'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _markNotificationAsRead(notificationId);
+                        // Navigate to SOS Alerts screen
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => NgoSOSAlertsScreen(
+                              ngoId: widget.ngoData.id,
+                              ngoName: widget.ngoData.ngoName,
+                            ),
+                          ),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: const Color(0xFFE53935),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                      ),
+                      child: const Text(
+                        'View Details',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _markNotificationAsRead(String notificationId) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('sos_notifications')
+          .doc(notificationId)
+          .update({'isRead': true});
+    } catch (e) {
+      debugPrint('Error marking notification as read: $e');
+    }
   }
 
   Future<void> _loadAllData() async {

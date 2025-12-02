@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'firebase_options.dart';
 import 'screens/splash_screen.dart';
 import 'utils/seed_government_schemes.dart';
+import 'services/notification_service.dart';
 
 // IMPORTANT: Add your platform config files from the Firebase console:
 // - Android: place `google-services.json` into `android/app/`
@@ -10,11 +12,24 @@ import 'utils/seed_government_schemes.dart';
 // Also follow the Firebase Flutter setup docs to add the Gradle plugin and
 // iOS bundle configuration. See README notes below after running pub get.
 
+// Background message handler - must be top-level
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  debugPrint('Background message: ${message.notification?.title}');
+}
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  
+  // Initialize Firebase Messaging background handler
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  
+  // Initialize notification service
+  await NotificationService().initialize();
   
   // Seed government schemes (will reseed if less than 10 schemes exist)
   await GovernmentSchemeSeeder.seedSchemes();

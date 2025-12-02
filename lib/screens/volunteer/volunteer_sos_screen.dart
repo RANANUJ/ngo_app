@@ -7,6 +7,7 @@ import 'package:geocoding/geocoding.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import '../../services/notification_service.dart';
 
 class VolunteerSOSScreen extends StatefulWidget {
   final String odid;
@@ -178,12 +179,18 @@ class _VolunteerSOSScreenState extends State<VolunteerSOSScreen> with SingleTick
       final snapshot = await FirebaseFirestore.instance
           .collection('sos_alerts')
           .where('odid', isEqualTo: widget.odid)
-          .orderBy('createdAt', descending: true)
-          .limit(20)
           .get();
 
+      // Sort client-side to avoid composite index requirement
+      final docs = snapshot.docs.toList();
+      docs.sort((a, b) {
+        final aTime = (a.data()['createdAt'] as Timestamp?)?.toDate() ?? DateTime(1970);
+        final bTime = (b.data()['createdAt'] as Timestamp?)?.toDate() ?? DateTime(1970);
+        return bTime.compareTo(aTime);
+      });
+
       setState(() {
-        _sosHistory = snapshot.docs.map((doc) {
+        _sosHistory = docs.take(20).map((doc) {
           final data = doc.data();
           data['id'] = doc.id;
           return data;
@@ -191,6 +198,7 @@ class _VolunteerSOSScreenState extends State<VolunteerSOSScreen> with SingleTick
         _isLoadingHistory = false;
       });
     } catch (e) {
+      debugPrint('Error loading SOS history: $e');
       setState(() => _isLoadingHistory = false);
     }
   }
@@ -348,7 +356,8 @@ class _VolunteerSOSScreenState extends State<VolunteerSOSScreen> with SingleTick
     });
 
     try {
-      await FirebaseFirestore.instance.collection('sos_alerts').add({
+      // Save SOS alert to Firestore
+      final docRef = await FirebaseFirestore.instance.collection('sos_alerts').add({
         'odid': widget.odid,
         'odname': widget.odname,
         'volunteerPhone': _volunteerPhone,
@@ -360,6 +369,14 @@ class _VolunteerSOSScreenState extends State<VolunteerSOSScreen> with SingleTick
         'status': 'active',
         'createdAt': FieldValue.serverTimestamp(),
       });
+
+      // Notify all NGO members
+      await _notifyNGOMembers(
+        sosId: docRef.id,
+        emergencyType: 'Quick SOS',
+        volunteerName: widget.odname,
+        address: _currentAddress,
+      );
 
       // Vibrate or play sound
       ScaffoldMessenger.of(context).showSnackBar(
@@ -383,6 +400,34 @@ class _VolunteerSOSScreenState extends State<VolunteerSOSScreen> with SingleTick
       );
     } finally {
       setState(() => _isSendingSOS = false);
+    }
+  }
+
+  /// Notify all NGO members about the SOS alert
+  Future<void> _notifyNGOMembers({
+    required String sosId,
+    required String emergencyType,
+    required String volunteerName,
+    required String address,
+  }) async {
+    try {
+      // Store notification in Firestore for all NGOs to receive
+      await FirebaseFirestore.instance.collection('sos_notifications').add({
+        'sosId': sosId,
+        'volunteerId': widget.odid,
+        'volunteerName': volunteerName,
+        'volunteerPhone': _volunteerPhone,
+        'emergencyType': emergencyType,
+        'address': address,
+        'latitude': _currentPosition?.latitude,
+        'longitude': _currentPosition?.longitude,
+        'createdAt': FieldValue.serverTimestamp(),
+        'isRead': false,
+      });
+
+      debugPrint('SOS notification stored for NGO members');
+    } catch (e) {
+      debugPrint('Error notifying NGO members: $e');
     }
   }
 
@@ -698,7 +743,7 @@ class _VolunteerSOSScreenState extends State<VolunteerSOSScreen> with SingleTick
       }
 
       // Save SOS alert to Firestore
-      await FirebaseFirestore.instance.collection('sos_alerts').add({
+      final docRef = await FirebaseFirestore.instance.collection('sos_alerts').add({
         'odid': widget.odid,
         'odname': widget.odname,
         'volunteerPhone': _volunteerPhone,
@@ -711,6 +756,14 @@ class _VolunteerSOSScreenState extends State<VolunteerSOSScreen> with SingleTick
         'status': 'active',
         'createdAt': FieldValue.serverTimestamp(),
       });
+
+      // Notify all NGO members
+      await _notifyNGOMembers(
+        sosId: docRef.id,
+        emergencyType: _selectedEmergencyType!,
+        volunteerName: widget.odname,
+        address: _currentAddress,
+      );
 
       // Clear form
       setState(() {
@@ -1310,8 +1363,6 @@ class _VolunteerSOSScreenState extends State<VolunteerSOSScreen> with SingleTick
       stream: FirebaseFirestore.instance
           .collection('sos_alerts')
           .where('odid', isEqualTo: widget.odid)
-          .orderBy('createdAt', descending: true)
-          .limit(20)
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -1339,15 +1390,24 @@ class _VolunteerSOSScreenState extends State<VolunteerSOSScreen> with SingleTick
           );
         }
 
+        // Sort client-side to avoid composite index requirement
+        final docs = snapshot.data!.docs.toList();
+        docs.sort((a, b) {
+          final aTime = ((a.data() as Map<String, dynamic>)['createdAt'] as Timestamp?)?.toDate() ?? DateTime(1970);
+          final bTime = ((b.data() as Map<String, dynamic>)['createdAt'] as Timestamp?)?.toDate() ?? DateTime(1970);
+          return bTime.compareTo(aTime);
+        });
+        final limitedDocs = docs.take(20).toList();
+
         return RefreshIndicator(
           onRefresh: () async {
             // StreamBuilder auto-refreshes
           },
           child: ListView.builder(
             padding: const EdgeInsets.all(16),
-            itemCount: snapshot.data!.docs.length,
+            itemCount: limitedDocs.length,
             itemBuilder: (context, index) {
-              final doc = snapshot.data!.docs[index];
+              final doc = limitedDocs[index];
               final sos = doc.data() as Map<String, dynamic>;
               sos['id'] = doc.id;
               return _buildSOSHistoryCard(sos);
