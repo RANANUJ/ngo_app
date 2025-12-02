@@ -19,6 +19,81 @@ const emailConfig = {
 const transporter = nodemailer.createTransport(emailConfig);
 
 /**
+ * Helper function to create FCM message with proper background notification support
+ * This ensures notifications are shown even when app is closed/terminated
+ */
+function createFCMMessage(token, title, body, data, channelId = "general_channel") {
+  return {
+    token: token,
+    notification: {
+      title: title,
+      body: body,
+    },
+    data: {
+      ...data,
+      click_action: "FLUTTER_NOTIFICATION_CLICK",
+      title: title,  // Duplicate for background handler access
+      body: body,    // Duplicate for background handler access
+    },
+    android: {
+      priority: "high",
+      ttl: 86400000, // 24 hours in milliseconds
+      notification: {
+        channelId: channelId,
+        priority: "high",
+        defaultSound: true,
+        defaultVibrateTimings: true,
+        visibility: "public",
+        icon: "@mipmap/ic_launcher",
+      },
+    },
+    apns: {
+      headers: {
+        "apns-priority": "10",
+        "apns-push-type": "alert",
+      },
+      payload: {
+        aps: {
+          alert: {
+            title: title,
+            body: body,
+          },
+          sound: "default",
+          badge: 1,
+          "content-available": 1,
+          "mutable-content": 1,
+        },
+      },
+    },
+    webpush: {
+      headers: {
+        Urgency: "high",
+      },
+      notification: {
+        title: title,
+        body: body,
+        icon: "/icons/icon-192x192.png",
+        requireInteraction: true,
+      },
+    },
+  };
+}
+
+/**
+ * Helper to send push notification with retry logic
+ */
+async function sendPushNotification(token, title, body, data, channelId = "general_channel") {
+  try {
+    const message = createFCMMessage(token, title, body, data, channelId);
+    await messaging.send(message);
+    return { success: true };
+  } catch (error) {
+    console.log("Failed to send push notification:", error.message);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
  * Cloud Function triggered when a new SOS alert is created
  * Sends push notifications to all NGO members
  */
@@ -271,26 +346,17 @@ exports.onCampaignCreated = functions.firestore
 
           // Send push notification if token exists
           if (fcmToken && (settings.pushNotifications !== false)) {
-            try {
-              await messaging.send({
-                token: fcmToken,
-                notification: {
-                  title: `🎯 New Campaign: ${campaignName}`,
-                  body: `${ngoName} has started a new campaign. Join now!`,
-                },
-                data: {
-                  type: "campaign_created",
-                  campaignId: campaignId,
-                  ngoId: ngoId || "",
-                },
-                android: {
-                  priority: "high",
-                  notification: { channelId: "general_channel" },
-                },
-              });
-            } catch (e) {
-              console.log("Failed to send push to:", volunteerId, e.message);
-            }
+            await sendPushNotification(
+              fcmToken,
+              `🎯 New Campaign: ${campaignName}`,
+              `${ngoName} has started a new campaign. Join now!`,
+              {
+                type: "campaign_created",
+                campaignId: campaignId,
+                ngoId: ngoId || "",
+              },
+              "general_channel"
+            );
           }
 
           // Queue email if enabled
@@ -361,26 +427,17 @@ exports.onEventCreated = functions.firestore
 
           // Send push notification
           if (fcmToken && (settings.pushNotifications !== false)) {
-            try {
-              await messaging.send({
-                token: fcmToken,
-                notification: {
-                  title: `📅 New Event: ${eventName}`,
-                  body: `${ngoName} is organizing an event. Register now!`,
-                },
-                data: {
-                  type: "event_created",
-                  eventId: eventId,
-                  ngoId: ngoId || "",
-                },
-                android: {
-                  priority: "high",
-                  notification: { channelId: "general_channel" },
-                },
-              });
-            } catch (e) {
-              console.log("Failed to send push to:", volunteerId, e.message);
-            }
+            await sendPushNotification(
+              fcmToken,
+              `📅 New Event: ${eventName}`,
+              `${ngoName} is organizing an event. Register now!`,
+              {
+                type: "event_created",
+                eventId: eventId,
+                ngoId: ngoId || "",
+              },
+              "general_channel"
+            );
           }
         }
 
@@ -445,22 +502,13 @@ exports.onDonationCreated = functions.firestore
 
             // Send push
             if (donorData.fcmToken && (settings.pushNotifications !== false)) {
-              try {
-                await messaging.send({
-                  token: donorData.fcmToken,
-                  notification: {
-                    title: "✅ Donation Successful!",
-                    body: `Thank you for donating ₹${amount} to ${ngoName}`,
-                  },
-                  data: { type: "donation_success", donationId },
-                  android: {
-                    priority: "high",
-                    notification: { channelId: "donations_channel" },
-                  },
-                });
-              } catch (e) {
-                console.log("Failed to send push to donor:", e.message);
-              }
+              await sendPushNotification(
+                donorData.fcmToken,
+                "✅ Donation Successful!",
+                `Thank you for donating ₹${amount} to ${ngoName}`,
+                { type: "donation_success", donationId: donationId },
+                "donations_channel"
+              );
             }
 
             // Send email receipt
@@ -507,22 +555,13 @@ exports.onDonationCreated = functions.firestore
               for (const tokenDoc of ngoTokensSnapshot.docs) {
                 const token = tokenDoc.data().fcmToken;
                 if (token && (settings.pushNotifications !== false)) {
-                  try {
-                    await messaging.send({
-                      token: token,
-                      notification: {
-                        title: `💰 Donation Received: ₹${amount}`,
-                        body: `${donorName} donated${campaignName ? ` to ${campaignName}` : ""}`,
-                      },
-                      data: { type: "donation_received", donationId },
-                      android: {
-                        priority: "high",
-                        notification: { channelId: "donations_channel" },
-                      },
-                    });
-                  } catch (e) {
-                    console.log("Failed to send push to NGO:", e.message);
-                  }
+                  await sendPushNotification(
+                    token,
+                    `💰 Donation Received: ₹${amount}`,
+                    `${donorName} donated${campaignName ? ` to ${campaignName}` : ""}`,
+                    { type: "donation_received", donationId: donationId },
+                    "donations_channel"
+                  );
                 }
               }
 
@@ -599,22 +638,13 @@ exports.onVolunteerRegistrationCreated = functions.firestore
           for (const tokenDoc of ngoTokensSnapshot.docs) {
             const token = tokenDoc.data().fcmToken;
             if (token && (settings.pushNotifications !== false)) {
-              try {
-                await messaging.send({
-                  token: token,
-                  notification: {
-                    title: "👤 New Volunteer Application",
-                    body: `${volunteerName} wants to join your organization`,
-                  },
-                  data: { type: "volunteer_application", regId },
-                  android: {
-                    priority: "high",
-                    notification: { channelId: "general_channel" },
-                  },
-                });
-              } catch (e) {
-                console.log("Failed to send push:", e.message);
-              }
+              await sendPushNotification(
+                token,
+                "👤 New Volunteer Application",
+                `${volunteerName} wants to join your organization`,
+                { type: "volunteer_application", regId: regId },
+                "general_channel"
+              );
             }
           }
 
@@ -692,22 +722,13 @@ exports.onVolunteerRegistrationUpdated = functions.firestore
 
         // Send push
         if (volunteerData.fcmToken && (settings.pushNotifications !== false)) {
-          try {
-            await messaging.send({
-              token: volunteerData.fcmToken,
-              notification: {
-                title: approved ? "🎉 Application Approved!" : "📋 Application Update",
-                body: approved ? `Welcome to ${ngoName}!` : `Your application to ${ngoName} was reviewed`,
-              },
-              data: { type: "application_status", regId, approved: String(approved) },
-              android: {
-                priority: "high",
-                notification: { channelId: "general_channel" },
-              },
-            });
-          } catch (e) {
-            console.log("Failed to send push:", e.message);
-          }
+          await sendPushNotification(
+            volunteerData.fcmToken,
+            approved ? "🎉 Application Approved!" : "📋 Application Update",
+            approved ? `Welcome to ${ngoName}!` : `Your application to ${ngoName} was reviewed`,
+            { type: "application_status", regId: regId, approved: String(approved) },
+            "general_channel"
+          );
         }
 
         // Send email
@@ -788,22 +809,13 @@ exports.onCampaignParticipantCreated = functions.firestore
           for (const tokenDoc of ngoTokensSnapshot.docs) {
             const token = tokenDoc.data().fcmToken;
             if (token && (settings.pushNotifications !== false)) {
-              try {
-                await messaging.send({
-                  token: token,
-                  notification: {
-                    title: "🎉 Campaign Update",
-                    body: `${volunteerName} joined "${campaignName}"`,
-                  },
-                  data: { type: "campaign_participant", campaignId },
-                  android: {
-                    priority: "normal",
-                    notification: { channelId: "general_channel" },
-                  },
-                });
-              } catch (e) {
-                console.log("Failed to send push:", e.message);
-              }
+              await sendPushNotification(
+                token,
+                "🎉 Campaign Update",
+                `${volunteerName} joined "${campaignName}"`,
+                { type: "campaign_participant", campaignId: campaignId },
+                "general_channel"
+              );
             }
           }
         }
@@ -869,22 +881,13 @@ exports.onEventParticipantCreated = functions.firestore
           for (const tokenDoc of ngoTokensSnapshot.docs) {
             const token = tokenDoc.data().fcmToken;
             if (token && (settings.pushNotifications !== false)) {
-              try {
-                await messaging.send({
-                  token: token,
-                  notification: {
-                    title: "📅 Event Registration",
-                    body: `${volunteerName} registered for "${eventName}"`,
-                  },
-                  data: { type: "event_participant", eventId },
-                  android: {
-                    priority: "normal",
-                    notification: { channelId: "general_channel" },
-                  },
-                });
-              } catch (e) {
-                console.log("Failed to send push:", e.message);
-              }
+              await sendPushNotification(
+                token,
+                "📅 Event Registration",
+                `${volunteerName} registered for "${eventName}"`,
+                { type: "event_participant", eventId: eventId },
+                "general_channel"
+              );
             }
           }
         }
@@ -984,22 +987,13 @@ async function sendEventReminderToParticipants(eventId, eventData, hoursUntil) {
 
     // Send push
     if (volunteerData.fcmToken && (settings.pushNotifications !== false)) {
-      try {
-        await messaging.send({
-          token: volunteerData.fcmToken,
-          notification: {
-            title: `⏰ Event Reminder`,
-            body: `${eventName} starts in ${hoursUntil} hour${hoursUntil > 1 ? "s" : ""}!`,
-          },
-          data: { type: "event_reminder", eventId },
-          android: {
-            priority: "high",
-            notification: { channelId: "reminders_channel" },
-          },
-        });
-      } catch (e) {
-        console.log("Failed to send reminder push:", e.message);
-      }
+      await sendPushNotification(
+        volunteerData.fcmToken,
+        `⏰ Event Reminder`,
+        `${eventName} starts in ${hoursUntil} hour${hoursUntil > 1 ? "s" : ""}!`,
+        { type: "event_reminder", eventId: eventId },
+        "reminders_channel"
+      );
     }
 
     // Send email reminder
@@ -1080,28 +1074,28 @@ exports.processPushQueue = functions.firestore
       if (pushData.sent) return null;
 
       try {
-        const { token, title, body } = pushData;
+        const { token, title, body, data, channelId } = pushData;
 
         if (!token || !title) {
           await snap.ref.update({ sent: true, error: "Missing token or title" });
           return null;
         }
 
-        await messaging.send({
-          token: token,
-          notification: { title, body },
-          android: {
-            priority: "high",
-            notification: { channelId: "general_channel" },
-          },
-        });
+        const result = await sendPushNotification(
+          token,
+          title,
+          body || "",
+          data || {},
+          channelId || "general_channel"
+        );
 
         await snap.ref.update({
           sent: true,
           sentAt: admin.firestore.FieldValue.serverTimestamp(),
+          ...(result.error ? { error: result.error } : {}),
         });
 
-        return { success: true };
+        return result;
       } catch (error) {
         console.error("Error sending push:", error.message);
         await snap.ref.update({
