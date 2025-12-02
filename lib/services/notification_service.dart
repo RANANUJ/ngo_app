@@ -18,12 +18,45 @@ class NotificationService {
   bool _isInitialized = false;
   String? _fcmToken;
   
-  // Notification channel for Android
+  // SOS Notification channel for Android (highest priority)
   static const AndroidNotificationChannel _sosChannel = AndroidNotificationChannel(
     'sos_alerts_channel',
     'SOS Alerts',
     description: 'Emergency SOS alerts from volunteers',
     importance: Importance.max,
+    playSound: true,
+    enableVibration: true,
+    showBadge: true,
+  );
+
+  // General notification channel
+  static const AndroidNotificationChannel _generalChannel = AndroidNotificationChannel(
+    'general_channel',
+    'General Notifications',
+    description: 'General app notifications',
+    importance: Importance.high,
+    playSound: true,
+    enableVibration: true,
+    showBadge: true,
+  );
+
+  // Donation notification channel
+  static const AndroidNotificationChannel _donationsChannel = AndroidNotificationChannel(
+    'donations_channel',
+    'Donation Notifications',
+    description: 'Notifications about donations',
+    importance: Importance.high,
+    playSound: true,
+    enableVibration: true,
+    showBadge: true,
+  );
+
+  // Event reminder channel
+  static const AndroidNotificationChannel _remindersChannel = AndroidNotificationChannel(
+    'reminders_channel',
+    'Event Reminders',
+    description: 'Reminders for upcoming events',
+    importance: Importance.high,
     playSound: true,
     enableVibration: true,
     showBadge: true,
@@ -39,11 +72,15 @@ class NotificationService {
     // Initialize local notifications
     await _initializeLocalNotifications();
 
-    // Create notification channel for Android
+    // Create notification channels for Android
     if (Platform.isAndroid) {
-      await _localNotifications
-          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-          ?.createNotificationChannel(_sosChannel);
+      final androidPlugin = _localNotifications
+          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+      
+      await androidPlugin?.createNotificationChannel(_sosChannel);
+      await androidPlugin?.createNotificationChannel(_generalChannel);
+      await androidPlugin?.createNotificationChannel(_donationsChannel);
+      await androidPlugin?.createNotificationChannel(_remindersChannel);
     }
 
     // Get FCM token
@@ -290,6 +327,171 @@ class NotificationService {
   Future<void> unsubscribeFromSOSAlerts() async {
     await _messaging.unsubscribeFromTopic('sos_alerts');
     debugPrint('Unsubscribed from SOS alerts topic');
+  }
+
+  /// Show a general notification
+  Future<void> showGeneralNotification({
+    required String title,
+    required String body,
+    Map<String, dynamic>? data,
+  }) async {
+    await _localNotifications.show(
+      DateTime.now().millisecondsSinceEpoch.remainder(100000),
+      title,
+      body,
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          _generalChannel.id,
+          _generalChannel.name,
+          channelDescription: _generalChannel.description,
+          importance: Importance.high,
+          priority: Priority.high,
+          icon: '@mipmap/ic_launcher',
+          color: const Color(0xFF0099B8),
+          enableVibration: true,
+          playSound: true,
+        ),
+        iOS: const DarwinNotificationDetails(
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
+        ),
+      ),
+      payload: data != null ? jsonEncode(data) : null,
+    );
+  }
+
+  /// Show a donation notification
+  Future<void> showDonationNotification({
+    required String title,
+    required String body,
+    Map<String, dynamic>? data,
+  }) async {
+    await _localNotifications.show(
+      DateTime.now().millisecondsSinceEpoch.remainder(100000),
+      title,
+      body,
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          _donationsChannel.id,
+          _donationsChannel.name,
+          channelDescription: _donationsChannel.description,
+          importance: Importance.high,
+          priority: Priority.high,
+          icon: '@mipmap/ic_launcher',
+          color: Colors.green,
+          enableVibration: true,
+          playSound: true,
+        ),
+        iOS: const DarwinNotificationDetails(
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
+        ),
+      ),
+      payload: data != null ? jsonEncode(data) : null,
+    );
+  }
+
+  /// Show an event reminder notification
+  Future<void> showEventReminderNotification({
+    required String title,
+    required String body,
+    Map<String, dynamic>? data,
+  }) async {
+    await _localNotifications.show(
+      DateTime.now().millisecondsSinceEpoch.remainder(100000),
+      title,
+      body,
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          _remindersChannel.id,
+          _remindersChannel.name,
+          channelDescription: _remindersChannel.description,
+          importance: Importance.high,
+          priority: Priority.high,
+          icon: '@mipmap/ic_launcher',
+          color: Colors.orange,
+          enableVibration: true,
+          playSound: true,
+        ),
+        iOS: const DarwinNotificationDetails(
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
+        ),
+      ),
+      payload: data != null ? jsonEncode(data) : null,
+    );
+  }
+
+  /// Get unread notification count for a user
+  Future<int> getUnreadNotificationCount(String userId) async {
+    try {
+      final query = await FirebaseFirestore.instance
+          .collection('notifications')
+          .where('userId', isEqualTo: userId)
+          .where('isRead', isEqualTo: false)
+          .count()
+          .get();
+      return query.count ?? 0;
+    } catch (e) {
+      debugPrint('Error getting unread count: $e');
+      return 0;
+    }
+  }
+
+  /// Mark all notifications as read for a user
+  Future<void> markAllAsRead(String userId) async {
+    try {
+      final batch = FirebaseFirestore.instance.batch();
+      final notifications = await FirebaseFirestore.instance
+          .collection('notifications')
+          .where('userId', isEqualTo: userId)
+          .where('isRead', isEqualTo: false)
+          .get();
+
+      for (final doc in notifications.docs) {
+        batch.update(doc.reference, {'isRead': true});
+      }
+
+      await batch.commit();
+      debugPrint('Marked ${notifications.docs.length} notifications as read');
+    } catch (e) {
+      debugPrint('Error marking notifications as read: $e');
+    }
+  }
+
+  /// Delete a notification
+  Future<void> deleteNotification(String notificationId) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('notifications')
+          .doc(notificationId)
+          .delete();
+    } catch (e) {
+      debugPrint('Error deleting notification: $e');
+    }
+  }
+
+  /// Clear all notifications for a user
+  Future<void> clearAllNotifications(String userId) async {
+    try {
+      final batch = FirebaseFirestore.instance.batch();
+      final notifications = await FirebaseFirestore.instance
+          .collection('notifications')
+          .where('userId', isEqualTo: userId)
+          .get();
+
+      for (final doc in notifications.docs) {
+        batch.delete(doc.reference);
+      }
+
+      await batch.commit();
+      debugPrint('Cleared ${notifications.docs.length} notifications');
+    } catch (e) {
+      debugPrint('Error clearing notifications: $e');
+    }
   }
 }
 

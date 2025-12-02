@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../campaign_list_screen.dart';
 import 'ngo_explore_screen.dart';
+import 'ngo_notifications_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({Key? key}) : super(key: key);
@@ -89,7 +91,61 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
         Column(
           children: [
-            Icon(Icons.notifications_none, color: amber, size: 26),
+            // Notification Bell with Badge
+            GestureDetector(
+              onTap: () {
+                final userId = FirebaseAuth.instance.currentUser?.uid;
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => NgoNotificationsScreen(
+                      ngoId: userId,
+                      ngoName: 'Umeed Foundation',
+                    ),
+                  ),
+                );
+              },
+              child: StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('notifications')
+                    .where('userId', isEqualTo: FirebaseAuth.instance.currentUser?.uid)
+                    .where('isRead', isEqualTo: false)
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  final unreadCount = snapshot.data?.docs.length ?? 0;
+                  return Stack(
+                    children: [
+                      Icon(Icons.notifications_none, color: amber, size: 26),
+                      if (unreadCount > 0)
+                        Positioned(
+                          right: 0,
+                          top: 0,
+                          child: Container(
+                            padding: const EdgeInsets.all(2),
+                            decoration: const BoxDecoration(
+                              color: Colors.red,
+                              shape: BoxShape.circle,
+                            ),
+                            constraints: const BoxConstraints(
+                              minWidth: 14,
+                              minHeight: 14,
+                            ),
+                            child: Text(
+                              unreadCount > 9 ? '9+' : unreadCount.toString(),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 8,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ),
+                    ],
+                  );
+                },
+              ),
+            ),
             const SizedBox(height: 12),
             Icon(Icons.campaign_outlined, color: primary, size: 26),
           ],
