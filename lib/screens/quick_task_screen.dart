@@ -15,11 +15,141 @@ class _QuickTaskScreenState extends State<QuickTaskScreen> with SingleTickerProv
   static const Color primary = Color(0xFF0099B8);
   late TabController _tabController;
   String _selectedFilter = 'All';
+  bool _demoDataSeeded = false;
+
+  // Demo/Sample tasks data
+  final List<Map<String, dynamic>> _demoTasks = [
+    {
+      'id': 'demo_1',
+      'title': 'Review volunteer applications',
+      'description': 'Review and approve pending volunteer applications for the upcoming food drive campaign.',
+      'priority': 'high',
+      'category': 'Volunteer Management',
+      'assignedTo': 'Admin',
+      'status': 'pending',
+      'dueDate': DateTime.now().add(const Duration(days: 2)),
+    },
+    {
+      'id': 'demo_2',
+      'title': 'Prepare donation report',
+      'description': 'Compile monthly donation report for stakeholders and board meeting.',
+      'priority': 'high',
+      'category': 'Reports',
+      'assignedTo': 'Finance Team',
+      'status': 'pending',
+      'dueDate': DateTime.now().add(const Duration(days: 1)),
+    },
+    {
+      'id': 'demo_3',
+      'title': 'Update social media',
+      'description': 'Post updates about recent campaign success and upcoming events on social media platforms.',
+      'priority': 'medium',
+      'category': 'Marketing',
+      'assignedTo': 'Social Media Manager',
+      'status': 'pending',
+      'dueDate': DateTime.now().add(const Duration(days: 3)),
+    },
+    {
+      'id': 'demo_4',
+      'title': 'Contact corporate sponsors',
+      'description': 'Follow up with potential corporate sponsors for the annual charity gala.',
+      'priority': 'medium',
+      'category': 'Fundraising',
+      'assignedTo': 'Partnerships Team',
+      'status': 'in_progress',
+      'dueDate': DateTime.now().add(const Duration(days: 5)),
+    },
+    {
+      'id': 'demo_5',
+      'title': 'Organize volunteer training',
+      'description': 'Schedule and organize training session for new volunteers joining next month.',
+      'priority': 'low',
+      'category': 'Training',
+      'assignedTo': 'HR Team',
+      'status': 'in_progress',
+      'dueDate': DateTime.now().add(const Duration(days: 7)),
+    },
+    {
+      'id': 'demo_6',
+      'title': 'Update beneficiary database',
+      'description': 'Update the beneficiary records with latest contact information and needs assessment.',
+      'priority': 'medium',
+      'category': 'Data Management',
+      'assignedTo': 'Operations Team',
+      'status': 'in_progress',
+      'dueDate': DateTime.now().add(const Duration(days: 4)),
+    },
+    {
+      'id': 'demo_7',
+      'title': 'Submit grant application',
+      'description': 'Complete and submit the government grant application for community development project.',
+      'priority': 'high',
+      'category': 'Grants',
+      'assignedTo': 'Grant Writer',
+      'status': 'completed',
+      'completedDate': DateTime.now().subtract(const Duration(days: 2)),
+    },
+    {
+      'id': 'demo_8',
+      'title': 'Inventory check - supplies',
+      'description': 'Complete inventory check of all supplies in the warehouse.',
+      'priority': 'low',
+      'category': 'Logistics',
+      'assignedTo': 'Warehouse Manager',
+      'status': 'completed',
+      'completedDate': DateTime.now().subtract(const Duration(days: 1)),
+    },
+    {
+      'id': 'demo_9',
+      'title': 'Partner meeting notes',
+      'description': 'Document and share meeting notes from the partner organization collaboration meeting.',
+      'priority': 'medium',
+      'category': 'Partnerships',
+      'assignedTo': 'Admin',
+      'status': 'completed',
+      'completedDate': DateTime.now().subtract(const Duration(days: 3)),
+    },
+  ];
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _seedDemoDataIfNeeded();
+  }
+
+  Future<void> _seedDemoDataIfNeeded() async {
+    if (_demoDataSeeded) return;
+    
+    try {
+      // Check if there are any tasks for this NGO
+      final snapshot = await FirebaseFirestore.instance
+          .collection('quick_tasks')
+          .where('ngoId', isEqualTo: widget.ngoData.id)
+          .limit(1)
+          .get();
+      
+      if (snapshot.docs.isEmpty) {
+        // Seed demo data
+        final batch = FirebaseFirestore.instance.batch();
+        
+        for (final task in _demoTasks) {
+          final docRef = FirebaseFirestore.instance.collection('quick_tasks').doc();
+          batch.set(docRef, {
+            ...task,
+            'ngoId': widget.ngoData.id,
+            'createdAt': FieldValue.serverTimestamp(),
+            'dueDate': task['dueDate'] != null ? Timestamp.fromDate(task['dueDate']) : null,
+            'completedDate': task['completedDate'] != null ? Timestamp.fromDate(task['completedDate']) : null,
+          });
+        }
+        
+        await batch.commit();
+        _demoDataSeeded = true;
+      }
+    } catch (e) {
+      debugPrint('Error seeding demo data: $e');
+    }
   }
 
   @override
