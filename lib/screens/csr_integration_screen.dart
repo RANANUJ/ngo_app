@@ -3929,11 +3929,18 @@ class _CsrIntegrationScreenState extends State<CsrIntegrationScreen> with Single
 
   Future<void> _updateApplicationStatus(String docId, String status) async {
     try {
+      debugPrint('NGO: Updating application $docId to status=$status');
       await FirebaseFirestore.instance
           .collection('csr_volunteer_applications')
           .doc(docId)
-          .update({'status': status});
-
+          .update({
+        'status': status,
+        'updatedAt': FieldValue.serverTimestamp(),
+        if (status == 'approved') 'approvedAt': FieldValue.serverTimestamp(),
+        if (status == 'rejected') 'rejectedAt': FieldValue.serverTimestamp(),
+      });
+      
+      debugPrint('NGO: Successfully updated application $docId to status=$status');
       _loadStats();
 
       if (mounted) {

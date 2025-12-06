@@ -173,8 +173,8 @@ class _NgoVerificationStatusScreenState extends State<NgoVerificationStatusScree
         break;
       default:
         icon = Icons.hourglass_top;
-        color = Colors.orange;
-        bgColor = Colors.orange.shade50;
+        color = primary;
+        bgColor = Color(0xFFE0F7FA);
     }
 
     Widget iconWidget = Container(
@@ -223,7 +223,7 @@ class _NgoVerificationStatusScreenState extends State<NgoVerificationStatusScree
         break;
       default:
         title = 'Waiting for Admin Approval';
-        color = Colors.orange;
+        color = primary;
     }
 
     return Text(

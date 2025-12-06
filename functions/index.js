@@ -135,6 +135,9 @@ exports.onSOSCreated = functions.firestore
         const address = sosData.address || "Unknown location";
         const volunteerPhone = sosData.volunteerPhone || "";
 
+        // Send BOTH notification and data for background delivery
+        // The notification part ensures delivery when app is killed
+        // The data part carries the extra information for handling
         const message = {
           notification: {
             title: "🚨 EMERGENCY SOS ALERT",
@@ -150,22 +153,28 @@ exports.onSOSCreated = functions.firestore
             latitude: String(sosData.latitude || ""),
             longitude: String(sosData.longitude || ""),
             type: "sos_alert",
+            title: "🚨 EMERGENCY SOS ALERT",
+            body: `${volunteerName} needs help! ${emergencyType} at ${address}`,
+            fullScreenIntent: "true",
             click_action: "FLUTTER_NOTIFICATION_CLICK",
           },
           android: {
             priority: "high",
+            ttl: 60000, // 1 minute
             notification: {
-              channelId: "sos_alerts_channel",
+              channelId: "sos_alert_channel",
               priority: "max",
               defaultSound: true,
               defaultVibrateTimings: true,
               visibility: "public",
               icon: "@mipmap/ic_launcher",
               color: "#E53935",
-              sound: "default",
             },
           },
           apns: {
+            headers: {
+              "apns-priority": "10",
+            },
             payload: {
               aps: {
                 alert: {

@@ -15,4 +15,16 @@
     <style name="NormalTheme" parent="@android:style/Theme.Black.NoTitleBar">
         <item name="android:windowBackground">?android:colorBackground</item>
     </style>
+    
+    <!-- Theme for SOS Alert full-screen activity (same in dark mode) -->
+    <style name="SOSAlertTheme" parent="Theme.AppCompat.NoActionBar">
+        <item name="android:windowBackground">#CC0000</item>
+        <item name="android:windowIsTranslucent">false</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowActionBar">false</item>
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:statusBarColor">#CC0000</item>
+        <item name="android:navigationBarColor">#CC0000</item>
+    </style>
 </resources>

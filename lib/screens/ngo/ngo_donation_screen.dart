@@ -28,24 +28,22 @@ class _NgoDonationScreenState extends State<NgoDonationScreen> {
   List<double> lastMonthData = [0, 0, 0, 0, 0, 0, 0];
   bool _isLoading = true;
   
-  // Stats
-  int _totalDonations = 0;
-  double _totalAmount = 0;
-  int _pendingRequests = 0;
-  int _approvedRequests = 0;
-
+  // Month selection
+  late DateTime _selectedMonth;
+  
   @override
   void initState() {
     super.initState();
+    final now = DateTime.now();
+    _selectedMonth = DateTime(now.year, now.month, 1);
     _loadDonationData();
   }
 
   Future<void> _loadDonationData() async {
     try {
-      final now = DateTime.now();
-      final startOfCurrentMonth = DateTime(now.year, now.month, 1);
-      final startOfLastMonth = DateTime(now.year, now.month - 1, 1);
-      final endOfLastMonth = DateTime(now.year, now.month, 0);
+      // Use selected month instead of current month
+      final startOfCurrentMonth = _selectedMonth;
+      final startOfLastMonth = DateTime(_selectedMonth.year, _selectedMonth.month - 1, 1);
 
       // Collect all donations from multiple sources
       List<Map<String, dynamic>> allCurrentMonthDonations = [];
@@ -108,45 +106,34 @@ class _NgoDonationScreenState extends State<NgoDonationScreen> {
         }
       }
 
-      // Get donation requests stats
-      final requestsSnapshot = await FirebaseFirestore.instance
-          .collection('donation_requests')
-          .where('ngoId', isEqualTo: widget.ngoData.id)
-          .get();
-
-      // Process current month data by day of week (0=Mon, 6=Sun)
+      // Get the number of days in current and last month
+      final daysInCurrentMonth = DateTime(_selectedMonth.year, _selectedMonth.month + 1, 0).day;
+      final daysInLastMonth = DateTime(startOfLastMonth.year, startOfLastMonth.month + 1, 0).day;
+      
+      // Process current month data by day of month (1-31)
       Map<int, double> currentDayData = {};
       double totalAmount = 0;
       for (var data in allCurrentMonthDonations) {
         final createdAt = data['createdAt'] as Timestamp?;
         if (createdAt != null) {
           final date = createdAt.toDate();
-          final dayOfWeek = (date.weekday - 1) % 7; // Monday = 0, Sunday = 6
+          final dayOfMonth = date.day - 1; // 0-based for chart indexing
           final amount = (data['amount'] ?? 0).toDouble();
-          currentDayData[dayOfWeek] = (currentDayData[dayOfWeek] ?? 0) + amount;
+          currentDayData[dayOfMonth] = (currentDayData[dayOfMonth] ?? 0) + amount;
           totalAmount += amount;
         }
       }
 
-      // Process last month data by day of week
+      // Process last month data by day of month
       Map<int, double> lastDayData = {};
       for (var data in allLastMonthDonations) {
         final createdAt = data['createdAt'] as Timestamp?;
         if (createdAt != null) {
           final date = createdAt.toDate();
-          final dayOfWeek = (date.weekday - 1) % 7;
+          final dayOfMonth = date.day - 1; // 0-based for chart indexing
           final amount = (data['amount'] ?? 0).toDouble();
-          lastDayData[dayOfWeek] = (lastDayData[dayOfWeek] ?? 0) + amount;
+          lastDayData[dayOfMonth] = (lastDayData[dayOfMonth] ?? 0) + amount;
         }
-      }
-
-      // Count pending and approved requests
-      int pending = 0;
-      int approved = 0;
-      for (var doc in requestsSnapshot.docs) {
-        final status = doc.data()['status'] ?? 'pending';
-        if (status == 'pending') pending++;
-        if (status == 'approved') approved++;
       }
 
       if (mounted) {
@@ -154,10 +141,6 @@ class _NgoDonationScreenState extends State<NgoDonationScreen> {
           // Convert to list for chart (scale to thousands for better visualization)
           currentMonthData = List.generate(7, (i) => (currentDayData[i] ?? 0) / 1000);
           lastMonthData = List.generate(7, (i) => (lastDayData[i] ?? 0) / 1000);
-          _totalDonations = allCurrentMonthDonations.length + allLastMonthDonations.length;
-          _totalAmount = totalAmount;
-          _pendingRequests = pending;
-          _approvedRequests = approved;
           _isLoading = false;
         });
       }
@@ -202,6 +185,10 @@ class _NgoDonationScreenState extends State<NgoDonationScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Month Selector
+                      _buildMonthSelector(),
+                      const SizedBox(height: 16),
+                      
                       // Monthly Chart Section
                       _buildMonthlyChart(),
                       const SizedBox(height: 24),
@@ -218,6 +205,84 @@ class _NgoDonationScreenState extends State<NgoDonationScreen> {
                 ),
               ),
             ),
+    );
+  }
+
+  Widget _buildMonthSelector() {
+    final monthNames = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          IconButton(
+            icon: const Icon(Icons.chevron_left, color: primary),
+            onPressed: () {
+              setState(() {
+                _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month - 1, 1);
+              });
+              _loadDonationData();
+            },
+          ),
+          Expanded(
+            child: GestureDetector(
+              onTap: () async {
+                final pickedDate = await showDatePicker(
+                  context: context,
+                  initialDate: _selectedMonth,
+                  firstDate: DateTime(2020),
+                  lastDate: DateTime.now(),
+                  initialDatePickerMode: DatePickerMode.year,
+                );
+                if (pickedDate != null) {
+                  setState(() {
+                    _selectedMonth = DateTime(pickedDate.year, pickedDate.month, 1);
+                  });
+                  _loadDonationData();
+                }
+              },
+              child: Text(
+                '${monthNames[_selectedMonth.month - 1]} ${_selectedMonth.year}',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
+                ),
+              ),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.chevron_right, color: primary),
+            onPressed: () {
+              // Don't allow going to future months
+              final now = DateTime.now();
+              if (_selectedMonth.year < now.year || 
+                  (_selectedMonth.year == now.year && _selectedMonth.month < now.month)) {
+                setState(() {
+                  _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month + 1, 1);
+                });
+                _loadDonationData();
+              }
+            },
+          ),
+        ],
+      ),
     );
   }
 
@@ -271,7 +336,7 @@ class _NgoDonationScreenState extends State<NgoDonationScreen> {
                     sideTitles: SideTitles(
                       showTitles: true,
                       getTitlesWidget: (value, meta) {
-                        const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+                        const days = ['1', '2', '3', '4', '5', '6', '7'];
                         if (value.toInt() < days.length) {
                           return Padding(
                             padding: const EdgeInsets.only(top: 8),

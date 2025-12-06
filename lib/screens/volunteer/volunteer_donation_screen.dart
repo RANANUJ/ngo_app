@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -22,10 +22,15 @@ class _VolunteerDonationScreenState extends State<VolunteerDonationScreen> {
   List<double> currentMonthData = [0, 0, 0, 0, 0, 0, 0];
   List<double> lastMonthData = [0, 0, 0, 0, 0, 0, 0];
   bool _isLoading = true;
+  
+  // Month selection
+  late DateTime _selectedMonth;
 
   @override
   void initState() {
     super.initState();
+    final now = DateTime.now();
+    _selectedMonth = DateTime(now.year, now.month, 1);
     _loadDonationData();
   }
 
@@ -37,10 +42,14 @@ class _VolunteerDonationScreenState extends State<VolunteerDonationScreen> {
         return;
       }
 
-      final now = DateTime.now();
-      final startOfCurrentMonth = DateTime(now.year, now.month, 1);
-      final startOfLastMonth = DateTime(now.year, now.month - 1, 1);
+      // Use selected month instead of current month
+      final startOfCurrentMonth = _selectedMonth;
+      final startOfLastMonth = DateTime(_selectedMonth.year, _selectedMonth.month - 1, 1);
 
+      // Get the number of days in current and last month
+      final daysInCurrentMonth = DateTime(_selectedMonth.year, _selectedMonth.month + 1, 0).day;
+      final daysInLastMonth = DateTime(startOfLastMonth.year, startOfLastMonth.month + 1, 0).day;
+      
       // Collect all donations from multiple sources
       List<Map<String, dynamic>> allCurrentMonthDonations = [];
       List<Map<String, dynamic>> allLastMonthDonations = [];
@@ -102,27 +111,29 @@ class _VolunteerDonationScreenState extends State<VolunteerDonationScreen> {
         }
       }
 
-      // Process current month data by day of week (Mon=0, Sun=6)
+      // Process current month data by day of month (1-31)
       Map<int, double> currentDayData = {};
+      double totalAmount = 0;
       for (var data in allCurrentMonthDonations) {
         final createdAt = data['createdAt'] as Timestamp?;
         if (createdAt != null) {
           final date = createdAt.toDate();
-          final dayOfWeek = (date.weekday - 1) % 7; // Monday = 0, Sunday = 6
+          final dayOfMonth = date.day - 1; // 0-based for chart indexing
           final amount = (data['amount'] ?? 0).toDouble();
-          currentDayData[dayOfWeek] = (currentDayData[dayOfWeek] ?? 0) + amount;
+          currentDayData[dayOfMonth] = (currentDayData[dayOfMonth] ?? 0) + amount;
+          totalAmount += amount;
         }
       }
 
-      // Process last month data by day of week
+      // Process last month data by day of month
       Map<int, double> lastDayData = {};
       for (var data in allLastMonthDonations) {
         final createdAt = data['createdAt'] as Timestamp?;
         if (createdAt != null) {
           final date = createdAt.toDate();
-          final dayOfWeek = (date.weekday - 1) % 7;
+          final dayOfMonth = date.day - 1; // 0-based for chart indexing
           final amount = (data['amount'] ?? 0).toDouble();
-          lastDayData[dayOfWeek] = (lastDayData[dayOfWeek] ?? 0) + amount;
+          lastDayData[dayOfMonth] = (lastDayData[dayOfMonth] ?? 0) + amount;
         }
       }
 
@@ -175,6 +186,10 @@ class _VolunteerDonationScreenState extends State<VolunteerDonationScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Month Selector
+                      _buildMonthSelector(),
+                      const SizedBox(height: 16),
+                      
                       // Monthly Chart Section
                       _buildMonthlyChart(),
                       const SizedBox(height: 24),
@@ -191,6 +206,84 @@ class _VolunteerDonationScreenState extends State<VolunteerDonationScreen> {
                 ),
               ),
             ),
+    );
+  }
+
+  Widget _buildMonthSelector() {
+    final monthNames = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          IconButton(
+            icon: const Icon(Icons.chevron_left, color: primary),
+            onPressed: () {
+              setState(() {
+                _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month - 1, 1);
+              });
+              _loadDonationData();
+            },
+          ),
+          Expanded(
+            child: GestureDetector(
+              onTap: () async {
+                final pickedDate = await showDatePicker(
+                  context: context,
+                  initialDate: _selectedMonth,
+                  firstDate: DateTime(2020),
+                  lastDate: DateTime.now(),
+                  initialDatePickerMode: DatePickerMode.year,
+                );
+                if (pickedDate != null) {
+                  setState(() {
+                    _selectedMonth = DateTime(pickedDate.year, pickedDate.month, 1);
+                  });
+                  _loadDonationData();
+                }
+              },
+              child: Text(
+                '${monthNames[_selectedMonth.month - 1]} ${_selectedMonth.year}',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
+                ),
+              ),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.chevron_right, color: primary),
+            onPressed: () {
+              // Don't allow going to future months
+              final now = DateTime.now();
+              if (_selectedMonth.year < now.year || 
+                  (_selectedMonth.year == now.year && _selectedMonth.month < now.month)) {
+                setState(() {
+                  _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month + 1, 1);
+                });
+                _loadDonationData();
+              }
+            },
+          ),
+        ],
+      ),
     );
   }
 
@@ -244,7 +337,7 @@ class _VolunteerDonationScreenState extends State<VolunteerDonationScreen> {
                     sideTitles: SideTitles(
                       showTitles: true,
                       getTitlesWidget: (value, meta) {
-                        const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+                        const days = ['1', '2', '3', '4', '5', '6', '7'];
                         if (value.toInt() < days.length) {
                           return Padding(
                             padding: const EdgeInsets.only(top: 8),
@@ -553,5 +646,3 @@ class _FeatureItem {
     required this.onTap,
   });
 }
-
-

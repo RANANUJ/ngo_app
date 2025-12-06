@@ -125,13 +125,6 @@ class _IndividualRegistrationScreenState extends State<IndividualRegistrationScr
     }
   }
 
-  void _signInWithFacebook() {
-    // TODO: Implement Facebook Sign In
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Facebook Sign In coming soon')),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -142,30 +135,30 @@ class _IndividualRegistrationScreenState extends State<IndividualRegistrationScr
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const SizedBox(height: 60),
+              const SizedBox(height: 20),
 
               // Title
               Text(
                 'Create Account',
                 style: TextStyle(
                   color: primary,
-                  fontSize: 28,
+                  fontSize: 24,
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
 
               // Subtitle
               Text(
-                'Fill your information below or register with\nyour social account.',
+                'Fill your information below or register with your social account.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Colors.grey.shade600,
-                  fontSize: 14,
-                  height: 1.5,
+                  fontSize: 13,
+                  height: 1.4,
                 ),
               ),
-              const SizedBox(height: 40),
+              const SizedBox(height: 24),
 
               // Name Field
               _buildTextField(
@@ -173,7 +166,7 @@ class _IndividualRegistrationScreenState extends State<IndividualRegistrationScr
                 controller: _nameController,
                 keyboardType: TextInputType.name,
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
 
               // Email Field
               _buildTextField(
@@ -181,7 +174,7 @@ class _IndividualRegistrationScreenState extends State<IndividualRegistrationScr
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
 
               // Password Field
               _buildTextField(
@@ -193,7 +186,7 @@ class _IndividualRegistrationScreenState extends State<IndividualRegistrationScr
                   setState(() => _obscurePassword = !_obscurePassword);
                 },
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
 
               // Confirm Password Field
               _buildTextField(
@@ -205,7 +198,7 @@ class _IndividualRegistrationScreenState extends State<IndividualRegistrationScr
                   setState(() => _obscureConfirmPassword = !_obscureConfirmPassword);
                 },
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 20),
 
               // Sign Up Button
               SizedBox(
@@ -215,7 +208,7 @@ class _IndividualRegistrationScreenState extends State<IndividualRegistrationScr
                   style: ElevatedButton.styleFrom(
                     backgroundColor: primary,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -223,8 +216,8 @@ class _IndividualRegistrationScreenState extends State<IndividualRegistrationScr
                   ),
                   child: _isLoading
                       ? const SizedBox(
-                          height: 20,
-                          width: 20,
+                          height: 18,
+                          width: 18,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
                             color: Colors.white,
@@ -233,24 +226,24 @@ class _IndividualRegistrationScreenState extends State<IndividualRegistrationScr
                       : const Text(
                           'Sign up',
                           style: TextStyle(
-                            fontSize: 16,
+                            fontSize: 15,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
                 ),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 16),
 
               // OR Divider
               Text(
                 'OR',
                 style: TextStyle(
                   color: Colors.grey.shade600,
-                  fontSize: 14,
+                  fontSize: 12,
                   fontWeight: FontWeight.w500,
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
 
               // Social Login Buttons
               Row(
@@ -273,19 +266,9 @@ class _IndividualRegistrationScreenState extends State<IndividualRegistrationScr
                       ),
                     ),
                   ),
-                  const SizedBox(width: 20),
-                  // Facebook Button
-                  _buildSocialButton(
-                    onTap: _signInWithFacebook,
-                    child: const Icon(
-                      Icons.facebook,
-                      color: Color(0xFF1877F2),
-                      size: 28,
-                    ),
-                  ),
                 ],
               ),
-              const SizedBox(height: 40),
+              const SizedBox(height: 12),
 
               // Already have account
               Row(
@@ -295,7 +278,7 @@ class _IndividualRegistrationScreenState extends State<IndividualRegistrationScr
                     'Already have an account? ',
                     style: TextStyle(
                       color: Colors.grey.shade600,
-                      fontSize: 14,
+                      fontSize: 13,
                     ),
                   ),
                   GestureDetector(
@@ -310,14 +293,14 @@ class _IndividualRegistrationScreenState extends State<IndividualRegistrationScr
                       'Login',
                       style: TextStyle(
                         color: primary,
-                        fontSize: 14,
+                        fontSize: 13,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 8),
             ],
           ),
         ),

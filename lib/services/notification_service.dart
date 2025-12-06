@@ -2,9 +2,26 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../widgets/full_screen_sos_alert.dart';
+
+/// Global navigator key for showing dialogs from services
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
+/// Method channel for native SOS alert
+const MethodChannel _sosChannel = MethodChannel('com.example.ngo_app/sos_alert');
+
+/// Show native full-screen SOS alert (works from background)
+Future<void> showNativeSOSAlert(Map<String, dynamic> data) async {
+  try {
+    await _sosChannel.invokeMethod('showSOSAlert', data);
+  } catch (e) {
+    debugPrint('Error showing native SOS alert: $e');
+  }
+}
 
 /// Service for handling push notifications and FCM tokens
 class NotificationService {
@@ -148,7 +165,43 @@ class NotificationService {
 
   void _handleForegroundMessage(RemoteMessage message) {
     debugPrint('Foreground message received: ${message.notification?.title}');
-    _showLocalNotification(message);
+    
+    final data = message.data;
+    final type = data['type']?.toString().toLowerCase() ?? '';
+    
+    // Check if this is an SOS alert
+    if (type == 'sos_alert') {
+      // Show full-screen SOS alert
+      _showFullScreenSOSAlert(data);
+    } else {
+      _showLocalNotification(message);
+    }
+  }
+  
+  /// Show full-screen SOS alert when app is in foreground
+  void _showFullScreenSOSAlert(Map<String, dynamic> data) {
+    final context = navigatorKey.currentContext;
+    if (context == null) {
+      debugPrint('Navigator context not available for full-screen alert');
+      return;
+    }
+    
+    FullScreenSOSAlert.show(
+      context,
+      volunteerName: data['volunteerName'] ?? 'Unknown',
+      emergencyType: data['emergencyType'] ?? 'Emergency',
+      address: data['address'] ?? 'Unknown location',
+      sosId: data['sosId'],
+      volunteerId: data['volunteerId'],
+      volunteerPhone: data['volunteerPhone'],
+      onViewDetails: () {
+        debugPrint('View details tapped for SOS: ${data['sosId']}');
+        // Navigate to SOS details - handled by the caller
+      },
+      onDismiss: () {
+        debugPrint('SOS alert dismissed');
+      },
+    );
   }
 
   void _handleNotificationTap(RemoteMessage message) {
@@ -498,6 +551,81 @@ class NotificationService {
 /// Background message handler - must be top-level function
 @pragma('vm:entry-point')
 Future<void> _firebaseBackgroundMessageHandler(RemoteMessage message) async {
-  debugPrint('Background message received: ${message.notification?.title}');
-  // Handle the background message
+  debugPrint('Background message received: ${message.data}');
+  
+  final data = message.data;
+  final type = data['type']?.toString().toLowerCase() ?? '';
+  
+  // Check if this is an SOS alert that needs full-screen display
+  if (type == 'sos_alert' && data['fullScreenIntent'] == 'true') {
+    debugPrint('SOS Alert in background - showing full-screen notification');
+    
+    // Initialize local notifications for background
+    final FlutterLocalNotificationsPlugin localNotifications = FlutterLocalNotificationsPlugin();
+    
+    const AndroidInitializationSettings androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const InitializationSettings initSettings = InitializationSettings(android: androidSettings);
+    await localNotifications.initialize(initSettings);
+    
+    // Create notification channel
+    final androidPlugin = localNotifications
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    
+    const AndroidNotificationChannel sosChannel = AndroidNotificationChannel(
+      'sos_alert_channel',
+      'SOS Emergency Alerts',
+      description: 'Critical SOS emergency alerts',
+      importance: Importance.max,
+      playSound: true,
+      enableVibration: true,
+      showBadge: true,
+    );
+    
+    await androidPlugin?.createNotificationChannel(sosChannel);
+    
+    final volunteerName = data['volunteerName'] ?? 'Unknown';
+    final emergencyType = data['emergencyType'] ?? 'Emergency';
+    final address = data['address'] ?? 'Unknown location';
+    
+    // Show high-priority notification with full-screen intent
+    await localNotifications.show(
+      999, // Fixed ID for SOS alerts
+      '🚨 EMERGENCY SOS ALERT',
+      '$volunteerName needs help! $emergencyType at $address',
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          sosChannel.id,
+          sosChannel.name,
+          channelDescription: sosChannel.description,
+          importance: Importance.max,
+          priority: Priority.max,
+          icon: '@mipmap/ic_launcher',
+          color: const Color(0xFFE53935),
+          enableVibration: true,
+          vibrationPattern: Int64List.fromList([0, 500, 200, 500, 200, 500, 500]),
+          playSound: true,
+          fullScreenIntent: true,
+          category: AndroidNotificationCategory.alarm,
+          visibility: NotificationVisibility.public,
+          ticker: 'SOS EMERGENCY',
+          ongoing: true,
+          autoCancel: false,
+          timeoutAfter: 300000, // 5 minutes
+          actions: [
+            const AndroidNotificationAction(
+              'view_details',
+              'VIEW DETAILS',
+              showsUserInterface: true,
+            ),
+            const AndroidNotificationAction(
+              'dismiss',
+              'DISMISS',
+              cancelNotification: true,
+            ),
+          ],
+        ),
+      ),
+      payload: jsonEncode(data),
+    );
+  }
 }
