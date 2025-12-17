@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/ngo_registration_service.dart';
+import 'payment_donation_screen.dart';
 
 class DonationRequestScreen extends StatefulWidget {
   final NgoRegistrationRequest ngoData;
@@ -768,7 +769,19 @@ class _DonationDetailScreen extends StatelessWidget {
                   ),
                   child: SafeArea(
                     child: ElevatedButton(
-                      onPressed: () => _showDonationDialog(context),
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => PaymentDonationScreen(
+                            campaignId: docId,
+                            campaignTitle: data['title'] ?? 'Donation Request',
+                            campaignDescription: data['description'],
+                            goalAmount: data['targetAmount'],
+                            raisedAmount: data['collectedAmount'],
+                            donationType: 'donation_request',
+                          ),
+                        ),
+                      ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: primary,
                         padding: const EdgeInsets.symmetric(vertical: 16),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'payment_donation_screen.dart';
 
 class ImpactDetailScreen extends StatefulWidget {
   final Map<String, dynamic> data;
@@ -335,7 +336,17 @@ class _ImpactDetailScreenState extends State<ImpactDetailScreen> {
                   ),
                   child: SafeArea(
                     child: ElevatedButton(
-                      onPressed: () => _showDonateDialog(),
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => PaymentDonationScreen(
+                            campaignId: widget.docId,
+                            campaignTitle: widget.data['title'] ?? 'Impact Story',
+                            campaignDescription: widget.data['description'],
+                            donationType: 'impact',
+                          ),
+                        ),
+                      ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: primary,
                         padding: const EdgeInsets.symmetric(vertical: 16),

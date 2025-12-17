@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../payment_donation_screen.dart';
 
 class VolunteerDonationRequestScreen extends StatefulWidget {
   const VolunteerDonationRequestScreen({super.key});
@@ -177,7 +178,19 @@ class _VolunteerDonationRequestScreenState extends State<VolunteerDonationReques
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       elevation: 2,
       child: InkWell(
-        onTap: () => _showDonationDialog(data, docId),
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PaymentDonationScreen(
+              campaignId: docId,
+              campaignTitle: data['title'] ?? 'Donation Request',
+              campaignDescription: data['description'],
+              goalAmount: data['targetAmount'],
+              raisedAmount: data['collectedAmount'],
+              donationType: 'donation_request',
+            ),
+          ),
+        ),
         borderRadius: BorderRadius.circular(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -307,7 +320,19 @@ class _VolunteerDonationRequestScreenState extends State<VolunteerDonationReques
                         ],
                       ),
                       ElevatedButton(
-                        onPressed: () => _showDonationDialog(data, docId),
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => PaymentDonationScreen(
+                              campaignId: docId,
+                              campaignTitle: data['title'] ?? 'Donation Request',
+                              campaignDescription: data['description'],
+                              goalAmount: data['targetAmount'],
+                              raisedAmount: data['collectedAmount'],
+                              donationType: 'donation_request',
+                            ),
+                          ),
+                        ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: primary,
                           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),

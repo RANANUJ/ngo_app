@@ -546,49 +546,56 @@ class _NgoHomeScreenState extends State<NgoHomeScreen> {
       color: Colors.white,
       child: Row(
         children: [
-          // NGO Profile Image with Verified Badge
-          Stack(
-            children: [
-              Container(
-                width: 60,
-                height: 60,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: primary.withOpacity(0.1),
-                  image: hasProfileImage
-                      ? DecorationImage(
-                          image: NetworkImage(profileImageUrl),
-                          fit: BoxFit.cover,
-                        )
-                      : null,
-                ),
-                child: hasProfileImage
-                    ? null
-                    : Center(
-                        child: Icon(
-                          Icons.person,
-                          color: primary,
-                          size: 32,
-                        ),
-                      ),
-              ),
-              Positioned(
-                bottom: -2,
-                left: -2,
-                child: Container(
-                  padding: const EdgeInsets.all(2),
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
+          // NGO Profile Image with Verified Badge - clickable to go to profile
+          GestureDetector(
+            onTap: () {
+              setState(() {
+                _selectedIndex = 4; // Profile tab index
+              });
+            },
+            child: Stack(
+              children: [
+                Container(
+                  width: 60,
+                  height: 60,
+                  decoration: BoxDecoration(
                     shape: BoxShape.circle,
+                    color: primary.withOpacity(0.1),
+                    image: hasProfileImage
+                        ? DecorationImage(
+                            image: NetworkImage(profileImageUrl),
+                            fit: BoxFit.cover,
+                          )
+                        : null,
                   ),
-                  child: Icon(
-                    Icons.verified,
-                    color: primary,
-                    size: 18,
+                  child: hasProfileImage
+                      ? null
+                      : Center(
+                          child: Icon(
+                            Icons.person,
+                            color: primary,
+                            size: 32,
+                          ),
+                        ),
+                ),
+                Positioned(
+                  bottom: -2,
+                  left: -2,
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.verified,
+                      color: primary,
+                      size: 18,
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
           const SizedBox(width: 12),
           

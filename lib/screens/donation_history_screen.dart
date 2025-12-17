@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 import '../services/ngo_registration_service.dart';
+import 'donation_detail_screen.dart';
 
 class DonationHistoryScreen extends StatefulWidget {
   final NgoRegistrationRequest ngoData;
@@ -163,8 +165,9 @@ class _DonationHistoryScreenState extends State<DonationHistoryScreen> {
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         itemCount: docs.length,
                         itemBuilder: (context, index) {
-                          final data = docs[index].data() as Map<String, dynamic>;
-                          return _buildDonationCard(data);
+                          final doc = docs[index];
+                          final data = doc.data() as Map<String, dynamic>;
+                          return _buildDonationCard(doc.id, data);
                         },
                       ),
                     ),
@@ -251,22 +254,27 @@ class _DonationHistoryScreenState extends State<DonationHistoryScreen> {
     );
   }
 
-  Widget _buildDonationCard(Map<String, dynamic> data) {
+  Widget _buildDonationCard(String donationId, Map<String, dynamic> data) {
     final donorName = data['donorName'] ?? 'Anonymous';
     final amount = (data['amount'] ?? 0).toDouble();
-    final type = data['donorType'] ?? data['type'] ?? 'Donor';
     final createdAt = data['createdAt'] as Timestamp?;
-    final message = data['message'] as String?;
+    final profileImageUrl = data['profileImageUrl'] as String?;
+    final isAnonymous = data['isAnonymous'] ?? false;
+    final campaignTitle = data['campaignTitle'] ?? 'Unknown Campaign';
+    
+    // Debug logging
+    print('🖼️ Donation Card - Donor: $donorName, ProfileURL: $profileImageUrl, IsAnonymous: $isAnonymous');
     
     String dateStr = 'N/A';
+    String timeStr = '';
     if (createdAt != null) {
       final date = createdAt.toDate();
-      dateStr = '${date.day} ${_getMonthName(date.month).substring(0, 3)} ${date.year}';
+      dateStr = DateFormat('dd MMM yyyy').format(date);
+      timeStr = DateFormat('hh:mm a').format(date);
     }
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -278,116 +286,136 @@ class _DonationHistoryScreenState extends State<DonationHistoryScreen> {
           ),
         ],
       ),
-      child: Row(
-        children: [
-          // Icon
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: primary.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => DonationDetailScreen(
+                donationId: donationId,
+                donationData: data,
+              ),
             ),
-            child: const Icon(Icons.volunteer_activism, color: primary),
-          ),
-          const SizedBox(width: 12),
-          
-          // Details
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  donorName,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Row(
+          );
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              // Profile Photo or Icon
+              CircleAvatar(
+                radius: 28,
+                backgroundColor: primary.withOpacity(0.1),
+                backgroundImage: profileImageUrl != null && 
+                                  profileImageUrl.isNotEmpty && 
+                                  !isAnonymous
+                    ? NetworkImage(profileImageUrl)
+                    : null,
+                onBackgroundImageError: profileImageUrl != null && 
+                                         profileImageUrl.isNotEmpty && 
+                                         !isAnonymous
+                    ? (exception, stackTrace) {
+                        print('❌ Error loading profile image: $exception');
+                      }
+                    : null,
+                child: profileImageUrl == null || 
+                       profileImageUrl.isEmpty || 
+                       isAnonymous
+                    ? Icon(
+                        isAnonymous ? Icons.person_off : Icons.person,
+                        color: primary,
+                        size: 28,
+                      )
+                    : null,
+              ),
+              const SizedBox(width: 12),
+              
+              // Details
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: primary.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(4),
+                    Text(
+                      donorName,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
                       ),
-                      child: Text(
-                        type,
-                        style: const TextStyle(
-                          fontSize: 10,
-                          color: primary,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(width: 8),
-                    if (message != null && message.isNotEmpty)
-                      Expanded(
-                        child: Text(
-                          message,
+                    const SizedBox(height: 4),
+                    Text(
+                      campaignTitle,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Icon(Icons.calendar_today, size: 11, color: Colors.grey.shade500),
+                        const SizedBox(width: 4),
+                        Text(
+                          dateStr,
                           style: TextStyle(
                             fontSize: 11,
-                            color: Colors.grey.shade600,
+                            color: Colors.grey.shade500,
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
                         ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  dateStr,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: Colors.grey.shade500,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          
-          // Amount
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                '₹${amount.toStringAsFixed(0)}',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.green,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.check_circle, size: 12, color: Colors.green),
-                    SizedBox(width: 4),
-                    Text(
-                      'Completed',
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: Colors.green,
-                        fontWeight: FontWeight.w500,
-                      ),
+                        const SizedBox(width: 8),
+                        Icon(Icons.access_time, size: 11, color: Colors.grey.shade500),
+                        const SizedBox(width: 4),
+                        Text(
+                          timeStr,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey.shade500,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
+              ),
+              
+              // Amount and Arrow
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Colors.green.shade400, Colors.green.shade600],
+                      ),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      '₹${amount.toStringAsFixed(0)}',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Icon(
+                    Icons.arrow_forward_ios,
+                    size: 14,
+                    color: Colors.grey.shade400,
+                  ),
+                ],
               ),
             ],
           ),
-        ],
+        ),
       ),
     );
   }

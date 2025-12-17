@@ -262,24 +262,31 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
       child: Row(
         children: [
-          // Profile Image
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.grey.shade300, width: 2),
-              image: userPhotoUrl != null
-                  ? DecorationImage(
-                      image: NetworkImage(userPhotoUrl!),
-                      fit: BoxFit.cover,
-                    )
+          // Profile Image - clickable to go to profile
+          GestureDetector(
+            onTap: () {
+              setState(() {
+                _currentIndex = 4; // Profile tab index
+              });
+            },
+            child: Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.grey.shade300, width: 2),
+                image: userPhotoUrl != null
+                    ? DecorationImage(
+                        image: NetworkImage(userPhotoUrl!),
+                        fit: BoxFit.cover,
+                      )
+                    : null,
+                color: userPhotoUrl == null ? const Color(0xFFE0F4F7) : null,
+              ),
+              child: userPhotoUrl == null
+                  ? Icon(Icons.person, color: primary, size: 32)
                   : null,
-              color: userPhotoUrl == null ? const Color(0xFFE0F4F7) : null,
             ),
-            child: userPhotoUrl == null
-                ? Icon(Icons.person, color: primary, size: 32)
-                : null,
           ),
           const SizedBox(width: 12),
           // Greeting

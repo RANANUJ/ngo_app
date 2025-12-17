@@ -7,12 +7,12 @@ admin.initializeApp();
 const db = admin.firestore();
 const messaging = admin.messaging();
 
-// Email configuration - Use environment variables in production
+// Email configuration - Use Firebase Functions config
 const emailConfig = {
   service: "gmail",
   auth: {
-    user: process.env.EMAIL_USER || "connectngo.notifications@gmail.com",
-    pass: process.env.EMAIL_PASSWORD || "your-app-password",
+    user: functions.config().email?.user || "connectngo.notifications@gmail.com",
+    pass: functions.config().email?.password || "your-app-password",
   },
 };
 
@@ -162,13 +162,18 @@ exports.onSOSCreated = functions.firestore
             priority: "high",
             ttl: 60000, // 1 minute
             notification: {
-              channelId: "sos_alert_channel",
+              channelId: "sos_alerts_channel",
               priority: "max",
-              defaultSound: true,
-              defaultVibrateTimings: true,
+              sound: "emergency_alert",
+              defaultVibrateTimings: false,
+              vibrateTimingsMillis: [0, 500, 200, 500, 200, 500, 200, 500, 200, 500],
               visibility: "public",
               icon: "@mipmap/ic_launcher",
               color: "#E53935",
+              tag: "sos_emergency",
+              sticky: false,
+              localOnly: false,
+              defaultSound: false,
             },
           },
           apns: {
@@ -1040,12 +1045,21 @@ exports.processEmailQueue = functions.pubsub
           const emailData = emailDoc.data();
 
           try {
-            await transporter.sendMail({
-              from: `"Connect NGO" <${emailConfig.auth.user}>`,
+            const mailOptions = {
+              from: `"Connect & Contribute" <${emailConfig.auth.user}>`,
               to: emailData.to,
               subject: emailData.subject,
-              text: emailData.body,
-            });
+            };
+
+            // Support both HTML and plain text emails
+            if (emailData.html) {
+              mailOptions.html = emailData.html;
+            }
+            if (emailData.body) {
+              mailOptions.text = emailData.body;
+            }
+
+            await transporter.sendMail(mailOptions);
 
             await emailDoc.ref.update({
               sent: true,
@@ -1053,6 +1067,7 @@ exports.processEmailQueue = functions.pubsub
             });
 
             sentCount++;
+            console.log(`Email sent to: ${emailData.to}`);
           } catch (e) {
             console.error("Failed to send email to:", emailData.to, e.message);
             await emailDoc.ref.update({

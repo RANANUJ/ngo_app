@@ -6,6 +6,8 @@ import 'package:flutter/services.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:vibration/vibration.dart';
 import '../widgets/full_screen_sos_alert.dart';
 
 /// Global navigator key for showing dialogs from services
@@ -31,9 +33,11 @@ class NotificationService {
 
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
   final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
+  final AudioPlayer _emergencyPlayer = AudioPlayer();
   
   bool _isInitialized = false;
   String? _fcmToken;
+  bool _isPlayingEmergencySound = false;
   
   // SOS Notification channel for Android (highest priority)
   static const AndroidNotificationChannel _sosChannel = AndroidNotificationChannel(
@@ -44,6 +48,9 @@ class NotificationService {
     playSound: true,
     enableVibration: true,
     showBadge: true,
+    sound: RawResourceAndroidNotificationSound('emergency_alert'),
+    enableLights: true,
+    ledColor: Color(0xFFE53935),
   );
 
   // General notification channel
@@ -165,12 +172,18 @@ class NotificationService {
 
   void _handleForegroundMessage(RemoteMessage message) {
     debugPrint('Foreground message received: ${message.notification?.title}');
+    debugPrint('Message data: ${message.data}');
     
     final data = message.data;
     final type = data['type']?.toString().toLowerCase() ?? '';
     
+    debugPrint('Notification type: $type');
+    
     // Check if this is an SOS alert
     if (type == 'sos_alert') {
+      debugPrint('🚨 SOS ALERT DETECTED - Triggering emergency sound and vibration!');
+      // Play emergency sound and vibrate
+      _playEmergencyAlertSound();
       // Show full-screen SOS alert
       _showFullScreenSOSAlert(data);
     } else {
@@ -254,6 +267,99 @@ class NotificationService {
     }
   }
 
+  /// Play emergency alert sound for 10 seconds with vibration
+  Future<void> _playEmergencyAlertSound() async {
+    debugPrint('🔊 _playEmergencyAlertSound called');
+    
+    if (_isPlayingEmergencySound) {
+      debugPrint('⚠️ Emergency sound already playing, skipping');
+      return;
+    }
+    
+    try {
+      _isPlayingEmergencySound = true;
+      debugPrint('✅ Starting emergency alert sound and vibration');
+      
+      // Start continuous vibration pattern for 10 seconds
+      _startEmergencyVibration();
+      
+      // Play emergency sound (looping for 10 seconds)
+      // Using system alarm sound as fallback
+      await _emergencyPlayer.setReleaseMode(ReleaseMode.loop);
+      await _emergencyPlayer.setVolume(1.0);
+      
+      // Try to play custom emergency sound, fallback to system sound
+      try {
+        // Use system notification sound with max volume
+        debugPrint('🎵 Attempting to play emergency_alert.mp3');
+        await _emergencyPlayer.play(AssetSource('emergency_alert.mp3'));
+        debugPrint('✅ Emergency sound playing');
+      } catch (e) {
+        debugPrint('❌ Custom sound not found, using system sound: $e');
+        // Play default notification sound repeatedly
+        await SystemSound.play(SystemSoundType.alert);
+      }
+      
+      // Stop after 10 seconds
+      Future.delayed(const Duration(seconds: 10), () {
+        debugPrint('⏰ 10 seconds elapsed, stopping emergency sound');
+        _stopEmergencyAlertSound();
+      });
+    } catch (e) {
+      debugPrint('❌ Error playing emergency sound: $e');
+      _isPlayingEmergencySound = false;
+    }
+  }
+  
+  /// Start emergency vibration pattern
+  Future<void> _startEmergencyVibration() async {
+    debugPrint('📳 _startEmergencyVibration called');
+    
+    try {
+      // Check if device has vibration capability
+      final hasVibrator = await Vibration.hasVibrator() ?? false;
+      debugPrint('Device has vibrator: $hasVibrator');
+      
+      if (!hasVibrator) {
+        debugPrint('⚠️ Device has no vibrator, skipping vibration');
+        return;
+      }
+      
+      debugPrint('✅ Starting vibration pattern (13 cycles of 500ms ON, 200ms OFF)');
+      
+      // Vibrate in emergency pattern for 10 seconds
+      // Pattern: [wait, vibrate, wait, vibrate, ...]
+      // 500ms vibrate, 200ms pause, repeat
+      for (int i = 0; i < 13; i++) {
+        if (!_isPlayingEmergencySound) {
+          debugPrint('⏹️ Vibration stopped early at cycle $i');
+          break;
+        }
+        await Vibration.vibrate(duration: 500, amplitude: 255);
+        await Future.delayed(const Duration(milliseconds: 200));
+      }
+      debugPrint('✅ Vibration pattern completed');
+    } catch (e) {
+      debugPrint('❌ Error vibrating: $e');
+    }
+  }
+  
+  /// Stop emergency alert sound and vibration
+  Future<void> _stopEmergencyAlertSound() async {
+    try {
+      _isPlayingEmergencySound = false;
+      await _emergencyPlayer.stop();
+      await Vibration.cancel();
+    } catch (e) {
+      debugPrint('Error stopping emergency sound: $e');
+    }
+  }
+  
+  /// Public method to manually stop emergency sound
+  Future<void> stopEmergencySound() async {
+    await _stopEmergencyAlertSound();
+  }
+
   /// Show a local SOS alert notification
   Future<void> showSOSNotification({
     required String title,
@@ -263,6 +369,9 @@ class NotificationService {
     required String volunteerName,
     String? emergencyType,
   }) async {
+    // Play emergency sound and vibrate
+    await _playEmergencyAlertSound();
+    
     await _localNotifications.show(
       DateTime.now().millisecondsSinceEpoch.remainder(100000),
       title,
@@ -277,17 +386,22 @@ class NotificationService {
           icon: '@mipmap/ic_launcher',
           color: Colors.red,
           enableVibration: true,
-          vibrationPattern: Int64List.fromList([0, 500, 200, 500, 200, 500]),
+          vibrationPattern: Int64List.fromList([0, 500, 200, 500, 200, 500, 200, 500, 200, 500]),
           playSound: true,
+          sound: const RawResourceAndroidNotificationSound('emergency_alert'),
           fullScreenIntent: true,
           category: AndroidNotificationCategory.alarm,
           visibility: NotificationVisibility.public,
           ticker: 'SOS EMERGENCY',
+          ongoing: false,
+          autoCancel: false,
+          timeoutAfter: 10000,
         ),
         iOS: const DarwinNotificationDetails(
           presentAlert: true,
           presentBadge: true,
           presentSound: true,
+          sound: 'emergency_alert.aiff',
           interruptionLevel: InterruptionLevel.critical,
         ),
       ),
@@ -419,7 +533,17 @@ class NotificationService {
     required String title,
     required String body,
     Map<String, dynamic>? data,
+    String? largeIconUrl,  // Donor profile image URL (for future enhancement)
   }) async {
+    // Use BigTextStyle for richer notification
+    final styleInformation = BigTextStyleInformation(
+      body,
+      contentTitle: title,
+      summaryText: 'Connect & Contribute',
+      htmlFormatBigText: true,
+      htmlFormatContentTitle: true,
+    );
+    
     await _localNotifications.show(
       DateTime.now().millisecondsSinceEpoch.remainder(100000),
       title,
@@ -435,11 +559,16 @@ class NotificationService {
           color: Colors.green,
           enableVibration: true,
           playSound: true,
+          styleInformation: styleInformation,
+          ticker: title,
+          category: AndroidNotificationCategory.message,
+          visibility: NotificationVisibility.public,
         ),
         iOS: const DarwinNotificationDetails(
           presentAlert: true,
           presentBadge: true,
           presentSound: true,
+          interruptionLevel: InterruptionLevel.timeSensitive,
         ),
       ),
       payload: data != null ? jsonEncode(data) : null,
