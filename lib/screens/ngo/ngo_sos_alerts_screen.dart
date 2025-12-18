@@ -89,7 +89,6 @@ class _NgoSOSAlertsScreenState extends State<NgoSOSAlertsScreen> with SingleTick
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade100,
       appBar: AppBar(
         backgroundColor: sosRed,
         foregroundColor: Colors.white,

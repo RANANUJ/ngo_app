@@ -186,9 +186,7 @@ class _CampaignDetailScreenState extends State<CampaignDetailScreen> {
     final List<String> targets = List<String>.from(campaign['target'] ?? []);
 
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: primary),

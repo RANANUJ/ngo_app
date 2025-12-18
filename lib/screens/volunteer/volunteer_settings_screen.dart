@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
+import 'package:cloud_functions/cloud_functions.dart';
+import '../../services/language_service.dart';
+import '../../l10n/app_localizations.dart';
 
 class VolunteerSettingsScreen extends StatefulWidget {
   const VolunteerSettingsScreen({Key? key}) : super(key: key);
@@ -112,13 +116,15 @@ class _VolunteerSettingsScreenState extends State<VolunteerSettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
         backgroundColor: primary,
         foregroundColor: Colors.white,
         elevation: 0,
-        title: const Text('Settings'),
+        title: Text(l10n.settings),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -128,13 +134,13 @@ class _VolunteerSettingsScreenState extends State<VolunteerSettingsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Notification Settings
-                  _buildSectionTitle('Notifications'),
+                  _buildSectionTitle(l10n.notifications),
                   const SizedBox(height: 12),
                   _buildSettingsCard([
                     _buildSwitchTile(
                       icon: Icons.notifications,
-                      title: 'Push Notifications',
-                      subtitle: 'Receive push notifications',
+                      title: l10n.pushNotifications,
+                      subtitle: l10n.pushNotificationsDesc,
                       value: _pushNotifications,
                       onChanged: (value) {
                         setState(() => _pushNotifications = value);
@@ -144,8 +150,8 @@ class _VolunteerSettingsScreenState extends State<VolunteerSettingsScreen> {
                     _buildDivider(),
                     _buildSwitchTile(
                       icon: Icons.email,
-                      title: 'Email Notifications',
-                      subtitle: 'Receive email updates',
+                      title: l10n.emailNotifications,
+                      subtitle: l10n.emailNotificationsDesc,
                       value: _emailNotifications,
                       onChanged: (value) {
                         setState(() => _emailNotifications = value);
@@ -155,8 +161,8 @@ class _VolunteerSettingsScreenState extends State<VolunteerSettingsScreen> {
                     _buildDivider(),
                     _buildSwitchTile(
                       icon: Icons.campaign,
-                      title: 'Campaign Updates',
-                      subtitle: 'Get notified about campaign updates',
+                      title: l10n.campaignUpdates,
+                      subtitle: l10n.campaignUpdatesDesc,
                       value: _campaignUpdates,
                       onChanged: (value) {
                         setState(() => _campaignUpdates = value);
@@ -166,8 +172,8 @@ class _VolunteerSettingsScreenState extends State<VolunteerSettingsScreen> {
                     _buildDivider(),
                     _buildSwitchTile(
                       icon: Icons.event,
-                      title: 'Event Reminders',
-                      subtitle: 'Receive reminders for events',
+                      title: l10n.eventReminders,
+                      subtitle: l10n.eventRemindersDesc,
                       value: _eventReminders,
                       onChanged: (value) {
                         setState(() => _eventReminders = value);
@@ -177,8 +183,8 @@ class _VolunteerSettingsScreenState extends State<VolunteerSettingsScreen> {
                     _buildDivider(),
                     _buildSwitchTile(
                       icon: Icons.receipt,
-                      title: 'Donation Receipts',
-                      subtitle: 'Get donation receipts',
+                      title: l10n.donationReceipts,
+                      subtitle: l10n.donationReceiptsDesc,
                       value: _donationReceipts,
                       onChanged: (value) {
                         setState(() => _donationReceipts = value);
@@ -188,8 +194,8 @@ class _VolunteerSettingsScreenState extends State<VolunteerSettingsScreen> {
                     _buildDivider(),
                     _buildSwitchTile(
                       icon: Icons.warning,
-                      title: 'SOS Alerts',
-                      subtitle: 'Receive emergency SOS alerts',
+                      title: l10n.sosAlerts,
+                      subtitle: l10n.sosAlertsDesc,
                       value: _sosAlerts,
                       onChanged: (value) {
                         setState(() => _sosAlerts = value);
@@ -201,13 +207,13 @@ class _VolunteerSettingsScreenState extends State<VolunteerSettingsScreen> {
                   const SizedBox(height: 24),
                   
                   // Privacy Settings
-                  _buildSectionTitle('Privacy'),
+                  _buildSectionTitle(l10n.privacy),
                   const SizedBox(height: 12),
                   _buildSettingsCard([
                     _buildSwitchTile(
                       icon: Icons.person,
-                      title: 'Show Profile',
-                      subtitle: 'Allow others to view your profile',
+                      title: l10n.showProfile,
+                      subtitle: l10n.showProfileDesc,
                       value: _showProfile,
                       onChanged: (value) {
                         setState(() => _showProfile = value);
@@ -217,8 +223,8 @@ class _VolunteerSettingsScreenState extends State<VolunteerSettingsScreen> {
                     _buildDivider(),
                     _buildSwitchTile(
                       icon: Icons.visibility,
-                      title: 'Show Activity',
-                      subtitle: 'Show your activity to others',
+                      title: l10n.showActivity,
+                      subtitle: l10n.showActivityDesc,
                       value: _showActivity,
                       onChanged: (value) {
                         setState(() => _showActivity = value);
@@ -228,8 +234,8 @@ class _VolunteerSettingsScreenState extends State<VolunteerSettingsScreen> {
                     _buildDivider(),
                     _buildSwitchTile(
                       icon: Icons.message,
-                      title: 'Allow Messages',
-                      subtitle: 'Let others send you messages',
+                      title: l10n.allowMessages,
+                      subtitle: l10n.allowMessagesDesc,
                       value: _allowMessages,
                       onChanged: (value) {
                         setState(() => _allowMessages = value);
@@ -241,21 +247,21 @@ class _VolunteerSettingsScreenState extends State<VolunteerSettingsScreen> {
                   const SizedBox(height: 24),
                   
                   // App Settings
-                  _buildSectionTitle('App Settings'),
+                  _buildSectionTitle(l10n.appSettings),
                   const SizedBox(height: 12),
                   _buildSettingsCard([
                     _buildSwitchTile(
                       icon: Icons.dark_mode,
-                      title: 'Dark Mode',
-                      subtitle: 'Use dark theme',
+                      title: l10n.darkMode,
+                      subtitle: l10n.darkModeDesc,
                       value: _darkMode,
                       onChanged: (value) {
                         setState(() => _darkMode = value);
                         _saveSetting('darkMode', value);
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Restart app to apply theme'),
-                            duration: Duration(seconds: 2),
+                          SnackBar(
+                            content: Text(l10n.languageChanged),
+                            duration: const Duration(seconds: 2),
                           ),
                         );
                       },
@@ -267,27 +273,27 @@ class _VolunteerSettingsScreenState extends State<VolunteerSettingsScreen> {
                   const SizedBox(height: 24),
                   
                   // Account Actions
-                  _buildSectionTitle('Account'),
+                  _buildSectionTitle(l10n.account),
                   const SizedBox(height: 12),
                   _buildSettingsCard([
                     _buildActionTile(
                       icon: Icons.lock_reset,
-                      title: 'Change Password',
-                      subtitle: 'Update your password',
+                      title: l10n.changePassword,
+                      subtitle: l10n.changePasswordDesc,
                       onTap: _showChangePasswordDialog,
                     ),
                     _buildDivider(),
                     _buildActionTile(
                       icon: Icons.download,
-                      title: 'Download My Data',
-                      subtitle: 'Export your personal data',
+                      title: l10n.downloadMyData,
+                      subtitle: l10n.downloadMyDataDesc,
                       onTap: _downloadData,
                     ),
                     _buildDivider(),
                     _buildActionTile(
                       icon: Icons.delete_forever,
-                      title: 'Delete Account',
-                      subtitle: 'Permanently delete your account',
+                      title: l10n.deleteAccount,
+                      subtitle: l10n.deleteAccountDesc,
                       isDestructive: true,
                       onTap: _showDeleteAccountDialog,
                     ),
@@ -301,25 +307,25 @@ class _VolunteerSettingsScreenState extends State<VolunteerSettingsScreen> {
                   _buildSettingsCard([
                     _buildInfoTile(
                       icon: Icons.info,
-                      title: 'App Version',
+                      title: l10n.appVersion,
                       value: '1.0.0',
                     ),
                     _buildDivider(),
                     _buildActionTile(
                       icon: Icons.description,
-                      title: 'Terms of Service',
+                      title: l10n.termsOfService,
                       onTap: () => _showTermsOfService(),
                     ),
                     _buildDivider(),
                     _buildActionTile(
                       icon: Icons.privacy_tip,
-                      title: 'Privacy Policy',
+                      title: l10n.privacyPolicy,
                       onTap: () => Navigator.pop(context),
                     ),
                     _buildDivider(),
                     _buildActionTile(
                       icon: Icons.star_rate,
-                      title: 'Rate the App',
+                      title: l10n.rateTheApp,
                       onTap: () => _rateApp(),
                     ),
                   ]),
@@ -469,6 +475,9 @@ class _VolunteerSettingsScreenState extends State<VolunteerSettingsScreen> {
   }
 
   Widget _buildLanguageTile() {
+    final languageService = Provider.of<LanguageService>(context);
+    final l10n = AppLocalizations.of(context)!;
+    
     return ListTile(
       leading: Container(
         padding: const EdgeInsets.all(8),
@@ -478,23 +487,37 @@ class _VolunteerSettingsScreenState extends State<VolunteerSettingsScreen> {
         ),
         child: Icon(Icons.language, color: primary, size: 20),
       ),
-      title: const Text(
-        'Language',
-        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+      title: Text(
+        l10n.language,
+        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
       ),
       trailing: DropdownButton<String>(
-        value: _language,
+        value: languageService.isHindi ? 'Hindi' : 'English',
         underline: const SizedBox(),
-        items: ['English', 'Hindi', 'Punjabi', 'Tamil', 'Telugu']
-            .map((lang) => DropdownMenuItem(
-                  value: lang,
-                  child: Text(lang),
-                ))
-            .toList(),
-        onChanged: (value) {
+        items: [
+          DropdownMenuItem(
+            value: 'English',
+            child: Text(l10n.english),
+          ),
+          DropdownMenuItem(
+            value: 'Hindi',
+            child: Text(l10n.hindi),
+          ),
+        ],
+        onChanged: (value) async {
           if (value != null) {
-            setState(() => _language = value);
-            _saveSetting('language', value);
+            final languageCode = value == 'Hindi' ? 'hi' : 'en';
+            await languageService.changeLanguage(languageCode);
+            
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(l10n.languageChanged),
+                  duration: const Duration(seconds: 2),
+                  backgroundColor: Colors.green,
+                ),
+              );
+            }
           }
         },
       ),
@@ -607,13 +630,124 @@ class _VolunteerSettingsScreenState extends State<VolunteerSettingsScreen> {
     );
   }
 
-  void _downloadData() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Your data export request has been submitted. You will receive an email shortly.'),
-        backgroundColor: Colors.green,
+  void _downloadData() async {
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: Card(
+          child: Padding(
+            padding: EdgeInsets.all(20.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('Preparing your data export...'),
+                SizedBox(height: 8),
+                Text(
+                  'This may take a few moments',
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
+
+    try {
+      // Call the Cloud Function
+      final callable = FirebaseFunctions.instance.httpsCallable('exportUserData');
+      final result = await callable.call();
+
+      // Close loading dialog
+      if (mounted) Navigator.pop(context);
+
+      // Get message from result
+      final message = result.data['message'] ?? 'Data export completed! Check your email.';
+
+      // Show success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Row(
+                  children: [
+                    Icon(Icons.check_circle, color: Colors.white),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Data Export Successful!',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(message, style: const TextStyle(fontSize: 13)),
+              ],
+            ),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 6),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      // Close loading dialog
+      if (mounted) Navigator.pop(context);
+
+      // Parse error message
+      String errorMessage = 'Failed to export data. Please try again.';
+      if (e.toString().contains('email') || e.toString().contains('Email')) {
+        errorMessage = 'Export generated but email failed. Data is stored and accessible.';
+      } else if (e.toString().contains('not-found')) {
+        errorMessage = 'Profile not found. Please complete your registration.';
+      } else if (e.toString().contains('unauthenticated')) {
+        errorMessage = 'Session expired. Please login again.';
+      }
+
+      // Show error message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Row(
+                  children: [
+                    Icon(Icons.error_outline, color: Colors.white),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Export Error',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(errorMessage, style: const TextStyle(fontSize: 13)),
+              ],
+            ),
+            backgroundColor: Colors.red.shade700,
+            duration: const Duration(seconds: 6),
+            behavior: SnackBarBehavior.floating,
+            action: SnackBarAction(
+              label: 'Retry',
+              textColor: Colors.white,
+              onPressed: _downloadData,
+            ),
+          ),
+        );
+      }
+    }
   }
 
   void _showDeleteAccountDialog() {

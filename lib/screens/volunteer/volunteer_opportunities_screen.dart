@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../l10n/app_localizations.dart';
 import '../opportunity_detail_screen.dart';
 
 class VolunteerOpportunitiesScreen extends StatefulWidget {
@@ -39,11 +40,11 @@ class _VolunteerOpportunitiesScreenState extends State<VolunteerOpportunitiesScr
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
           child: Row(
             children: [
-              _buildTab(0, 'Opportunities'),
+              _buildTab(0, AppLocalizations.of(context)!.opportunities),
               const SizedBox(width: 24),
-              _buildTab(1, 'Sent'),
+              _buildTab(1, AppLocalizations.of(context)!.sent),
               const SizedBox(width: 24),
-              _buildTab(2, 'Accepted'),
+              _buildTab(2, AppLocalizations.of(context)!.accepted),
             ],
           ),
         ),
@@ -63,7 +64,7 @@ class _VolunteerOpportunitiesScreenState extends State<VolunteerOpportunitiesScr
                     });
                   },
                   decoration: InputDecoration(
-                    hintText: 'Search',
+                    hintText: AppLocalizations.of(context)!.search,
                     hintStyle: TextStyle(color: Colors.grey.shade500),
                     prefixIcon: Icon(Icons.search, color: Colors.grey.shade500),
                     filled: true,
@@ -113,7 +114,7 @@ class _VolunteerOpportunitiesScreenState extends State<VolunteerOpportunitiesScr
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'Volunteer Opportunities',
+          AppLocalizations.of(context)!.opportunities,
           style: TextStyle(
             color: primary,
             fontSize: 20,
@@ -208,8 +209,8 @@ class _VolunteerOpportunitiesScreenState extends State<VolunteerOpportunitiesScr
         if (opportunities.isEmpty) {
           return _buildEmptyState(
             icon: Icons.volunteer_activism_outlined,
-            title: 'No opportunities found',
-            subtitle: 'Check back later for new opportunities',
+            title: AppLocalizations.of(context)!.noOpportunitiesFound,
+            subtitle: AppLocalizations.of(context)!.checkBackLater,
           );
         }
 
@@ -232,8 +233,8 @@ class _VolunteerOpportunitiesScreenState extends State<VolunteerOpportunitiesScr
     if (user == null) {
       return _buildEmptyState(
         icon: Icons.login,
-        title: 'Please login',
-        subtitle: 'Login to see your sent requests',
+        title: AppLocalizations.of(context)!.pleaseLogin,
+        subtitle: AppLocalizations.of(context)!.loginToSeeSentRequests,
       );
     }
 
@@ -253,8 +254,8 @@ class _VolunteerOpportunitiesScreenState extends State<VolunteerOpportunitiesScr
         if (docs.isEmpty) {
           return _buildEmptyState(
             icon: Icons.mail_outline,
-            title: 'No sent requests',
-            subtitle: 'Your applied opportunities will appear here',
+            title: AppLocalizations.of(context)!.noSentRequests,
+            subtitle: AppLocalizations.of(context)!.appliedOpportunitiesAppearHere,
           );
         }
 
@@ -290,8 +291,8 @@ class _VolunteerOpportunitiesScreenState extends State<VolunteerOpportunitiesScr
     if (user == null) {
       return _buildEmptyState(
         icon: Icons.login,
-        title: 'Please login',
-        subtitle: 'Login to see your accepted opportunities',
+        title: AppLocalizations.of(context)!.pleaseLogin,
+        subtitle: AppLocalizations.of(context)!.loginToSeeAcceptedOpportunities,
       );
     }
 
@@ -311,8 +312,8 @@ class _VolunteerOpportunitiesScreenState extends State<VolunteerOpportunitiesScr
         if (docs.isEmpty) {
           return _buildEmptyState(
             icon: Icons.check_circle_outline,
-            title: 'No accepted opportunities',
-            subtitle: 'Accepted opportunities will appear here',
+            title: AppLocalizations.of(context)!.noAcceptedOpportunities,
+            subtitle: AppLocalizations.of(context)!.acceptedOpportunitiesAppearHere,
           );
         }
 
@@ -435,9 +436,9 @@ class _VolunteerOpportunitiesScreenState extends State<VolunteerOpportunitiesScr
                               ),
                               minimumSize: const Size(60, 28),
                             ),
-                            child: const Text(
-                              'Apply',
-                              style: TextStyle(
+                            child: Text(
+                              AppLocalizations.of(context)!.apply,
+                              style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 10,
                                 fontWeight: FontWeight.w600,
@@ -447,9 +448,9 @@ class _VolunteerOpportunitiesScreenState extends State<VolunteerOpportunitiesScr
                       ],
                     ),
                     const SizedBox(height: 4),
-                    _buildDetailRow('Cause', data['cause'] ?? 'Not specified'),
-                    _buildDetailRow('Time', data['time'] ?? 'Flexible'),
-                    _buildDetailRow('Needs', '${data['volunteersNeeded'] ?? 0} volunteers'),
+                    _buildDetailRow(AppLocalizations.of(context)!.cause, data['cause'] ?? AppLocalizations.of(context)!.notSpecified),
+                    _buildDetailRow(AppLocalizations.of(context)!.time, data['time'] ?? AppLocalizations.of(context)!.flexible),
+                    _buildDetailRow(AppLocalizations.of(context)!.needs, '${data['volunteersNeeded'] ?? 0} ${AppLocalizations.of(context)!.volunteers}'),
                     // Event Date
                     if (eventDate != null) ...[
                       const SizedBox(height: 2),

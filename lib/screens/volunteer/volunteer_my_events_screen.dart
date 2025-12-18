@@ -31,7 +31,6 @@ class _VolunteerMyEventsScreenState extends State<VolunteerMyEventsScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
         backgroundColor: primary,
         foregroundColor: Colors.white,

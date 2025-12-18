@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import '../services/analytics_service.dart';
 import 'volunteer/volunteer_dashboard_screen.dart';
 import 'email_verification_screen.dart';
 import 'individual_registration_screen.dart';
@@ -13,12 +14,19 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   static const Color primary = Color(0xFF0099B8);
+  final AnalyticsService _analytics = AnalyticsService();
 
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
   bool _obscurePassword = true;
   bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _analytics.logScreenView('login_screen', screenClass: 'LoginScreen');
+  }
 
   @override
   void dispose() {
@@ -53,6 +61,10 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = false);
 
     if (result.success) {
+      // Log successful login
+      await _analytics.logLogin('email');
+      await _analytics.setUserId(result.user?.uid ?? '');
+      
       // Navigate to volunteer dashboard
       if (mounted) {
         Navigator.pushAndRemoveUntil(
@@ -135,7 +147,6 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24),

@@ -1,12 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:provider/provider.dart';
 import 'firebase_options.dart';
 import 'screens/splash_screen.dart';
 import 'utils/seed_government_schemes.dart';
 import 'services/notification_service.dart';
 import 'services/cache_service.dart';
+import 'services/language_service.dart';
+import 'services/crashlytics_service.dart';
+import 'services/remote_config_service.dart';
+import 'services/analytics_service.dart';
+import 'l10n/app_localizations.dart';
 
 // IMPORTANT: Add your platform config files from the Firebase console:
 // - Android: place `google-services.json` into `android/app/`
@@ -107,6 +115,21 @@ Future<void> main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
   
+  // Initialize Firebase Crashlytics
+  await CrashlyticsService().initialize();
+  
+  // Initialize Firebase Remote Config
+  await RemoteConfigService().initialize();
+  
+  // Initialize Analytics Service (handles all analytics setup)
+  await AnalyticsService().initialize();
+  
+  // Log app open event
+  await AnalyticsService().logAppOpen();
+  
+  // Set initial screen
+  await AnalyticsService().logScreenView('splash_screen', screenClass: 'SplashScreen');
+  
   // Initialize cache service early
   await CacheService().initialize();
   
@@ -125,16 +148,38 @@ Future<void> main() async {
 class MainApp extends StatelessWidget {
   const MainApp({super.key});
 
+  // Create analytics observer from AnalyticsService
+  static FirebaseAnalyticsObserver observer =
+      FirebaseAnalyticsObserver(analytics: AnalyticsService().analytics);
+
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      navigatorKey: navigatorKey,
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        // Enable image caching globally
-        useMaterial3: true,
+    return ChangeNotifierProvider(
+      create: (_) => LanguageService(),
+      child: Consumer<LanguageService>(
+        builder: (context, languageService, child) {
+          return MaterialApp(
+            navigatorKey: navigatorKey,
+            debugShowCheckedModeBanner: false,
+            locale: languageService.currentLocale,
+            localizationsDelegates: const [
+              AppLocalizations.delegate,
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
+            supportedLocales: const [
+              Locale('en'), // English
+              Locale('hi'), // Hindi
+            ],
+            theme: ThemeData(
+              useMaterial3: true,
+            ),
+            navigatorObservers: <NavigatorObserver>[observer],
+            home: const SplashScreen(),
+          );
+        },
       ),
-      home: const SplashScreen(),
     );
   }
 }

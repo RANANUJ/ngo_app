@@ -183,9 +183,7 @@ class _NgoReportsScreenState extends State<NgoReportsScreen> with SingleTickerPr
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
-        backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black87),
@@ -283,7 +281,7 @@ class _NgoReportsScreenState extends State<NgoReportsScreen> with SingleTickerPr
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -341,7 +339,7 @@ class _NgoReportsScreenState extends State<NgoReportsScreen> with SingleTickerPr
       height: 200,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -457,7 +455,7 @@ class _NgoReportsScreenState extends State<NgoReportsScreen> with SingleTickerPr
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(

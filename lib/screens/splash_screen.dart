@@ -170,12 +170,12 @@ class _SplashScreenState extends State<SplashScreen> {
             
             const SizedBox(height: 40),
             // Connect & Contribute text
-            const Text(
+            Text(
               'Connect & Contribute',
               style: TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.bold,
-                color: Colors.black87,
+                color: Theme.of(context).textTheme.titleLarge?.color,
               ),
             ),
             const SizedBox(height: 40),
@@ -188,7 +188,7 @@ class _SplashScreenState extends State<SplashScreen> {
                     borderRadius: BorderRadius.circular(10),
                     child: LinearProgressIndicator(
                       value: _loadingProgress,
-                      backgroundColor: Colors.grey.shade300,
+                      backgroundColor: Theme.of(context).dividerColor,
                       valueColor: AlwaysStoppedAnimation<Color>(primary),
                       minHeight: 6,
                     ),
@@ -198,7 +198,7 @@ class _SplashScreenState extends State<SplashScreen> {
                     _loadingStatus,
                     style: TextStyle(
                       fontSize: 12,
-                      color: Colors.grey.shade600,
+                      color: Theme.of(context).textTheme.bodyMedium?.color,
                     ),
                   ),
                 ],

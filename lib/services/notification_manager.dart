@@ -179,53 +179,73 @@ Connect NGO Team
     String? campaignName,
   }) async {
     try {
-      final settings = await _getVolunteerSettings(volunteerId);
-      final emailEnabled = settings['emailNotifications'] ?? true;
-      final donationReceipts = settings['donationReceipts'] ?? true;
+      // Get volunteer email from Firestore if not provided
+      String emailToUse = volunteerEmail;
+      String nameToUse = volunteerName;
       
-      // Create in-app notification
-      await _createNotification(
-        userId: volunteerId,
-        userType: 'volunteer',
-        title: 'Donation Successful!',
-        message: 'Your donation of ₹${amount.toStringAsFixed(0)} to $ngoName was successful.',
-        type: NotificationType.donationSuccess,
-        data: {
-          'amount': amount,
-          'ngoId': ngoId,
-          'ngoName': ngoName,
-          'transactionId': transactionId,
-          'campaignName': campaignName,
-        },
-      );
+      if (emailToUse.isEmpty || nameToUse.isEmpty) {
+        try {
+          final volunteerDoc = await _firestore
+              .collection('volunteers')
+              .doc(volunteerId)
+              .get();
+          
+          if (volunteerDoc.exists) {
+            final data = volunteerDoc.data();
+            if (emailToUse.isEmpty) {
+              emailToUse = data?['email'] ?? '';
+            }
+            if (nameToUse.isEmpty) {
+              nameToUse = data?['name'] ?? 'Donor';
+            }
+          }
+        } catch (e) {
+          debugPrint('Error fetching volunteer data: $e');
+        }
+      }
       
-      // Send email receipt if enabled
-      if (emailEnabled && donationReceipts && volunteerEmail.isNotEmpty) {
+      debugPrint('📧 Sending donation email to: $emailToUse (Name: $nameToUse)');
+      
+      // Always send thank you email for donation
+      if (emailToUse.isNotEmpty) {
+        final donationTime = DateTime.now();
         await _sendEmail(
-          to: volunteerEmail,
-          subject: 'Donation Receipt - ₹${amount.toStringAsFixed(0)} to $ngoName',
+          to: emailToUse,
+          subject: 'Thank You for Your Donation! - ₹${amount.toStringAsFixed(0)} Receipt',
           body: '''
-Dear $volunteerName,
+Dear $nameToUse,
 
-Thank you for your generous donation!
+Thank you so much for your generous donation! Your contribution will make a real difference.
 
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 DONATION RECEIPT
-================
-Amount: ₹${amount.toStringAsFixed(2)}
-NGO: $ngoName
-${campaignName != null ? 'Campaign: $campaignName\n' : ''}Transaction ID: $transactionId
-Date: ${_formatDateTime(DateTime.now())}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Your contribution will help make a positive impact in the community.
+Donation Amount:    ₹${amount.toStringAsFixed(2)}
+NGO/Organization:   $ngoName
+${campaignName != null ? 'Campaign:           $campaignName\n' : ''}Transaction ID:     $transactionId
+Donation Date:      ${_formatDateTime(donationTime)}
+Donation Time:      ${donationTime.hour.toString().padLeft(2, '0')}:${donationTime.minute.toString().padLeft(2, '0')}
 
-Thank you for your support!
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Best regards,
-Connect NGO Team
+Your contribution will help $ngoName ${campaignName != null ? 'with their "$campaignName" initiative' : 'continue their important work'} and create a positive impact in the community.
 
-This is an auto-generated receipt. Please keep it for your records.
+Every donation counts, and your support helps us build a better future together. Thank you for being a part of this journey!
+
+This is an official receipt for your donation. Please keep it for your records.
+
+With gratitude,
+Connect & Contribute Team
+$ngoName
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+This is an automated email. For any queries regarding your donation, please contact the NGO directly.
           ''',
         );
+        debugPrint('✅ Donation email queued successfully for $emailToUse');
+      } else {
+        debugPrint('⚠️ Cannot send donation email: Email address is empty');
       }
       
       // Send push notification
@@ -234,7 +254,7 @@ This is an auto-generated receipt. Please keep it for your records.
         'Thank you for donating ₹${amount.toStringAsFixed(0)} to $ngoName',
       );
     } catch (e) {
-      debugPrint('Error notifying donation success: $e');
+      debugPrint('❌ Error notifying donation success: $e');
     }
   }
 
@@ -327,22 +347,6 @@ Connect NGO Team
       
       final emailEnabled = settings['emailNotifications'] ?? true;
       
-      // Create in-app notification
-      await _createNotification(
-        userId: ngoId,
-        userType: 'ngo',
-        title: 'Donation Received: ₹${amount.toStringAsFixed(0)}',
-        message: '$donorName donated to ${campaignName ?? 'your organization'}',
-        type: NotificationType.donationReceived,
-        data: {
-          'donorId': donorId,
-          'donorName': donorName,
-          'amount': amount,
-          'transactionId': transactionId,
-          'campaignName': campaignName,
-        },
-      );
-      
       // Send email if enabled
       if (emailEnabled && ngoEmail.isNotEmpty) {
         await _sendEmail(
@@ -367,12 +371,6 @@ Connect NGO Team
           ''',
         );
       }
-      
-      // Send push notification
-      await _sendPushToNgo(ngoId,
-        '💰 Donation Received!',
-        '$donorName donated ₹${amount.toStringAsFixed(0)}',
-      );
     } catch (e) {
       debugPrint('Error notifying donation received: $e');
     }

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../services/email_service.dart';
+import '../services/analytics_service.dart';
 
 class DonationDetailScreen extends StatefulWidget {
   final String donationId;
@@ -21,6 +22,22 @@ class DonationDetailScreen extends StatefulWidget {
 class _DonationDetailScreenState extends State<DonationDetailScreen> {
   static const Color primary = Color(0xFF0099B8);
   bool _isSendingEmail = false;
+  final AnalyticsService _analytics = AnalyticsService();
+
+  @override
+  void initState() {
+    super.initState();
+    _analytics.logScreenView('donation_detail', screenClass: 'DonationDetailScreen');
+    
+    // Log donation view event
+    final amount = (widget.donationData['amount'] ?? 0).toDouble();
+    final campaignTitle = widget.donationData['campaignTitle'] ?? 'Unknown Campaign';
+    _analytics.logCustomEvent('view_donation', {
+      'donation_id': widget.donationId,
+      'amount': amount,
+      'campaign': campaignTitle,
+    });
+  }
 
   Future<void> _sendThankYouEmail() async {
     final donorEmail = widget.donationData['donorEmail'] ?? '';

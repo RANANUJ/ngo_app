@@ -79,15 +79,20 @@ class _NgoHomeScreenState extends State<NgoHomeScreen> {
 
   Future<void> _initializeNotifications() async {
     try {
+      debugPrint('🟢 Initializing NGO notifications for: ${widget.ngoData.id}');
+      
+      // Initialize notification service to get fresh FCM token
+      await NotificationService().initialize();
+      
       // Subscribe to SOS alerts topic for push notifications
       await NotificationService().subscribeToSOSAlerts();
       
       // Save FCM token to Firestore for push notifications
       await NotificationService().updateNGOFcmToken(widget.ngoData.id, widget.ngoData.id);
       
-      debugPrint('NGO notifications initialized successfully');
+      debugPrint('✅ NGO notifications initialized successfully');
     } catch (e) {
-      debugPrint('Error initializing notifications: $e');
+      debugPrint('❌ Error initializing NGO notifications: $e');
     }
   }
 
@@ -2249,9 +2254,34 @@ class _NgoHomeScreenState extends State<NgoHomeScreen> {
     );
 
     if (confirmed == true) {
+      // Show loading indicator
+      if (mounted) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => const Center(
+            child: CircularProgressIndicator(color: Colors.white),
+          ),
+        );
+      }
+      
+      // Remove FCM token and unsubscribe from topics before logout
+      try {
+        debugPrint('🔴 Logging out NGO member: ${widget.ngoData.id}');
+        await NotificationService().removeNGOFcmToken(widget.ngoData.id, widget.ngoData.id);
+        await NotificationService().unsubscribeFromSOSAlerts();
+        debugPrint('✅ FCM cleanup completed');
+      } catch (e) {
+        debugPrint('❌ Error during FCM cleanup: $e');
+      }
+      
+      // Clear local storage
       final localStorageService = LocalStorageService();
       await localStorageService.clearNgoLogin();
+      
+      // Close loading dialog and navigate
       if (mounted) {
+        Navigator.pop(context); // Close loading dialog
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (context) => const UserTypeScreen()),

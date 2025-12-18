@@ -171,7 +171,6 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: primary),

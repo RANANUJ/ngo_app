@@ -17,7 +17,6 @@ class _VolunteerMyCampaignsScreenState extends State<VolunteerMyCampaignsScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
         backgroundColor: primary,
         foregroundColor: Colors.white,

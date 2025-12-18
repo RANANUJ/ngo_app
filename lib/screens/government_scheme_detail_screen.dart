@@ -27,9 +27,7 @@ class _GovernmentSchemeDetailScreenState extends State<GovernmentSchemeDetailScr
     final benefits = (scheme['benefits'] ?? '').toString().split('\n').where((s) => s.trim().isNotEmpty).toList();
 
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: primary),

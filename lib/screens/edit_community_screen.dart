@@ -156,9 +156,7 @@ class _EditCommunityScreenState extends State<EditCommunityScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F9FA),
       appBar: AppBar(
-        backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.close, color: Colors.black87),

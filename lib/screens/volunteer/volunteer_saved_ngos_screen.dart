@@ -18,7 +18,6 @@ class _VolunteerSavedNgosScreenState extends State<VolunteerSavedNgosScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
         backgroundColor: primary,
         foregroundColor: Colors.white,

@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import '../../services/notification_service.dart';
+import '../../services/analytics_service.dart';
 
 class VolunteerSOSScreen extends StatefulWidget {
   final String odid;
@@ -74,11 +75,14 @@ class _VolunteerSOSScreenState extends State<VolunteerSOSScreen> with SingleTick
   
   // Volunteer phone for NGO contact
   String? _volunteerPhone;
+  
+  final AnalyticsService _analytics = AnalyticsService();
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _analytics.logScreenView('sos_screen', screenClass: 'VolunteerSOSScreen');
     _getCurrentLocation();
     _loadSOSHistory();
     _loadVolunteerPhone();
@@ -260,7 +264,6 @@ class _VolunteerSOSScreenState extends State<VolunteerSOSScreen> with SingleTick
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
         backgroundColor: sosRed,
         elevation: 0,
@@ -430,6 +433,12 @@ class _VolunteerSOSScreenState extends State<VolunteerSOSScreen> with SingleTick
         emergencyType: 'Quick SOS',
         volunteerName: widget.odname,
         address: _currentAddress,
+      );
+
+      // Track SOS alert in analytics
+      _analytics.logSOSAlert(
+        alertType: 'Quick SOS',
+        location: _currentAddress,
       );
 
       // Vibrate or play sound

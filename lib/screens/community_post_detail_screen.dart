@@ -285,9 +285,7 @@ class _CommunityPostDetailScreenState extends State<CommunityPostDetailScreen> {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F9FA),
       appBar: AppBar(
-        backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black87),
@@ -335,7 +333,7 @@ class _CommunityPostDetailScreenState extends State<CommunityPostDetailScreen> {
     final sharesCount = _postData?['sharesCount'] ?? 0;
 
     return Container(
-      color: Colors.white,
+      color: Theme.of(context).cardColor,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -524,7 +522,7 @@ class _CommunityPostDetailScreenState extends State<CommunityPostDetailScreen> {
 
   Widget _buildCommentsList() {
     return Container(
-      color: Colors.white,
+      color: Theme.of(context).cardColor,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -732,7 +730,7 @@ class _CommunityPostDetailScreenState extends State<CommunityPostDetailScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),

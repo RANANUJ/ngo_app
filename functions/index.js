@@ -1211,3 +1211,352 @@ exports.sendWeeklyDigest = functions.pubsub
         return { success: false, error: error.message };
       }
     });
+
+/**
+ * Cloud Function to export user data as PDF and send via email
+ */
+exports.exportUserData = functions.https.onCall(async (data, context) => {
+  try {
+    // Check authentication
+    if (!context.auth) {
+      throw new functions.https.HttpsError("unauthenticated", "User must be authenticated");
+    }
+
+    const userId = context.auth.uid;
+    const PDFDocument = require("pdfkit");
+    const fs = require("fs");
+    const path = require("path");
+    const os = require("os");
+
+    console.log(`Exporting data for user: ${userId}`);
+
+    // Fetch user profile data
+    const volunteerDoc = await db.collection("volunteers").doc(userId).get();
+    if (!volunteerDoc.exists) {
+      throw new functions.https.HttpsError("not-found", "Volunteer profile not found");
+    }
+
+    const volunteerData = volunteerDoc.data();
+    const userEmail = volunteerData.email || context.auth.token.email;
+    const userName = volunteerData.name || "User";
+
+    // Fetch all user-related data
+    const [
+      campaignsSnapshot,
+      donationsSnapshot,
+      eventsSnapshot,
+      csrApplicationsSnapshot,
+      settingsSnapshot,
+      sosAlertsSnapshot,
+    ] = await Promise.all([
+      db.collection("campaign_participants").where("volunteerId", "==", userId).get(),
+      db.collection("donations").where("donorId", "==", userId).get(),
+      db.collection("event_participants").where("userId", "==", userId).get(),
+      db.collection("csr_volunteer_applications").where("volunteerId", "==", userId).get(),
+      db.collection("volunteer_settings").doc(userId).get(),
+      db.collection("sos_alerts").where("volunteerId", "==", userId).get(),
+    ]);
+
+    // Create PDF
+    const tempDir = os.tmpdir();
+    const pdfPath = path.join(tempDir, `user_data_${userId}.pdf`);
+    const doc = new PDFDocument({ margin: 50 });
+    const stream = fs.createWriteStream(pdfPath);
+    doc.pipe(stream);
+
+    // Helper function to add section title
+    function addSectionTitle(title) {
+      doc.moveDown(1);
+      doc.fontSize(16).fillColor("#0099B8").text(title, { underline: true });
+      doc.moveDown(0.5);
+      doc.fontSize(10).fillColor("#000000");
+    }
+
+    // Helper function to add key-value pair
+    function addField(key, value) {
+      doc.fontSize(10).fillColor("#333333").text(`${key}: `, { continued: true })
+          .fillColor("#000000").text(value || "N/A");
+    }
+
+    // PDF Header
+    doc.fontSize(20).fillColor("#0099B8").text("User Data Export", { align: "center" });
+    doc.moveDown(0.5);
+    doc.fontSize(12).fillColor("#666666").text(`Generated on: ${new Date().toLocaleDateString("en-IN", { year: "numeric", month: "long", day: "numeric" })}`, { align: "center" });
+    doc.moveDown(1);
+    doc.strokeColor("#0099B8").lineWidth(2).moveTo(50, doc.y).lineTo(550, doc.y).stroke();
+
+    // 1. Personal Information
+    addSectionTitle("1. Personal Information");
+    addField("Name", volunteerData.name);
+    addField("Email", volunteerData.email);
+    addField("Phone", volunteerData.phone);
+    addField("Date of Birth", volunteerData.dateOfBirth);
+    addField("Gender", volunteerData.gender);
+    addField("Address", volunteerData.address);
+    addField("City", volunteerData.city);
+    addField("State", volunteerData.state);
+    addField("PIN Code", volunteerData.pinCode);
+    addField("Occupation", volunteerData.occupation);
+    addField("Skills", volunteerData.skills?.join(", "));
+    addField("Areas of Interest", volunteerData.interests?.join(", "));
+    addField("Languages Known", volunteerData.languages?.join(", "));
+    addField("Bio", volunteerData.bio);
+    addField("Registration Date", volunteerData.createdAt?.toDate().toLocaleDateString());
+    addField("Profile Visibility", volunteerData.isProfilePublic ? "Public" : "Private");
+
+    // 2. Campaign Participation
+    addSectionTitle("2. Campaign Participation");
+    if (campaignsSnapshot.empty) {
+      doc.text("No campaigns participated in.");
+    } else {
+      doc.text(`Total Campaigns: ${campaignsSnapshot.size}`);
+      doc.moveDown(0.5);
+      let campaignIndex = 1;
+      for (const campDoc of campaignsSnapshot.docs) {
+        const campData = campDoc.data();
+        doc.fontSize(10).fillColor("#0099B8").text(`Campaign ${campaignIndex++}:`, { underline: true });
+        addField("  Campaign ID", campData.campaignId);
+        addField("  Status", campData.status);
+        addField("  Role", campData.role);
+        addField("  Joined Date", campData.joinedAt?.toDate().toLocaleDateString());
+        addField("  Hours Contributed", campData.hoursContributed);
+        doc.moveDown(0.3);
+      }
+    }
+
+    // 3. Donations
+    addSectionTitle("3. Donation History");
+    if (donationsSnapshot.empty) {
+      doc.text("No donations made.");
+    } else {
+      const totalDonations = donationsSnapshot.docs.reduce((sum, d) => sum + (d.data().amount || 0), 0);
+      doc.text(`Total Donations: ${donationsSnapshot.size}`);
+      addField("Total Amount", `₹${totalDonations.toFixed(2)}`);
+      doc.moveDown(0.5);
+      let donationIndex = 1;
+      for (const donDoc of donationsSnapshot.docs) {
+        const donData = donDoc.data();
+        doc.fontSize(10).fillColor("#0099B8").text(`Donation ${donationIndex++}:`, { underline: true });
+        addField("  Amount", `₹${donData.amount}`);
+        addField("  NGO", donData.ngoName);
+        addField("  Campaign", donData.campaignName);
+        addField("  Payment Method", donData.paymentMethod);
+        addField("  Transaction ID", donData.transactionId);
+        addField("  Date", donData.createdAt?.toDate().toLocaleDateString());
+        addField("  Status", donData.status);
+        doc.moveDown(0.3);
+      }
+    }
+
+    // 4. Event Participation
+    addSectionTitle("4. Event Participation");
+    if (eventsSnapshot.empty) {
+      doc.text("No events participated in.");
+    } else {
+      doc.text(`Total Events: ${eventsSnapshot.size}`);
+      doc.moveDown(0.5);
+      let eventIndex = 1;
+      for (const eventDoc of eventsSnapshot.docs) {
+        const eventData = eventDoc.data();
+        doc.fontSize(10).fillColor("#0099B8").text(`Event ${eventIndex++}:`, { underline: true });
+        addField("  Event ID", eventData.eventId);
+        addField("  Status", eventData.status);
+        addField("  Registered Date", eventData.registeredAt?.toDate().toLocaleDateString());
+        addField("  Attended", eventData.attended ? "Yes" : "No");
+        doc.moveDown(0.3);
+      }
+    }
+
+    // 5. CSR Opportunities
+    addSectionTitle("5. CSR Opportunities");
+    if (csrApplicationsSnapshot.empty) {
+      doc.text("No CSR opportunity applications.");
+    } else {
+      doc.text(`Total Applications: ${csrApplicationsSnapshot.size}`);
+      doc.moveDown(0.5);
+      let csrIndex = 1;
+      for (const csrDoc of csrApplicationsSnapshot.docs) {
+        const csrData = csrDoc.data();
+        doc.fontSize(10).fillColor("#0099B8").text(`Application ${csrIndex++}:`, { underline: true });
+        addField("  Opportunity ID", csrData.opportunityId);
+        addField("  Company", csrData.companyName);
+        addField("  Status", csrData.status);
+        addField("  Applied Date", csrData.appliedAt?.toDate().toLocaleDateString());
+        addField("  Skills Offered", csrData.skillsOffered?.join(", "));
+        doc.moveDown(0.3);
+      }
+    }
+
+    // 6. SOS Alerts
+    addSectionTitle("6. SOS Alerts");
+    if (sosAlertsSnapshot.empty) {
+      doc.text("No SOS alerts created.");
+    } else {
+      doc.text(`Total SOS Alerts: ${sosAlertsSnapshot.size}`);
+      doc.moveDown(0.5);
+      let sosIndex = 1;
+      for (const sosDoc of sosAlertsSnapshot.docs) {
+        const sosData = sosDoc.data();
+        doc.fontSize(10).fillColor("#0099B8").text(`Alert ${sosIndex++}:`, { underline: true });
+        addField("  Type", sosData.type);
+        addField("  Description", sosData.description);
+        addField("  Location", sosData.location);
+        addField("  Date", sosData.createdAt?.toDate().toLocaleDateString());
+        addField("  Status", sosData.status);
+        doc.moveDown(0.3);
+      }
+    }
+
+    // 7. Settings & Preferences
+    addSectionTitle("7. Settings & Preferences");
+    if (settingsSnapshot.exists) {
+      const settings = settingsSnapshot.data();
+      doc.fontSize(11).fillColor("#0099B8").text("Notification Settings:", { underline: true });
+      addField("  Push Notifications", settings.pushNotifications ? "Enabled" : "Disabled");
+      addField("  Email Notifications", settings.emailNotifications ? "Enabled" : "Disabled");
+      addField("  Campaign Updates", settings.campaignUpdates ? "Enabled" : "Disabled");
+      addField("  Event Reminders", settings.eventReminders ? "Enabled" : "Disabled");
+      addField("  Donation Receipts", settings.donationReceipts ? "Enabled" : "Disabled");
+      addField("  SOS Alerts", settings.sosAlerts ? "Enabled" : "Disabled");
+      doc.moveDown(0.5);
+      doc.fontSize(11).fillColor("#0099B8").text("Privacy Settings:", { underline: true });
+      addField("  Show Profile", settings.showProfile ? "Yes" : "No");
+      addField("  Show Activity", settings.showActivity ? "Yes" : "No");
+      addField("  Allow Messages", settings.allowMessages ? "Yes" : "No");
+    } else {
+      doc.text("No custom settings configured.");
+    }
+
+    // Footer
+    doc.moveDown(2);
+    doc.fontSize(8).fillColor("#999999").text(
+        "This document contains your personal data from Connect NGO platform. Please keep it secure.",
+        { align: "center" },
+    );
+    doc.text(
+        "For any queries, contact support@connectngo.com",
+        { align: "center" },
+    );
+
+    // Finalize PDF
+    doc.end();
+
+    // Wait for PDF to be written
+    await new Promise((resolve, reject) => {
+      stream.on("finish", resolve);
+      stream.on("error", reject);
+    });
+
+    // Read PDF as base64 for storage
+    const pdfBuffer = fs.readFileSync(pdfPath);
+    const pdfBase64 = pdfBuffer.toString("base64");
+
+    // Store PDF temporarily in Firestore with the email details
+    // This approach doesn't require SMTP credentials
+    const exportRef = await db.collection("data_exports").add({
+      userId: userId,
+      userEmail: userEmail,
+      userName: userName,
+      pdfData: pdfBase64,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      sent: false,
+      fileName: `ConnectNGO_UserData_${new Date().toISOString().split("T")[0]}.pdf`,
+    });
+
+    // Try to send email using nodemailer if configured, otherwise just store it
+    try {
+      const mailOptions = {
+        from: emailConfig.auth.user || "noreply@connectngo.com",
+        to: userEmail,
+        subject: "Your Data Export - Connect NGO",
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <div style="background: linear-gradient(135deg, #0099B8 0%, #006B8F 100%); padding: 30px; text-align: center;">
+              <h1 style="color: white; margin: 0;">Data Export Ready</h1>
+            </div>
+            
+            <div style="background: #f9f9f9; padding: 30px;">
+              <p>Dear ${userName},</p>
+              
+              <p>Your data export request has been completed successfully. Please find attached a PDF document containing all your information from the Connect NGO platform.</p>
+              
+              <div style="background: white; border-left: 4px solid #0099B8; padding: 15px; margin: 20px 0;">
+                <h3 style="color: #0099B8; margin-top: 0;">What's Included:</h3>
+                <ul style="color: #666;">
+                  <li>Personal Information & Profile</li>
+                  <li>Campaign Participation History</li>
+                  <li>Donation Records</li>
+                  <li>Event Participation</li>
+                  <li>CSR Opportunity Applications</li>
+                  <li>SOS Alerts</li>
+                  <li>Settings & Preferences</li>
+                </ul>
+              </div>
+              
+              <p style="color: #666; font-size: 14px; margin-top: 20px;">
+                <strong>Note:</strong> This document contains sensitive personal information. Please store it securely and do not share it with unauthorized persons.
+              </p>
+              
+              <p>If you have any questions or did not request this export, please contact us immediately.</p>
+              
+              <p>Best regards,<br>
+              <strong>Connect NGO Team</strong></p>
+            </div>
+            
+            <div style="background: #333; color: #999; padding: 20px; text-align: center; font-size: 12px;">
+              <p>Connect NGO - Connecting Hearts, Changing Lives</p>
+              <p>support@connectngo.com</p>
+            </div>
+          </div>
+        `,
+        attachments: [
+          {
+            filename: `ConnectNGO_UserData_${new Date().toISOString().split("T")[0]}.pdf`,
+            path: pdfPath,
+            contentType: "application/pdf",
+          },
+        ],
+      };
+
+      // Only send email if credentials are properly configured
+      if (emailConfig.auth.user && emailConfig.auth.user !== "connectngo.notifications@gmail.com") {
+        await transporter.sendMail(mailOptions);
+        await exportRef.update({ sent: true });
+        console.log(`Data export email sent to ${userEmail}`);
+      } else {
+        console.log(`Email credentials not configured. Export stored in Firestore for user: ${userId}`);
+      }
+    } catch (emailError) {
+      console.error("Email sending failed, but export is stored:", emailError.message);
+      // Don't throw error, the data is still accessible in Firestore
+    }
+
+    // Clean up temporary file
+    fs.unlinkSync(pdfPath);
+
+    // Create a notification for the user
+    await db.collection("notifications").add({
+      recipientId: userId,
+      userType: "volunteer",
+      title: "📄 Data Export Ready",
+      message: "Your data export has been generated. Check your email or download from app.",
+      body: "Your data export PDF is ready for download",
+      type: "dataExport",
+      data: {
+        exportId: exportRef.id,
+      },
+      isRead: false,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    console.log(`Data export completed for ${userEmail}`);
+    return { 
+      success: true, 
+      message: "Data export completed! Check your email or download from the app.",
+      exportId: exportRef.id,
+    };
+  } catch (error) {
+    console.error("Error in exportUserData:", error);
+    throw new functions.https.HttpsError("internal", error.message);
+  }
+});

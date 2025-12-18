@@ -1,0 +1,379 @@
+{
+  "@@locale": "en",
+  
+  "appName": "Connect & Contribute",
+  "home": "Home",
+  "explore": "Explore",
+  "myFeed": "My Feed",
+  "community": "Community",
+  "profile": "Profile",
+  
+  "welcomeBack": "Welcome back,",
+  "quickActions": "Quick Actions",
+  "liveEvents": "Live Events",
+  "features": "Features",
+  
+  "sosAlert": "SOS Alert",
+  "viewAll": "View All",
+  "joinNow": "Join Now",
+  "donate": "Donate",
+  
+  "discoverNGO": "Discover NGO",
+  "volunteer": "Volunteer",
+  "govtProg": "Govt Prog.",
+  "donationNow": "Donation Now",
+  "csrIntegration": "CSR Integration",
+  "events": "Events",
+  
+  "myProfile": "My Profile",
+  "editProfile": "Edit Profile",
+  "statistics": "Statistics",
+  "eventsJoined": "Events Joined",
+  "ngosFollowed": "NGOs Followed",
+  "totalDonated": "Total Donated",
+  "hoursVolunteered": "Hours Volunteered",
+  "campaignsJoined": "Campaigns Joined",
+  
+  "menu": "Menu",
+  "myCampaigns": "My Campaigns",
+  "donationHistory": "Donation History",
+  "myEvents": "My Events",
+  "savedNGOs": "Saved NGOs",
+  "notifications": "Notifications",
+  "settings": "Settings",
+  "helpSupport": "Help & Support",
+  "privacyPolicy": "Privacy Policy",
+  "logout": "Logout",
+  
+  "privacySettings": "Privacy Settings",
+  "showProfile": "Show Profile",
+  "showProfileDesc": "Allow others to view your profile",
+  "showActivity": "Show Activity",
+  "showActivityDesc": "Show your activity to others",
+  "allowMessages": "Allow Messages",
+  "allowMessagesDesc": "Let others send you messages",
+  
+  "appSettings": "App Settings",
+  "darkMode": "Dark Mode",
+  "darkModeDesc": "Use dark theme",
+  "language": "Language",
+  
+  "account": "Account",
+  "changePassword": "Change Password",
+  "changePasswordDesc": "Update your password",
+  "downloadMyData": "Download My Data",
+  "downloadMyDataDesc": "Export your personal data",
+  "deleteAccount": "Delete Account",
+  "deleteAccountDesc": "Permanently delete your account",
+  
+  "english": "English",
+  "hindi": "हिंदी",
+  
+  "save": "Save",
+  "cancel": "Cancel",
+  "update": "Update",
+  "delete": "Delete",
+  "confirm": "Confirm",
+  
+  "name": "Name",
+  "phone": "Phone",
+  "email": "Email",
+  "bio": "Bio",
+  "location": "Location",
+  
+  "logoutConfirmTitle": "Confirm Logout",
+  "logoutConfirmMessage": "Are you sure you want to logout?",
+  "yes": "Yes",
+  "no": "No",
+  
+  "comingSoon": "Coming Soon",
+  "comingSoonMessage": "{feature} is coming soon!",
+  "@comingSoonMessage": {
+    "placeholders": {
+      "feature": {
+        "type": "String"
+      }
+    }
+  },
+  
+  "campaigns": "Campaigns",
+  "donations": "Donations",
+  "volunteers": "Volunteers",
+  "impact": "Impact",
+  
+  "createCampaign": "Create Campaign",
+  "createEvent": "Create Event",
+  "viewDetails": "View Details",
+  "apply": "Apply",
+  "joined": "Joined",
+  
+  "emergency": "Emergency",
+  "sendSOS": "Send SOS",
+  "viewSOSAlerts": "View SOS Alerts",
+  
+  "search": "Search",
+  "filter": "Filter",
+  "sort": "Sort",
+  
+  "recent": "Recent",
+  "popular": "Popular",
+  "trending": "Trending",
+  
+  "close": "Close",
+  "back": "Back",
+  "next": "Next",
+  "submit": "Submit",
+  
+  "success": "Success",
+  "error": "Error",
+  "warning": "Warning",
+  "info": "Info",
+  
+  "loading": "Loading...",
+  "noData": "No data available",
+  "tryAgain": "Try Again",
+  
+  "ngoName": "NGO Name",
+  "campaignName": "Campaign Name",
+  "eventName": "Event Name",
+  "description": "Description",
+  "date": "Date",
+  "time": "Time",
+  "venue": "Venue",
+  "address": "Address",
+  
+  "donateNow": "Donate Now",
+  "amount": "Amount",
+  "enterAmount": "Enter Amount",
+  "paymentMethod": "Payment Method",
+  "payNow": "Pay Now",
+  
+  "thankyou": "Thank You!",
+  "donationSuccess": "Your donation was successful",
+  "donationFailed": "Donation failed. Please try again.",
+  
+  "share": "Share",
+  "report": "Report",
+  "block": "Block",
+  
+  "followers": "Followers",
+  "following": "Following",
+  "posts": "Posts",
+  
+  "like": "Like",
+  "comment": "Comment",
+  "sharePost": "Share Post",
+  
+  "writeComment": "Write a comment...",
+  "postUpdate": "Post Update",
+  
+  "selectImage": "Select Image",
+  "selectVideo": "Select Video",
+  "selectFile": "Select File",
+  
+  "upload": "Upload",
+  "uploading": "Uploading...",
+  "uploadSuccess": "Upload successful",
+  "uploadFailed": "Upload failed",
+  
+  "camera": "Camera",
+  "gallery": "Gallery",
+  
+  "today": "Today",
+  "yesterday": "Yesterday",
+  "thisWeek": "This Week",
+  "thisMonth": "This Month",
+  
+  "all": "All",
+  "active": "Active",
+  "completed": "Completed",
+  "upcoming": "Upcoming",
+  
+  "readMore": "Read More",
+  "readLess": "Read Less",
+  
+  "refresh": "Refresh",
+  "retry": "Retry",
+  
+  "networkError": "Network error. Please check your connection.",
+  "somethingWentWrong": "Something went wrong. Please try again.",
+  
+  "requiredField": "This field is required",
+  "invalidEmail": "Invalid email address",
+  "invalidPhone": "Invalid phone number",
+  
+  "passwordMinLength": "Password must be at least 6 characters",
+  "passwordsDoNotMatch": "Passwords do not match",
+  
+  "selectLanguage": "Select Language",
+  "languageChanged": "Language changed successfully",
+  
+  "profileUpdated": "Profile updated successfully",
+  "profileUpdateFailed": "Failed to update profile",
+  
+  "photoUpdated": "Photo updated successfully",
+  "photoUpdateFailed": "Failed to update photo",
+  
+  "readyToMakeDifference": "Ready to make in difference",
+  "progress": "Progress",
+  "reportHelp": "Report Help",
+  "sos": "SOS",
+  "opportunities": "Opportunities",
+  "sent": "Sent",
+  "accepted": "Accepted",
+  "cause": "Cause",
+  "needs": "Needs",
+  "yourImpact": "Your Impact",
+  "greatJobCampaigns": "Great job! You've joined {count} campaign so far.",
+  "@greatJobCampaigns": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "percentToNextBadge": "{percent}% to next badge",
+  "@percentToNextBadge": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "seeAll": "See All",
+  "donation": "DONATION",
+  "internationalNGODay": "INTERNATIONAL NGO DAY",
+  "internationalNGODayDesc": "Let's remember the power of a single person to change a child's life.",
+  "jobIntern": "Job / Intern",
+  "volunteers_count": "{count} volunteers",
+  "@volunteers_count": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "notSpecified": "Not specified",
+  "flexible": "Flexible",
+  "needed": "needed",
+  "animalWelfare": "Animal Welfare",
+  "teachingSlumKids": "Teaching slum kids",
+  "womenEmpowerment": "Women Empowerment",
+  "elderlyCare": "Elderly Care",
+  "environmentProtection": "Environment Protection",
+  "healthCare": "Health Care",
+  "education": "Education",
+  "childWelfare": "Child Welfare",
+  "disasterRelief": "Disaster Relief",
+  "povertyAlleviation": "Poverty Alleviation",
+  "startYourJourney": "Start your journey by joining a campaign!",
+  "appVersion": "App Version",
+  "about": "About",
+  "noOpportunitiesFound": "No opportunities found",
+  "checkBackLater": "Check back later for new opportunities",
+  "pleaseLogin": "Please login",
+  "loginToSeeSentRequests": "Login to see your sent requests",
+  "noSentRequests": "No sent requests",
+  "appliedOpportunitiesAppearHere": "Your applied opportunities will appear here",
+  "noAcceptedRequests": "No accepted requests",
+  "acceptedOpportunitiesAppearHere": "Your accepted opportunities will appear here",
+  "loginToSeeAcceptedOpportunities": "Login to see your accepted opportunities",
+  "noAcceptedOpportunities": "No accepted opportunities",
+  
+  "january": "January",
+  "february": "February",
+  "march": "March",
+  "april": "April",
+  "may": "May",
+  "june": "June",
+  "july": "July",
+  "august": "August",
+  "september": "September",
+  "october": "October",
+  "november": "November",
+  "december": "December",
+  
+  "monthly": "Monthly",
+  "currentMonth": "Current month",
+  "lastMonth": "Last month",
+  "emergency": "Emergency",
+  "donationReq": "Donation Req",
+  "shareResource": "Share Resource",
+  "shareImpact": "Share Impact",
+  "needsForecasting": "Needs Forecasting",
+  "viewDonationOpportunities": "View Donation Opportunities",
+  
+  "campaign": "Campaign",
+  "shortDescriptionOfCampaign": "Short Description of Campaign",
+  "joinCampaign": "Join Campaign",
+  "contact": "Contact",
+  
+  "pushNotifications": "Push Notifications",
+  "receivePushNotifications": "Receive push notifications",
+  "emailNotifications": "Email Notifications",
+  "receiveEmailUpdates": "Receive email updates",
+  "campaignUpdates": "Campaign Updates",
+  "getNotifiedAboutCampaignUpdates": "Get notified about campaign updates",
+  "eventReminders": "Event Reminders",
+  "receiveRemindersForEvents": "Receive reminders for events",
+  "donationReceipts": "Donation Receipts",
+  "getDonationReceipts": "Get donation receipts",
+  "sosAlerts": "SOS Alerts",
+  "receiveEmergencySOSAlerts": "Receive emergency SOS alerts",
+  "privacy": "Privacy",
+  "useDarkTheme": "Use dark theme",
+  "updateYourPassword": "Update your password",
+  "exportYourPersonalData": "Export your personal data",
+  "permanentlyDeleteYourAccount": "Permanently delete your account",
+  "termsOfService": "Terms of Service",
+  "rateTheApp": "Rate the App",
+  
+  "connectNGO": "Connect NGO",
+  "lastUpdated": "Last updated: {date}",
+  "@lastUpdated": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "introduction": "Introduction",
+  "welcomeToConnectNGO": "Welcome to Connect NGO. We are committed to protecting your personal information and your right to privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our mobile application.",
+  "pleaseReadPrivacyPolicy": "Please read this privacy policy carefully. If you do not agree with the terms of this privacy policy, please do not access the application.",
+  "informationWeCollect": "Information We Collect",
+  "weCollectInformation": "We collect information that you provide directly to us, including:",
+  "personalInformation": "Personal Information",
+  "personalInfoDesc": "Personal Information: Name, email address, phone number, location, profile photo",
+  "accountInformation": "Account Information",
+  "accountInfoDesc": "Account Information: Login credentials, preferences, settings",
+  
+  "pushNotifications": "Push Notifications",
+  "pushNotificationsDesc": "Receive push notifications",
+  "emailNotifications": "Email Notifications",
+  "emailNotificationsDesc": "Receive email updates",
+  "campaignUpdates": "Campaign Updates",
+  "campaignUpdatesDesc": "Get notified about campaign updates",
+  "eventReminders": "Event Reminders",
+  "eventRemindersDesc": "Receive reminders for events",
+  "donationReceipts": "Donation Receipts",
+  "donationReceiptsDesc": "Get donation receipts",
+  "sosAlerts": "SOS Alerts",
+  "sosAlertsDesc": "Receive emergency SOS alerts",
+  
+  "privacy": "Privacy",
+  "contactUs": "Contact Us",
+  "emailSupport": "Email Support",
+  "phoneSupport": "Phone Support",
+  "liveChat": "Live Chat",
+  "visitUs": "Visit Us",
+  "available": "Available",
+  "frequentlyAskedQuestions": "Frequently Asked Questions",
+  "howDoIRegisterAsVolunteer": "How do I register as a volunteer?",
+  "howDoIMakeDonation": "How do I make a donation?",
+  "howDoIJoinCampaign": "How do I join a campaign?",
+  "howDoIUseSOSFeature": "How do I use the SOS feature?",
+  "appVersion": "App Version",
+  "termsOfService": "Terms of Service",
+  "rateTheApp": "Rate the App",
+  "lastUpdated": "Last updated"
+}

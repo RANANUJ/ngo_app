@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import '../../l10n/app_localizations.dart';
 import '../user_type_screen.dart';
 import '../discover_ngo_screen.dart';
 import '../campaign_list_screen.dart';
@@ -27,6 +28,7 @@ import 'volunteer_help_support_screen.dart';
 import 'volunteer_privacy_policy_screen.dart';
 import '../../services/cache_service.dart';
 import '../../services/notification_service.dart';
+import '../../services/analytics_service.dart';
 
 class VolunteerDashboardScreen extends StatefulWidget {
   const VolunteerDashboardScreen({Key? key}) : super(key: key);
@@ -58,6 +60,7 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
   int _campaignsJoined = 0;
   
   bool _isLoadingProfile = true;
+  final AnalyticsService _analytics = AnalyticsService();
 
   @override
   void initState() {
@@ -65,6 +68,14 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
     // Cache userId immediately
     _userId = FirebaseAuth.instance.currentUser?.uid;
     debugPrint('VolunteerDashboard: User ID = $_userId');
+    
+    // Track screen view and set user properties
+    _analytics.logScreenView('volunteer_dashboard', screenClass: 'VolunteerDashboardScreen');
+    if (_userId != null) {
+      _analytics.setUserId(_userId!);
+      _analytics.setUserType('volunteer');
+    }
+    
     _loadUserProfile();
     _preloadData();
     _initializeVolunteerNotifications();
@@ -72,7 +83,14 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
 
   Future<void> _initializeVolunteerNotifications() async {
     if (_userId != null) {
-      await NotificationService().updateVolunteerFcmToken(_userId!);
+      try {
+        debugPrint('🟢 Initializing volunteer notifications for user: $_userId');
+        await NotificationService().initialize();
+        await NotificationService().updateVolunteerFcmToken(_userId!);
+        debugPrint('✅ Volunteer notifications initialized successfully');
+      } catch (e) {
+        debugPrint('❌ Error initializing volunteer notifications: $e');
+      }
     }
   }
 
@@ -258,6 +276,8 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
   }
 
   Widget _buildHeader() {
+    final l10n = AppLocalizations.of(context)!;
+    
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
       child: Row(
@@ -295,7 +315,7 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Hi, $userName',
+                  '${l10n.welcomeBack} $userName',
                   style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
@@ -303,9 +323,9 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
                   ),
                 ),
                 const SizedBox(height: 2),
-                const Text(
-                  'Ready to make in difference',
-                  style: TextStyle(
+                Text(
+                  l10n.readyToMakeDifference,
+                  style: const TextStyle(
                     fontSize: 14,
                     color: Colors.black54,
                   ),
@@ -372,6 +392,7 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
   }
 
   Widget _buildQuickActions() {
+    final l10n = AppLocalizations.of(context)!;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Row(
@@ -379,7 +400,7 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
         children: [
           _buildQuickActionWithImage(
             imagePath: 'assets/shield.png',
-            label: 'Events',
+            label: l10n.events,
             hasBadge: false,
             onTap: () => Navigator.push(
               context,
@@ -388,7 +409,7 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
           ),
           _buildQuickActionWithImage(
             imagePath: 'assets/progress (1).png',
-            label: 'Progress',
+            label: l10n.progress,
             hasBadge: true,
             onTap: () => Navigator.push(
               context,
@@ -398,9 +419,9 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
           _buildQuickActionWithImage(
             imagePath: null,
             icon: Icons.people_outline,
-            label: 'Report Help',
+            label: l10n.reportHelp,
             hasBadge: true,
-            onTap: () => _showComingSoon('Report Help'),
+            onTap: () => _showComingSoon(l10n.reportHelp),
           ),
           _buildSOSButton(),
         ],
@@ -474,6 +495,7 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
   }
 
   Widget _buildSOSButton() {
+    final l10n = AppLocalizations.of(context)!;
     return GestureDetector(
       onTap: () => _showSOSDialog(),
       child: Column(
@@ -492,9 +514,9 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
                 ),
               ],
             ),
-            child: const Center(
+            child: Center(
               child: Text(
-                'SOS',
+                l10n.sos,
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 16,
@@ -518,6 +540,7 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
   }
 
   Widget _buildLiveEventsSection() {
+    final l10n = AppLocalizations.of(context)!;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
@@ -525,9 +548,9 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
         children: [
           Row(
             children: [
-              const Text(
-                'Live Events',
-                style: TextStyle(
+              Text(
+                l10n.liveEvents,
+                style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                   color: Colors.black87,
@@ -548,9 +571,9 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
                   context,
                   MaterialPageRoute(builder: (_) => const VolunteerEventsScreen()),
                 ),
-                child: const Text(
-                  'See All',
-                  style: TextStyle(
+                child: Text(
+                  l10n.seeAll,
+                  style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                     color: Color(0xFF0099B8),
@@ -736,35 +759,36 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
 
 
   Widget _buildFeaturesGrid() {
+    final l10n = AppLocalizations.of(context)!;
     final features = [
       {
         'image': 'assets/Splash-BG.png',
-        'label': 'Discover NGO',
+        'label': l10n.discoverNGO,
         'bgColor': const Color(0xFFE0F4F7),
       },
       {
         'image': 'assets/—Pngtree—donation box and charity concept_8902949.png',
-        'label': 'Donation Now',
+        'label': l10n.donationNow,
         'bgColor': const Color(0xFFE0F4F7),
       },
       {
         'image': 'assets/—Pngtree—government icon_4270824.png',
-        'label': 'Govt Prog.',
+        'label': l10n.govtProg,
         'bgColor': const Color(0xFFE0F4F7),
       },
       {
         'image': 'assets/Office work-rafiki.png',
-        'label': 'Job / Intern',
+        'label': l10n.jobIntern,
         'bgColor': const Color(0xFFE0F4F7),
       },
       {
         'image': 'assets/59dc768a-35a9-43a6-92a0-4406043b7d7e.png',
-        'label': 'CSR Integration',
+        'label': l10n.csrIntegration,
         'bgColor': const Color(0xFFE0F4F7),
       },
       {
         'image': 'assets/volunteer-2729696_640.png',
-        'label': 'Volunteer',
+        'label': l10n.volunteer,
         'bgColor': const Color(0xFFE0F4F7),
       },
     ];
@@ -787,6 +811,7 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
             imagePath: feature['image'] as String,
             label: feature['label'] as String,
             bgColor: feature['bgColor'] as Color,
+            index: index,
           );
         },
       ),
@@ -797,9 +822,10 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
     required String imagePath,
     required String label,
     required Color bgColor,
+    required int index,
   }) {
     return GestureDetector(
-      onTap: () => _handleFeatureTap(label),
+      onTap: () => _handleFeatureTap(index),
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
@@ -848,42 +874,51 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
     );
   }
 
-  void _handleFeatureTap(String label) {
-    if (label == 'Discover NGO') {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const DiscoverNgoScreen()),
-      );
-    } else if (label == 'Volunteer') {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const CampaignListScreen(isVolunteerView: true),
-        ),
-      );
-    } else if (label == 'Govt Prog.') {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const GovernmentSchemesScreen(),
-        ),
-      );
-    } else if (label == 'Donation Now') {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const VolunteerDonationScreen(),
-        ),
-      );
-    } else if (label == 'CSR Integration') {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const VolunteerCsrScreen(),
-        ),
-      );
-    } else {
-      _showComingSoon(label);
+  void _handleFeatureTap(int index) {
+    switch (index) {
+      case 0: // Discover NGO
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const DiscoverNgoScreen()),
+        );
+        break;
+      case 1: // Donation Now
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const VolunteerDonationScreen(),
+          ),
+        );
+        break;
+      case 2: // Govt Prog.
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const GovernmentSchemesScreen(),
+          ),
+        );
+        break;
+      case 3: // Job / Intern
+        _showComingSoon(AppLocalizations.of(context)!.jobIntern);
+        break;
+      case 4: // CSR Integration
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const VolunteerCsrScreen(),
+          ),
+        );
+        break;
+      case 5: // Volunteer
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const CampaignListScreen(isVolunteerView: true),
+          ),
+        );
+        break;
+      default:
+        _showComingSoon(AppLocalizations.of(context)!.comingSoon);
     }
   }
 
@@ -905,6 +940,8 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
   }
 
   Widget _buildProfileTab() {
+    final l10n = AppLocalizations.of(context)!;
+    
     if (_isLoadingProfile) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -1033,7 +1070,7 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
                     }
                   },
                   icon: const Icon(Icons.edit, size: 18),
-                  label: const Text('Edit Profile'),
+                  label: Text(l10n.editProfile),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: primary,
                     side: BorderSide(color: primary),
@@ -1099,9 +1136,9 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
                   children: [
                     const Icon(Icons.emoji_events, color: Colors.amber, size: 24),
                     const SizedBox(width: 8),
-                    const Text(
-                      'Your Impact',
-                      style: TextStyle(
+                    Text(
+                      l10n.yourImpact,
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -1112,7 +1149,7 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
                 const SizedBox(height: 12),
                 Text(
                   _campaignsJoined > 0
-                      ? 'Great job! You\'ve joined $_campaignsJoined campaign${_campaignsJoined > 1 ? 's' : ''} so far.'
+                      ? l10n.greatJobCampaigns(_campaignsJoined)
                       : 'Start your journey by joining a campaign!',
                   style: const TextStyle(
                     color: Colors.white,
@@ -1127,7 +1164,7 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${((_campaignsJoined / 10) * 100).clamp(0, 100).toInt()}% to next badge',
+                  l10n.percentToNextBadge(((_campaignsJoined / 10) * 100).clamp(0, 100).toInt()),
                   style: TextStyle(
                     color: Colors.white.withOpacity(0.8),
                     fontSize: 12,
@@ -1154,7 +1191,7 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
             ),
             child: Column(
               children: [
-                _buildMenuItem(Icons.campaign, 'My Campaigns', () {
+                _buildMenuItem(Icons.campaign, l10n.myCampaigns, () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -1163,49 +1200,49 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
                   );
                 }),
                 _buildMenuDivider(),
-                _buildMenuItem(Icons.history, 'Donation History', () {
+                _buildMenuItem(Icons.history, l10n.donationHistory, () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (_) => const VolunteerDonationHistoryScreen()),
                   );
                 }),
                 _buildMenuDivider(),
-                _buildMenuItem(Icons.event_available, 'My Events', () {
+                _buildMenuItem(Icons.event_available, l10n.myEvents, () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (_) => const VolunteerMyEventsScreen()),
                   );
                 }),
                 _buildMenuDivider(),
-                _buildMenuItem(Icons.favorite_border, 'Saved NGOs', () {
+                _buildMenuItem(Icons.favorite_border, l10n.savedNGOs, () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (_) => const VolunteerSavedNgosScreen()),
                   );
                 }),
                 _buildMenuDivider(),
-                _buildMenuItem(Icons.notifications_outlined, 'Notifications', () {
+                _buildMenuItem(Icons.notifications_outlined, l10n.notifications, () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (_) => const VolunteerNotificationsScreen()),
                   );
                 }),
                 _buildMenuDivider(),
-                _buildMenuItem(Icons.settings, 'Settings', () {
+                _buildMenuItem(Icons.settings, l10n.settings, () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (_) => const VolunteerSettingsScreen()),
                   );
                 }),
                 _buildMenuDivider(),
-                _buildMenuItem(Icons.help_outline, 'Help & Support', () {
+                _buildMenuItem(Icons.help_outline, l10n.helpSupport, () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (_) => const VolunteerHelpSupportScreen()),
                   );
                 }),
                 _buildMenuDivider(),
-                _buildMenuItem(Icons.privacy_tip_outlined, 'Privacy Policy', () {
+                _buildMenuItem(Icons.privacy_tip_outlined, l10n.privacyPolicy, () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (_) => const VolunteerPrivacyPolicyScreen()),
@@ -1223,7 +1260,7 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
             child: OutlinedButton.icon(
               onPressed: _logout,
               icon: const Icon(Icons.logout, color: Colors.red),
-              label: const Text('Logout', style: TextStyle(color: Colors.red, fontSize: 16)),
+              label: Text(l10n.logout, style: const TextStyle(color: Colors.red, fontSize: 16)),
               style: OutlinedButton.styleFrom(
                 side: const BorderSide(color: Colors.red),
                 padding: const EdgeInsets.symmetric(vertical: 14),
@@ -1480,6 +1517,8 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
   }
 
   Widget _buildBottomNavBar() {
+    final l10n = AppLocalizations.of(context)!;
+    
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -1494,11 +1533,11 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _buildNavItem(0, Icons.home, Icons.home_outlined, 'Home'),
-          _buildNavItem(1, Icons.explore, Icons.explore_outlined, 'Explore'),
-          _buildNavItem(2, Icons.dynamic_feed, Icons.dynamic_feed_outlined, 'My Feed'),
-          _buildNavItem(3, Icons.groups, Icons.groups_outlined, 'Community'),
-          _buildNavItem(4, Icons.person, Icons.person_outline, 'Profile'),
+          _buildNavItem(0, Icons.home, Icons.home_outlined, l10n.home),
+          _buildNavItem(1, Icons.explore, Icons.explore_outlined, l10n.explore),
+          _buildNavItem(2, Icons.dynamic_feed, Icons.dynamic_feed_outlined, l10n.myFeed),
+          _buildNavItem(3, Icons.groups, Icons.groups_outlined, l10n.community),
+          _buildNavItem(4, Icons.person, Icons.person_outline, l10n.profile),
         ],
       ),
     );
@@ -1561,28 +1600,55 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
   }
 
   void _logout() async {
+    final l10n = AppLocalizations.of(context)!;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Logout'),
-        content: const Text('Are you sure you want to logout?'),
+        title: Text(l10n.logoutConfirmTitle),
+        content: Text(l10n.logoutConfirmMessage),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(l10n.cancel),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Logout', style: TextStyle(color: Colors.white)),
+            child: Text(l10n.logout, style: const TextStyle(color: Colors.white)),
           ),
         ],
       ),
     );
 
     if (confirmed == true) {
-      await FirebaseAuth.instance.signOut();
+      // Show loading indicator
       if (mounted) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => const Center(
+            child: CircularProgressIndicator(color: Colors.white),
+          ),
+        );
+      }
+      
+      // Remove FCM token before logout
+      if (_userId != null) {
+        try {
+          debugPrint('🔴 Logging out volunteer: $_userId');
+          await NotificationService().removeVolunteerFcmToken(_userId!);
+          debugPrint('✅ FCM cleanup completed');
+        } catch (e) {
+          debugPrint('❌ Error during FCM cleanup: $e');
+        }
+      }
+      
+      // Sign out from Firebase
+      await FirebaseAuth.instance.signOut();
+      
+      // Close loading dialog and navigate
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (context) => const UserTypeScreen()),

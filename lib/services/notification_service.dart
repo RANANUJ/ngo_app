@@ -420,17 +420,18 @@ class NotificationService {
 
   /// Update FCM token for an NGO member
   Future<void> updateNGOFcmToken(String ngoId, String memberId) async {
-    if (_fcmToken == null) {
-      // Try to get the token if not available
-      _fcmToken = await _messaging.getToken();
-    }
-    
-    if (_fcmToken == null) {
-      debugPrint('FCM token is still null, cannot update');
-      return;
-    }
-
     try {
+      // Always get a fresh token on login/signup
+      debugPrint('🟢 Getting fresh FCM token for NGO: $ngoId');
+      _fcmToken = await _messaging.getToken();
+      
+      if (_fcmToken == null) {
+        debugPrint('❌ FCM token is null, cannot register for notifications');
+        return;
+      }
+      
+      debugPrint('🟢 FCM Token obtained: ${_fcmToken!.substring(0, 20)}...');
+
       // Store in a dedicated collection for easier querying by Cloud Functions
       await FirebaseFirestore.instance
           .collection('ngo_fcm_tokens')
@@ -440,29 +441,40 @@ class NotificationService {
         'memberId': memberId,
         'fcmToken': _fcmToken,
         'updatedAt': FieldValue.serverTimestamp(),
+        'platform': Platform.isAndroid ? 'android' : 'ios',
       }, SetOptions(merge: true));
 
-      debugPrint('FCM token saved for NGO: $ngoId');
+      debugPrint('✅ FCM token registered successfully for NGO: $ngoId');
     } catch (e) {
-      debugPrint('Error updating FCM token: $e');
+      debugPrint('❌ Error registering FCM token for NGO: $e');
     }
   }
 
   /// Update FCM token for a volunteer
   Future<void> updateVolunteerFcmToken(String volunteerId) async {
-    if (_fcmToken == null) return;
-
     try {
+      // Always get a fresh token on login/signup
+      debugPrint('🟢 Getting fresh FCM token for volunteer: $volunteerId');
+      _fcmToken = await _messaging.getToken();
+      
+      if (_fcmToken == null) {
+        debugPrint('❌ FCM token is null, cannot register for notifications');
+        return;
+      }
+      
+      debugPrint('🟢 FCM Token obtained: \${_fcmToken!.substring(0, 20)}...');
+
       await FirebaseFirestore.instance
           .collection('volunteers')
           .doc(volunteerId)
           .update({
         'fcmToken': _fcmToken,
         'fcmTokenUpdatedAt': FieldValue.serverTimestamp(),
+        'platform': Platform.isAndroid ? 'android' : 'ios',
       });
-      debugPrint('FCM token updated for volunteer: $volunteerId');
+      debugPrint('✅ FCM token registered successfully for volunteer: $volunteerId');
     } catch (e) {
-      debugPrint('Error updating volunteer FCM token: $e');
+      debugPrint('❌ Error registering FCM token for volunteer: $e');
     }
   }
 
@@ -494,6 +506,91 @@ class NotificationService {
   Future<void> unsubscribeFromSOSAlerts() async {
     await _messaging.unsubscribeFromTopic('sos_alerts');
     debugPrint('Unsubscribed from SOS alerts topic');
+  }
+
+  /// Remove FCM token for NGO member on logout
+  Future<void> removeNGOFcmToken(String ngoId, String memberId) async {
+    try {
+      debugPrint('🔴 Starting FCM token removal for NGO: $ngoId');
+      
+      // First, get the current token to verify what we're deleting
+      final currentToken = _fcmToken ?? await _messaging.getToken();
+      debugPrint('🔴 Current FCM token: $currentToken');
+      
+      // Delete FCM token from Firestore using the specific document ID
+      final docRef = FirebaseFirestore.instance
+          .collection('ngo_fcm_tokens')
+          .doc('${ngoId}_$memberId');
+      
+      final docSnapshot = await docRef.get();
+      if (docSnapshot.exists) {
+        await docRef.delete();
+        debugPrint('🔴 Deleted FCM token document: ${ngoId}_$memberId');
+      } else {
+        debugPrint('🔴 FCM token document not found: ${ngoId}_$memberId');
+      }
+      
+      // Also delete any other documents with this ngoId and current token
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('ngo_fcm_tokens')
+          .where('ngoId', isEqualTo: ngoId)
+          .where('fcmToken', isEqualTo: currentToken)
+          .get();
+      
+      for (final doc in querySnapshot.docs) {
+        await doc.reference.delete();
+        debugPrint('🔴 Deleted additional FCM token document: ${doc.id}');
+      }
+      
+      // Delete the device token from FCM
+      if (currentToken != null) {
+        await _messaging.deleteToken();
+        debugPrint('🔴 Deleted FCM device token');
+      }
+      
+      // Clear local token
+      _fcmToken = null;
+
+      debugPrint('✅ FCM token removal completed for NGO: $ngoId');
+    } catch (e) {
+      debugPrint('❌ Error removing NGO FCM token: $e');
+      rethrow;
+    }
+  }
+
+  /// Remove FCM token for volunteer on logout
+  Future<void> removeVolunteerFcmToken(String volunteerId) async {
+    try {
+      debugPrint('🔴 Starting FCM token removal for volunteer: $volunteerId');
+      
+      // Get the current token
+      final currentToken = _fcmToken ?? await _messaging.getToken();
+      debugPrint('🔴 Current FCM token: $currentToken');
+      
+      // Remove FCM token from volunteer document
+      await FirebaseFirestore.instance
+          .collection('volunteers')
+          .doc(volunteerId)
+          .update({
+        'fcmToken': FieldValue.delete(),
+        'fcmTokenUpdatedAt': FieldValue.delete(),
+      });
+      debugPrint('🔴 Removed FCM token from volunteer document');
+
+      // Delete the device token from FCM
+      if (currentToken != null) {
+        await _messaging.deleteToken();
+        debugPrint('🔴 Deleted FCM device token');
+      }
+      
+      // Clear local token
+      _fcmToken = null;
+
+      debugPrint('✅ FCM token removal completed for volunteer: $volunteerId');
+    } catch (e) {
+      debugPrint('❌ Error removing volunteer FCM token: $e');
+      rethrow;
+    }
   }
 
   /// Show a general notification
