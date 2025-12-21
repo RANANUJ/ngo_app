@@ -38,7 +38,7 @@ class _NgoEditProfileScreenState extends State<NgoEditProfileScreen> {
   late TextEditingController _websiteController;
   
   String _selectedNgoType = 'Trust';
-  String _selectedCategory = 'Education';
+  List<String> _selectedCategories = ['Education'];
 
   final List<String> _ngoTypes = ['Trust', 'Society', 'Section 8 Company', 'Other'];
   final List<String> _categories = [
@@ -70,7 +70,38 @@ class _NgoEditProfileScreenState extends State<NgoEditProfileScreen> {
     _missionVisionController = TextEditingController(text: widget.ngoData.missionVision);
     _websiteController = TextEditingController(text: widget.ngoData.websiteLink);
     _selectedNgoType = widget.ngoData.ngoType.isNotEmpty ? widget.ngoData.ngoType : 'Trust';
-    _selectedCategory = widget.ngoData.category.isNotEmpty ? widget.ngoData.category : 'Education';
+    // Handle category as list or string for backward compatibility
+    _initCategories();
+  }
+
+  void _initCategories() async {
+    // Try to load categories from Firestore
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('ngo_registrations')
+          .doc(widget.ngoData.id)
+          .get();
+      
+      if (doc.exists && mounted) {
+        final data = doc.data();
+        if (data != null && data['categories'] != null && data['categories'] is List) {
+          setState(() {
+            _selectedCategories = List<String>.from(data['categories']);
+          });
+        } else if (widget.ngoData.category.isNotEmpty) {
+          setState(() {
+            _selectedCategories = [widget.ngoData.category];
+          });
+        }
+      }
+    } catch (e) {
+      // Fallback to single category
+      if (widget.ngoData.category.isNotEmpty) {
+        setState(() {
+          _selectedCategories = [widget.ngoData.category];
+        });
+      }
+    }
   }
 
   Future<void> _loadCurrentLogo() async {
@@ -149,6 +180,17 @@ class _NgoEditProfileScreenState extends State<NgoEditProfileScreen> {
   Future<void> _saveProfile() async {
     if (!_formKey.currentState!.validate()) return;
 
+    // Validate at least one category is selected
+    if (_selectedCategories.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select at least one category'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
@@ -174,7 +216,8 @@ class _NgoEditProfileScreenState extends State<NgoEditProfileScreen> {
         'missionVision': _missionVisionController.text.trim(),
         'websiteUrl': _websiteController.text.trim(),
         'ngoType': _selectedNgoType,
-        'category': _selectedCategory,
+        'category': _selectedCategories.isNotEmpty ? _selectedCategories.first : '',
+        'categories': _selectedCategories,
         if (logoUrl != null) 'ngoLogo': logoUrl,
         'updatedAt': FieldValue.serverTimestamp(),
       });
@@ -338,12 +381,7 @@ class _NgoEditProfileScreenState extends State<NgoEditProfileScreen> {
                 onChanged: (value) => setState(() => _selectedNgoType = value!),
               ),
               const SizedBox(height: 16),
-              _buildDropdown(
-                label: 'Category',
-                value: _selectedCategory,
-                items: _categories,
-                onChanged: (value) => setState(() => _selectedCategory = value!),
-              ),
+              _buildCategoryMultiSelect(),
               const SizedBox(height: 24),
 
               // Contact Information Section
@@ -578,6 +616,102 @@ class _NgoEditProfileScreenState extends State<NgoEditProfileScreen> {
       ),
       items: items.map((item) => DropdownMenuItem(value: item, child: Text(item))).toList(),
       onChanged: onChanged,
+    );
+  }
+
+  Widget _buildCategoryMultiSelect() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              'Categories',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey.shade700,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const Spacer(),
+            Text(
+              '${_selectedCategories.length}/3 selected',
+              style: TextStyle(
+                fontSize: 12,
+                color: _selectedCategories.length >= 3 ? Colors.orange : Colors.grey.shade500,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey.shade300),
+          ),
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _categories.map((category) {
+              final isSelected = _selectedCategories.contains(category);
+              final canSelect = _selectedCategories.length < 3 || isSelected;
+              
+              return FilterChip(
+                label: Text(
+                  category,
+                  style: TextStyle(
+                    color: isSelected ? Colors.white : (canSelect ? Colors.grey.shade700 : Colors.grey.shade400),
+                    fontSize: 13,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                  ),
+                ),
+                selected: isSelected,
+                onSelected: canSelect ? (selected) {
+                  setState(() {
+                    if (selected) {
+                      if (_selectedCategories.length < 3) {
+                        _selectedCategories.add(category);
+                      }
+                    } else {
+                      _selectedCategories.remove(category);
+                    }
+                  });
+                } : null,
+                backgroundColor: canSelect ? Colors.grey.shade100 : Colors.grey.shade50,
+                selectedColor: primary,
+                checkmarkColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                  side: BorderSide(
+                    color: isSelected ? primary : (canSelect ? Colors.grey.shade300 : Colors.grey.shade200),
+                  ),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+              );
+            }).toList(),
+          ),
+        ),
+        if (_selectedCategories.isEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 8, left: 12),
+            child: Text(
+              'Please select at least one category',
+              style: TextStyle(color: Colors.red.shade600, fontSize: 12),
+            ),
+          ),
+        if (_selectedCategories.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(
+              'Select up to 3 categories that best describe your NGO',
+              style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+            ),
+          ),
+      ],
     );
   }
 }

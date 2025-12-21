@@ -559,6 +559,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get jobIntern => 'Job / Intern';
 
   @override
+  String get monthlyGiving => 'Monthly Giving';
+
+  @override
   String volunteers_count(int count) {
     return '$count volunteers';
   }

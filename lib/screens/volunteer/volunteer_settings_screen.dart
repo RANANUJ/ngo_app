@@ -1,14 +1,18 @@
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../services/language_service.dart';
 import '../../l10n/app_localizations.dart';
 
 class VolunteerSettingsScreen extends StatefulWidget {
-  const VolunteerSettingsScreen({Key? key}) : super(key: key);
+  const VolunteerSettingsScreen({super.key});
 
   @override
   State<VolunteerSettingsScreen> createState() => _VolunteerSettingsScreenState();
@@ -631,6 +635,65 @@ class _VolunteerSettingsScreenState extends State<VolunteerSettingsScreen> {
   }
 
   void _downloadData() async {
+    // Show options dialog first
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            const Icon(Icons.download, color: Color(0xFF0099B8)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: const Text(
+                'Download My Data',
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Your data will be exported as a PDF file containing all your personal information, activities, and settings.',
+              style: TextStyle(fontSize: 14, color: Colors.grey),
+            ),
+            const SizedBox(height: 20),
+            ListTile(
+              leading: const Icon(Icons.file_download, color: Color(0xFF0099B8)),
+              title: const Text('Download PDF'),
+              subtitle: const Text('Save to your device'),
+              onTap: () => Navigator.pop(context, 'download'),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+                side: BorderSide(color: Colors.grey.shade300),
+              ),
+            ),
+            const SizedBox(height: 8),
+            ListTile(
+              leading: const Icon(Icons.share, color: Color(0xFF0099B8)),
+              title: const Text('Share PDF'),
+              subtitle: const Text('Share via email, WhatsApp, etc.'),
+              onTap: () => Navigator.pop(context, 'share'),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+                side: BorderSide(color: Colors.grey.shade300),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+
+    if (choice == null) return;
+
     // Show loading dialog
     showDialog(
       context: context,
@@ -662,54 +725,81 @@ class _VolunteerSettingsScreenState extends State<VolunteerSettingsScreen> {
       final callable = FirebaseFunctions.instance.httpsCallable('exportUserData');
       final result = await callable.call();
 
+      // Get the export ID from result
+      final exportId = result.data['exportId'];
+      
+      if (exportId == null) {
+        throw Exception('Export ID not received');
+      }
+
+      // Fetch the PDF data from Firestore
+      final exportDoc = await FirebaseFirestore.instance
+          .collection('data_exports')
+          .doc(exportId)
+          .get();
+
+      if (!exportDoc.exists) {
+        throw Exception('Export data not found');
+      }
+
+      final pdfBase64 = exportDoc.data()?['pdfData'];
+      final fileName = exportDoc.data()?['fileName'] ?? 'ConnectNGO_UserData.pdf';
+
+      if (pdfBase64 == null) {
+        throw Exception('PDF data not available');
+      }
+
+      // Decode the base64 PDF
+      final pdfBytes = base64Decode(pdfBase64);
+
+      // Get the downloads directory
+      Directory? directory;
+      if (Platform.isAndroid) {
+        directory = await getExternalStorageDirectory();
+        // Try to use Downloads folder
+        final downloadsPath = '/storage/emulated/0/Download';
+        if (await Directory(downloadsPath).exists()) {
+          directory = Directory(downloadsPath);
+        }
+      } else {
+        directory = await getApplicationDocumentsDirectory();
+      }
+
+      final filePath = '${directory!.path}/$fileName';
+      final file = File(filePath);
+      await file.writeAsBytes(pdfBytes);
+
       // Close loading dialog
       if (mounted) Navigator.pop(context);
 
-      // Get message from result
-      final message = result.data['message'] ?? 'Data export completed! Check your email.';
-
-      // Show success message
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Row(
-                  children: [
-                    Icon(Icons.check_circle, color: Colors.white),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Data Export Successful!',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(message, style: const TextStyle(fontSize: 13)),
-              ],
-            ),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 6),
-            behavior: SnackBarBehavior.floating,
-          ),
+      if (choice == 'share') {
+        // Share the file
+        await Share.shareXFiles(
+          [XFile(filePath)],
+          subject: 'My Data Export - Connect NGO',
+          text: 'Here is my data export from Connect NGO app.',
         );
+      } else {
+        // Show success with file location
+        if (mounted) {
+          _showDownloadSuccessDialog(filePath, file);
+        }
       }
+
     } catch (e) {
       // Close loading dialog
       if (mounted) Navigator.pop(context);
 
+      debugPrint('Data export error: $e');
+
       // Parse error message
       String errorMessage = 'Failed to export data. Please try again.';
-      if (e.toString().contains('email') || e.toString().contains('Email')) {
-        errorMessage = 'Export generated but email failed. Data is stored and accessible.';
-      } else if (e.toString().contains('not-found')) {
+      if (e.toString().contains('not-found')) {
         errorMessage = 'Profile not found. Please complete your registration.';
       } else if (e.toString().contains('unauthenticated')) {
         errorMessage = 'Session expired. Please login again.';
+      } else if (e.toString().contains('permission')) {
+        errorMessage = 'Storage permission required. Please grant permission and try again.';
       }
 
       // Show error message
@@ -748,6 +838,92 @@ class _VolunteerSettingsScreenState extends State<VolunteerSettingsScreen> {
         );
       }
     }
+  }
+
+  void _showDownloadSuccessDialog(String filePath, File file) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.check_circle, color: Colors.green, size: 28),
+            SizedBox(width: 12),
+            Text('Download Complete!'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Your data has been exported successfully.',
+              style: TextStyle(fontSize: 14),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.picture_as_pdf, color: Colors.red),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          filePath.split('/').last,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w500,
+                            fontSize: 13,
+                          ),
+                        ),
+                        Text(
+                          'Saved to Downloads',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () async {
+              Navigator.pop(context);
+              // Share the file for opening
+              await Share.shareXFiles(
+                [XFile(filePath)],
+                subject: 'My Data Export - Connect NGO',
+              );
+            },
+            icon: const Icon(Icons.open_in_new, size: 18),
+            label: const Text('Open / Share'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primary,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showDeleteAccountDialog() {

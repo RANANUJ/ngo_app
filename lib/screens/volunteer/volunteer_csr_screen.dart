@@ -1104,8 +1104,6 @@ class _OpportunityDetailsScreenState extends State<OpportunityDetailsScreen> wit
       stream: FirebaseFirestore.instance
           .collection('volunteer_tasks')
           .where('opportunityId', isEqualTo: widget.opportunityId)
-          .where('volunteerId', isEqualTo: user.uid)
-          .orderBy('assignedAt', descending: true)
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -1116,7 +1114,22 @@ class _OpportunityDetailsScreenState extends State<OpportunityDetailsScreen> wit
           return Center(child: Text('Error: ${snapshot.error}'));
         }
 
-        final tasks = snapshot.data?.docs ?? [];
+        // Filter tasks for this volunteer locally
+        final allTasks = snapshot.data?.docs ?? [];
+        final tasks = allTasks.where((doc) {
+          final data = doc.data() as Map<String, dynamic>;
+          return data['volunteerId'] == user.uid;
+        }).toList();
+        
+        // Sort locally by assignedAt descending
+        tasks.sort((a, b) {
+          final aTime = (a.data() as Map<String, dynamic>)['assignedAt'] as Timestamp?;
+          final bTime = (b.data() as Map<String, dynamic>)['assignedAt'] as Timestamp?;
+          if (aTime == null && bTime == null) return 0;
+          if (aTime == null) return 1;
+          if (bTime == null) return -1;
+          return bTime.compareTo(aTime);
+        });
 
         if (tasks.isEmpty) {
           return Center(
@@ -1350,9 +1363,8 @@ class _OpportunityDetailsScreenState extends State<OpportunityDetailsScreen> wit
   Widget _buildUpdatesTab() {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
-          .collection('csr_updates')
+          .collection('volunteer_activities')
           .where('opportunityId', isEqualTo: widget.opportunityId)
-          .orderBy('createdAt', descending: true)
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -1363,7 +1375,16 @@ class _OpportunityDetailsScreenState extends State<OpportunityDetailsScreen> wit
           return Center(child: Text('Error: ${snapshot.error}'));
         }
 
+        // Sort locally by createdAt descending
         final updates = snapshot.data?.docs ?? [];
+        updates.sort((a, b) {
+          final aTime = (a.data() as Map<String, dynamic>)['createdAt'] as Timestamp?;
+          final bTime = (b.data() as Map<String, dynamic>)['createdAt'] as Timestamp?;
+          if (aTime == null && bTime == null) return 0;
+          if (aTime == null) return 1;
+          if (bTime == null) return -1;
+          return bTime.compareTo(aTime);
+        });
 
         if (updates.isEmpty) {
           return Center(
@@ -1394,8 +1415,9 @@ class _OpportunityDetailsScreenState extends State<OpportunityDetailsScreen> wit
   }
 
   Widget _buildUpdateCard(Map<String, dynamic> data) {
-    final title = data['title'] ?? 'Update';
-    final message = data['message'] ?? 'No message';
+    final volunteerName = data['volunteerName'] ?? 'Volunteer';
+    final description = data['description'] ?? 'No description';
+    final hoursWorked = data['hoursWorked'] ?? 0;
     final createdAt = (data['createdAt'] as Timestamp?)?.toDate();
 
     return Card(
@@ -1414,23 +1436,32 @@ class _OpportunityDetailsScreenState extends State<OpportunityDetailsScreen> wit
                     color: primary.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Icon(Icons.campaign, color: primary, size: 20),
+                  child: const Icon(Icons.volunteer_activism, color: primary, size: 20),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        volunteerName,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        '$hoursWorked hours logged',
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 12),
             Text(
-              message,
+              description,
               style: TextStyle(
                 fontSize: 14,
                 color: Colors.grey[700],

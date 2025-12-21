@@ -245,6 +245,7 @@
   "internationalNGODay": "INTERNATIONAL NGO DAY",
   "internationalNGODayDesc": "Let's remember the power of a single person to change a child's life.",
   "jobIntern": "Job / Intern",
+  "monthlyGiving": "Monthly Giving",
   "volunteers_count": "{count} volunteers",
   "@volunteers_count": {
     "placeholders": {

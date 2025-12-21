@@ -12,18 +12,18 @@
  * 5. Deploy: firebase deploy --only functions
  */
 
-const functions = require('firebase-functions');
-const admin = require('firebase-admin');
-const nodemailer = require('nodemailer');
+const functions = require("firebase-functions");
+const admin = require("firebase-admin");
+const nodemailer = require("nodemailer");
 
 admin.initializeApp();
 
 // Configure your email service (e.g., Gmail, SendGrid, etc.)
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  service: "gmail",
   auth: {
-    user: 'your-email@gmail.com',  // Replace with your email
-    pass: 'your-app-password'       // Use App Password for Gmail
+    user: "your-email@gmail.com",  // Replace with your email
+    pass: "your-app-password"       // Use App Password for Gmail
   }
 });
 
@@ -32,7 +32,7 @@ const transporter = nodemailer.createTransport({
  */
 exports.sendVerificationEmail = functions.auth.user().onCreate(async (user) => {
   const email = user.email;
-  const displayName = user.displayName || 'User';
+  const displayName = user.displayName || "User";
   
   // Generate verification link (you may need to use Firebase Admin SDK)
   const link = await admin.auth().generateEmailVerificationLink(email);
@@ -40,17 +40,17 @@ exports.sendVerificationEmail = functions.auth.user().onCreate(async (user) => {
   const htmlBody = getVerificationEmailHtml(displayName, link);
   
   const mailOptions = {
-    from: '"Connect & Contribute" <your-email@gmail.com>',
+    from: "\"Connect & Contribute\" <your-email@gmail.com>",
     to: email,
-    subject: 'Verify your account - Connect & Contribute',
+    subject: "Verify your account - Connect & Contribute",
     html: htmlBody
   };
   
   try {
     await transporter.sendMail(mailOptions);
-    console.log('Verification email sent to:', email);
+    console.log("Verification email sent to:", email);
   } catch (error) {
-    console.error('Error sending verification email:', error);
+    console.error("Error sending verification email:", error);
   }
 });
 
@@ -59,7 +59,7 @@ exports.sendVerificationEmail = functions.auth.user().onCreate(async (user) => {
  * This watches the email_queue collection and sends emails
  */
 exports.processEmailQueue = functions.firestore
-  .document('email_queue/{emailId}')
+  .document("email_queue/{emailId}")
   .onCreate(async (snap, context) => {
     const emailData = snap.data();
     
@@ -68,7 +68,7 @@ exports.processEmailQueue = functions.firestore
     }
     
     const mailOptions = {
-      from: '"Connect & Contribute" <your-email@gmail.com>',
+      from: "\"Connect & Contribute\" <your-email@gmail.com>",
       to: emailData.to,
       subject: emailData.subject,
       html: emailData.html || emailData.body,
@@ -77,12 +77,12 @@ exports.processEmailQueue = functions.firestore
     
     try {
       await transporter.sendMail(mailOptions);
-      console.log('Email sent to:', emailData.to);
+      console.log("Email sent to:", emailData.to);
       
       // Mark as sent
       await snap.ref.update({ sent: true, sentAt: admin.firestore.FieldValue.serverTimestamp() });
     } catch (error) {
-      console.error('Error sending email:', error);
+      console.error("Error sending email:", error);
       await snap.ref.update({ error: error.message });
     }
   });
@@ -91,7 +91,7 @@ exports.processEmailQueue = functions.firestore
  * Process push notifications from Firestore
  */
 exports.processPushNotifications = functions.firestore
-  .document('push_notifications/{notifId}')
+  .document("push_notifications/{notifId}")
   .onCreate(async (snap, context) => {
     const notifData = snap.data();
     
@@ -110,10 +110,10 @@ exports.processPushNotifications = functions.firestore
     
     try {
       await admin.messaging().send(message);
-      console.log('Push notification sent');
+      console.log("Push notification sent");
       await snap.ref.update({ sent: true, sentAt: admin.firestore.FieldValue.serverTimestamp() });
     } catch (error) {
-      console.error('Error sending push notification:', error);
+      console.error("Error sending push notification:", error);
       await snap.ref.update({ error: error.message });
     }
   });

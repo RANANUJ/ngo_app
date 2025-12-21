@@ -1238,205 +1238,642 @@ exports.exportUserData = functions.https.onCall(async (data, context) => {
 
     const volunteerData = volunteerDoc.data();
     const userEmail = volunteerData.email || context.auth.token.email;
-    const userName = volunteerData.name || "User";
+    const userName = volunteerData.name || volunteerData.displayName || "User";
+    const userPhoto = volunteerData.photoUrl || volunteerData.profilePhotoUrl || null;
 
-    // Fetch all user-related data
+    // Fetch all user-related data with correct field names
     const [
-      campaignsSnapshot,
+      campaignsSnapshot1,
+      campaignsSnapshot2,
       donationsSnapshot,
-      eventsSnapshot,
+      eventsSnapshot1,
+      eventsSnapshot2,
       csrApplicationsSnapshot,
       settingsSnapshot,
       sosAlertsSnapshot,
+      subscriptionsSnapshot,
     ] = await Promise.all([
+      // Try both field names for campaign participants
       db.collection("campaign_participants").where("volunteerId", "==", userId).get(),
+      db.collection("campaign_participants").where("odid", "==", userId).get(),
       db.collection("donations").where("donorId", "==", userId).get(),
+      // Try both field names for event participants
       db.collection("event_participants").where("userId", "==", userId).get(),
+      db.collection("event_participants").where("odid", "==", userId).get(),
       db.collection("csr_volunteer_applications").where("volunteerId", "==", userId).get(),
       db.collection("volunteer_settings").doc(userId).get(),
       db.collection("sos_alerts").where("volunteerId", "==", userId).get(),
+      db.collection("monthly_subscriptions").where("userId", "==", userId).get(),
     ]);
+
+    // Merge campaign results (dedupe by campaignId)
+    const campaignIds = new Set();
+    const allCampaigns = [];
+    [...campaignsSnapshot1.docs, ...campaignsSnapshot2.docs].forEach((doc) => {
+      const campaignId = doc.data().campaignId || doc.id;
+      if (!campaignIds.has(campaignId)) {
+        campaignIds.add(campaignId);
+        allCampaigns.push(doc);
+      }
+    });
+
+    // Merge event results (dedupe by eventId)
+    const eventIds = new Set();
+    const allEvents = [];
+    [...eventsSnapshot1.docs, ...eventsSnapshot2.docs].forEach((doc) => {
+      const eventId = doc.data().eventId || doc.id;
+      if (!eventIds.has(eventId)) {
+        eventIds.add(eventId);
+        allEvents.push(doc);
+      }
+    });
+
+    const campaignsCount = allCampaigns.length;
+    const eventsCount = allEvents.length;
 
     // Create PDF
     const tempDir = os.tmpdir();
     const pdfPath = path.join(tempDir, `user_data_${userId}.pdf`);
-    const doc = new PDFDocument({ margin: 50 });
+    const doc = new PDFDocument({ 
+      margin: 40, 
+      size: "A4",
+      bufferPages: true,
+    });
     const stream = fs.createWriteStream(pdfPath);
     doc.pipe(stream);
 
-    // Helper function to add section title
-    function addSectionTitle(title) {
-      doc.moveDown(1);
-      doc.fontSize(16).fillColor("#0099B8").text(title, { underline: true });
-      doc.moveDown(0.5);
-      doc.fontSize(10).fillColor("#000000");
+    // Color scheme
+    const colors = {
+      primary: "#0099B8",
+      primaryLight: "#E6F7FA",
+      secondary: "#4CAF50",
+      secondaryLight: "#E8F5E9",
+      text: "#333333",
+      textLight: "#666666",
+      textMuted: "#999999",
+      border: "#E0E0E0",
+      success: "#4CAF50",
+      warning: "#FF9800",
+      danger: "#F44336",
+      background: "#F5F9FA",
+    };
+
+    const currentDate = new Date();
+    const formattedDate = currentDate.toLocaleDateString("en-IN", { 
+      day: "numeric", month: "short", year: "numeric" 
+    });
+    const documentId = `UD-${userId.substring(0, 8).toUpperCase()}`;
+
+    // Calculate donation statistics
+    const totalDonations = donationsSnapshot.docs.reduce((sum, d) => sum + (d.data().amount || 0), 0);
+    const donationCount = donationsSnapshot.size;
+    const avgDonation = donationCount > 0 ? Math.round(totalDonations / donationCount) : 0;
+    
+    // Calculate months active
+    let monthsActive = 0;
+    if (volunteerData.createdAt) {
+      const registrationDate = volunteerData.createdAt.toDate();
+      monthsActive = Math.max(1, Math.ceil((currentDate - registrationDate) / (1000 * 60 * 60 * 24 * 30)));
     }
 
-    // Helper function to add key-value pair
-    function addField(key, value) {
-      doc.fontSize(10).fillColor("#333333").text(`${key}: `, { continued: true })
-          .fillColor("#000000").text(value || "N/A");
-    }
+    // Category breakdown
+    const categoryBreakdown = {};
+    donationsSnapshot.docs.forEach((donDoc) => {
+      const category = donDoc.data().category || "General";
+      categoryBreakdown[category] = (categoryBreakdown[category] || 0) + (donDoc.data().amount || 0);
+    });
 
-    // PDF Header
-    doc.fontSize(20).fillColor("#0099B8").text("User Data Export", { align: "center" });
-    doc.moveDown(0.5);
-    doc.fontSize(12).fillColor("#666666").text(`Generated on: ${new Date().toLocaleDateString("en-IN", { year: "numeric", month: "long", day: "numeric" })}`, { align: "center" });
-    doc.moveDown(1);
-    doc.strokeColor("#0099B8").lineWidth(2).moveTo(50, doc.y).lineTo(550, doc.y).stroke();
+    let pageNumber = 1;
+    const totalPages = 4;
 
-    // 1. Personal Information
-    addSectionTitle("1. Personal Information");
-    addField("Name", volunteerData.name);
-    addField("Email", volunteerData.email);
-    addField("Phone", volunteerData.phone);
-    addField("Date of Birth", volunteerData.dateOfBirth);
-    addField("Gender", volunteerData.gender);
-    addField("Address", volunteerData.address);
-    addField("City", volunteerData.city);
-    addField("State", volunteerData.state);
-    addField("PIN Code", volunteerData.pinCode);
-    addField("Occupation", volunteerData.occupation);
-    addField("Skills", volunteerData.skills?.join(", "));
-    addField("Areas of Interest", volunteerData.interests?.join(", "));
-    addField("Languages Known", volunteerData.languages?.join(", "));
-    addField("Bio", volunteerData.bio);
-    addField("Registration Date", volunteerData.createdAt?.toDate().toLocaleDateString());
-    addField("Profile Visibility", volunteerData.isProfilePublic ? "Public" : "Private");
+    // ========== HELPER FUNCTIONS ==========
+    
+    const drawHeader = () => {
+      // Logo/Brand area
+      doc.roundedRect(40, 30, 50, 50, 8)
+         .fillAndStroke(colors.primary, colors.primary);
+      doc.fontSize(24).fillColor("white").text("C", 52, 43, { width: 26, align: "center" });
+      
+      doc.fontSize(16).fillColor(colors.primary).text("Connect NGO", 100, 38);
+      doc.fontSize(8).fillColor(colors.textMuted).text("Together, Making a Difference", 100, 56);
 
-    // 2. Campaign Participation
-    addSectionTitle("2. Campaign Participation");
-    if (campaignsSnapshot.empty) {
-      doc.text("No campaigns participated in.");
-    } else {
-      doc.text(`Total Campaigns: ${campaignsSnapshot.size}`);
-      doc.moveDown(0.5);
-      let campaignIndex = 1;
-      for (const campDoc of campaignsSnapshot.docs) {
-        const campData = campDoc.data();
-        doc.fontSize(10).fillColor("#0099B8").text(`Campaign ${campaignIndex++}:`, { underline: true });
-        addField("  Campaign ID", campData.campaignId);
-        addField("  Status", campData.status);
-        addField("  Role", campData.role);
-        addField("  Joined Date", campData.joinedAt?.toDate().toLocaleDateString());
-        addField("  Hours Contributed", campData.hoursContributed);
-        doc.moveDown(0.3);
+      // Date and Document ID on right
+      doc.fontSize(8).fillColor(colors.textLight).text(`Date: ${formattedDate}`, 400, 38, { align: "right", width: 150 });
+      doc.fontSize(8).fillColor(colors.textLight).text(`Document ID: ${documentId}`, 400, 50, { align: "right", width: 150 });
+    };
+
+    const drawFooter = (pageNum) => {
+      const footerY = 780;
+      doc.strokeColor(colors.border).lineWidth(0.5).moveTo(40, footerY).lineTo(555, footerY).stroke();
+      doc.fontSize(7).fillColor(colors.textMuted)
+         .text("Connect NGO • support@connectngo.com • www.connectngo.com", 40, footerY + 10);
+      doc.fontSize(7).fillColor(colors.textMuted)
+         .text(`Page ${pageNum} of ${totalPages}`, 500, footerY + 10);
+    };
+
+    const drawSectionHeader = (title, iconSymbol, y) => {
+      // Draw icon box with a simple shape instead of emoji
+      doc.roundedRect(40, y, 24, 24, 4).fillAndStroke(colors.primaryLight, colors.primary);
+      doc.fontSize(14).fillColor(colors.primary).text(iconSymbol, 46, y + 5);
+      doc.fontSize(12).fillColor(colors.text).text(title, 72, y + 6);
+      return y + 35;
+    };
+
+    const drawCard = (x, y, width, height, options = {}) => {
+      const { 
+        borderColor = colors.border, 
+        fillColor = "white", 
+        shadow = true,
+        radius = 8 
+      } = options;
+      
+      if (shadow) {
+        doc.roundedRect(x + 2, y + 2, width, height, radius).fill("#F0F0F0");
       }
-    }
+      doc.roundedRect(x, y, width, height, radius)
+         .fillAndStroke(fillColor, borderColor);
+    };
 
-    // 3. Donations
-    addSectionTitle("3. Donation History");
-    if (donationsSnapshot.empty) {
-      doc.text("No donations made.");
-    } else {
-      const totalDonations = donationsSnapshot.docs.reduce((sum, d) => sum + (d.data().amount || 0), 0);
-      doc.text(`Total Donations: ${donationsSnapshot.size}`);
-      addField("Total Amount", `₹${totalDonations.toFixed(2)}`);
-      doc.moveDown(0.5);
-      let donationIndex = 1;
-      for (const donDoc of donationsSnapshot.docs) {
-        const donData = donDoc.data();
-        doc.fontSize(10).fillColor("#0099B8").text(`Donation ${donationIndex++}:`, { underline: true });
-        addField("  Amount", `₹${donData.amount}`);
-        addField("  NGO", donData.ngoName);
-        addField("  Campaign", donData.campaignName);
-        addField("  Payment Method", donData.paymentMethod);
-        addField("  Transaction ID", donData.transactionId);
-        addField("  Date", donData.createdAt?.toDate().toLocaleDateString());
-        addField("  Status", donData.status);
-        doc.moveDown(0.3);
+    const drawStatBox = (x, y, width, height, label, value, subLabel = "") => {
+      drawCard(x, y, width, height, { fillColor: colors.background, shadow: false });
+      doc.fontSize(16).fillColor(colors.primary).text(value, x + 10, y + 12, { width: width - 20 });
+      doc.fontSize(8).fillColor(colors.textMuted).text(label, x + 10, y + 32, { width: width - 20 });
+      if (subLabel) {
+        doc.fontSize(7).fillColor(colors.textLight).text(subLabel, x + 10, y + 44, { width: width - 20 });
       }
-    }
+    };
 
-    // 4. Event Participation
-    addSectionTitle("4. Event Participation");
-    if (eventsSnapshot.empty) {
-      doc.text("No events participated in.");
+    const drawBadge = (x, y, text, color) => {
+      const badgeWidth = doc.widthOfString(text) + 12;
+      doc.roundedRect(x, y, badgeWidth, 16, 8).fillAndStroke(color + "20", color);
+      doc.fontSize(7).fillColor(color).text(text, x + 6, y + 4);
+      return badgeWidth;
+    };
+
+    // ========== PAGE 1: USER PROFILE & ACCOUNT DETAILS ==========
+    
+    drawHeader();
+    
+    // Title
+    doc.fontSize(18).fillColor(colors.primary).text("Monthly Donation Statement", 40, 95);
+    doc.roundedRect(450, 90, 100, 24, 4).fillAndStroke(colors.secondaryLight, colors.secondary);
+    doc.fontSize(9).fillColor(colors.secondary).text(`${currentDate.toLocaleString("default", { month: "short" })} ${currentDate.getFullYear()}`, 460, 97);
+    doc.fontSize(8).fillColor(colors.textMuted).text(`Page 1 of ${totalPages}`, 500, 115);
+
+    let currentY = 130;
+
+    // User Profile Section
+    currentY = drawSectionHeader("User Profile", "[P]", currentY);
+    
+    drawCard(40, currentY, 515, 100);
+    
+    // Avatar circle with person icon (no profile photo support in pdfkit without external images)
+    doc.circle(85, currentY + 40, 28).fillAndStroke(colors.primaryLight, colors.primary);
+    const initials = userName.split(" ").map((n) => n[0]).join("").substring(0, 2).toUpperCase() || "U";
+    doc.fontSize(18).fillColor(colors.primary).text(initials, 67, currentY + 32);
+    
+    // User details - show actual user data
+    doc.fontSize(14).fillColor(colors.text).text(userName || "N/A", 125, currentY + 12);
+    doc.fontSize(9).fillColor(colors.textLight).text(`Date of Birth: ${volunteerData.dateOfBirth || volunteerData.dob || "N/A"}`, 125, currentY + 32);
+    doc.fontSize(9).fillColor(colors.textLight).text(`Gender: ${volunteerData.gender || "N/A"}`, 125, currentY + 47);
+    doc.fontSize(9).fillColor(colors.textLight).text(`Email: ${volunteerData.email || "N/A"}`, 125, currentY + 62);
+    doc.fontSize(9).fillColor(colors.textLight).text(`Mobile: ${volunteerData.phone || "N/A"}`, 125, currentY + 77);
+    
+    // Account Details box (moved inside card to prevent overflow)
+    drawCard(340, currentY + 8, 205, 84, { fillColor: colors.background, shadow: false, borderColor: colors.border });
+    doc.fontSize(8).fillColor(colors.primary).text("Account Details", 350, currentY + 15);
+    doc.fontSize(7).fillColor(colors.textMuted).text("User ID:", 350, currentY + 30);
+    doc.fontSize(7).fillColor(colors.text).text(userId.substring(0, 10) + "...", 400, currentY + 30);
+    doc.fontSize(7).fillColor(colors.textMuted).text("Registered:", 350, currentY + 44);
+    doc.fontSize(7).fillColor(colors.text).text(volunteerData.createdAt?.toDate().toLocaleDateString() || "N/A", 400, currentY + 44);
+    doc.fontSize(7).fillColor(colors.textMuted).text("Language:", 350, currentY + 58);
+    doc.fontSize(7).fillColor(colors.text).text(volunteerData.preferredLanguage || "English", 400, currentY + 58);
+    doc.fontSize(7).fillColor(colors.textMuted).text("Status:", 350, currentY + 72);
+    // Draw Active badge properly inside the box
+    doc.roundedRect(400, currentY + 69, 40, 14, 4).fillAndStroke(colors.success + "30", colors.success);
+    doc.fontSize(7).fillColor(colors.success).text("Active", 407, currentY + 71);
+    
+    currentY += 115;
+
+    // Account Details Section
+    currentY = drawSectionHeader("Account Details", "[A]", currentY);
+    
+    drawCard(40, currentY, 250, 90);
+    drawCard(305, currentY, 250, 90);
+    
+    // Left card
+    let leftY = currentY + 12;
+    doc.fontSize(8).fillColor(colors.textMuted).text("User ID", 55, leftY);
+    doc.fontSize(9).fillColor(colors.text).text(userId.substring(0, 16), 55, leftY + 12);
+    doc.fontSize(8).fillColor(colors.textMuted).text("App Registration Date", 55, leftY + 32);
+    doc.fontSize(9).fillColor(colors.text).text(volunteerData.createdAt?.toDate().toLocaleDateString() || "N/A", 55, leftY + 44);
+    doc.fontSize(8).fillColor(colors.textMuted).text("Account Status", 55, leftY + 62);
+    drawBadge(55, leftY + 74, "Active", colors.success);
+    
+    doc.fontSize(8).fillColor(colors.textMuted).text("Preferred Language", 160, leftY);
+    doc.fontSize(9).fillColor(colors.text).text(volunteerData.preferredLanguage || "English", 160, leftY + 12);
+    
+    // Right card
+    let rightY = currentY + 12;
+    doc.fontSize(8).fillColor(colors.textMuted).text("User ID", 320, rightY);
+    doc.fontSize(9).fillColor(colors.text).text(`NGR-${userId.substring(0, 8).toUpperCase()}`, 320, rightY + 12);
+    doc.fontSize(8).fillColor(colors.textMuted).text("App Account Date", 320, rightY + 32);
+    doc.fontSize(9).fillColor(colors.text).text(volunteerData.createdAt?.toDate().toLocaleDateString() || "N/A", 320, rightY + 44);
+    doc.fontSize(8).fillColor(colors.textMuted).text("Account Type", 320, rightY + 62);
+    doc.fontSize(9).fillColor(colors.text).text(volunteerData.accountType || "Standard", 320, rightY + 74);
+    
+    doc.fontSize(8).fillColor(colors.textMuted).text("Preferred Language", 430, rightY);
+    doc.fontSize(9).fillColor(colors.text).text("Monthly", 430, rightY + 12);
+    
+    currentY += 105;
+
+    // Lifetime Contribution Snapshot
+    currentY = drawSectionHeader("Lifetime Contribution Snapshot", "[$]", currentY);
+    
+    drawCard(40, currentY, 515, 100);
+    
+    // Stats row
+    drawStatBox(55, currentY + 10, 110, 55, "Total Amount Donated", `₹${totalDonations.toLocaleString()}`);
+    drawStatBox(175, currentY + 10, 90, 55, "Months Active", `${monthsActive}`, "months");
+    
+    // P&R info
+    doc.fontSize(8).fillColor(colors.textMuted).text("P&R: SC3480", 285, currentY + 20);
+    
+    drawStatBox(55, currentY + 70, 110, 25, "Average Monthly", `₹${avgDonation}`);
+    
+    // Impact Categories
+    doc.fontSize(8).fillColor(colors.textMuted).text("Impact Category Supports:", 175, currentY + 75);
+    const categories = Object.keys(categoryBreakdown).slice(0, 3).join(", ") || "General";
+    doc.fontSize(9).fillColor(colors.text).text(categories, 175, currentY + 87);
+    
+    // Main category highlight
+    const mainCategory = Object.keys(categoryBreakdown)[0] || "Education";
+    doc.roundedRect(350, currentY + 15, 190, 75, 8).fillAndStroke(colors.secondaryLight, colors.secondary);
+    doc.fontSize(10).fillColor(colors.secondary).text(mainCategory, 365, currentY + 45);
+
+    drawFooter(pageNumber++);
+    doc.addPage();
+
+    // ========== PAGE 2: IMPACT & UTILIZATION DETAILS ==========
+    
+    drawHeader();
+    doc.fontSize(18).fillColor(colors.primary).text("Monthly Donation Statement", 40, 95);
+    doc.fontSize(8).fillColor(colors.textMuted).text(`Page 2 of ${totalPages}`, 500, 97);
+
+    currentY = 125;
+
+    // Impact Breakdown Section
+    currentY = drawSectionHeader("Impact & Utilization Details", "[I]", currentY);
+    
+    doc.fontSize(11).fillColor(colors.text).text("Impact Breakdown", 50, currentY);
+    currentY += 20;
+    
+    drawCard(40, currentY, 515, 120);
+    
+    // Impact stats grid - use correct count variables
+    const impactStats = [
+      { label: "Campaigns", count: campaignsCount, icon: "[C]" },
+      { label: "Events", count: eventsCount, icon: "[E]" },
+      { label: "Donations", count: donationsSnapshot.size, icon: "[$]" },
+      { label: "Subscriptions", count: subscriptionsSnapshot.size, icon: "[S]" },
+    ];
+    
+    let impactX = 55;
+    const cardWidth = 115;
+    impactStats.forEach((item, i) => {
+      // Draw mini card for each stat
+      drawCard(impactX - 5, currentY + 10, cardWidth, 70, { fillColor: colors.background, shadow: false, borderColor: colors.border });
+      
+      // Icon and count
+      doc.fontSize(8).fillColor(colors.primary).text(item.icon, impactX + 5, currentY + 20);
+      doc.fontSize(22).fillColor(colors.primary).text(item.count.toString(), impactX + 35, currentY + 20);
+      
+      // Label
+      doc.fontSize(9).fillColor(colors.text).text(item.label, impactX + 5, currentY + 55);
+      doc.fontSize(7).fillColor(colors.textMuted).text("Lifetime", impactX + 70, currentY + 57);
+      
+      impactX += cardWidth + 10;
+    });
+    
+    currentY += 135;
+
+    // Fund Utilization Summary
+    currentY = drawSectionHeader("Fund Utilization Summary", "[F]", currentY);
+    
+    drawCard(40, currentY, 515, 140);
+    
+    // Category percentages and colors
+    const totalForPercent = Object.values(categoryBreakdown).reduce((a, b) => a + b, 0) || 1;
+    const categoryColors = {
+      "Education": "#0099B8",
+      "Healthcare": "#FF6B6B",
+      "Food & Shelter": "#FF9800",
+      "Operations": "#9C27B0",
+      "Emergency Relief": "#F44336",
+      "General": "#607D8B",
+      "Community Development": "#4CAF50",
+      "Environment": "#8BC34A",
+      "Women Empowerment": "#E91E63",
+      "Child Welfare": "#03A9F4",
+    };
+    
+    // Get categories with data
+    const categoriesWithData = Object.entries(categoryBreakdown).filter(([_, amount]) => amount > 0);
+    if (categoriesWithData.length === 0) {
+      categoriesWithData.push(["No Data", 1]);
+    }
+    
+    // Legend on left side
+    let catY = currentY + 15;
+    categoriesWithData.slice(0, 5).forEach(([category, amount], i) => {
+      const percent = Math.round((amount / totalForPercent) * 100);
+      const catColor = categoryColors[category] || colors.textMuted;
+      doc.circle(55, catY + 5, 5).fillAndStroke(catColor, catColor);
+      doc.fontSize(9).fillColor(colors.text).text(category, 68, catY);
+      doc.fontSize(9).fillColor(catColor).text(`${percent}%`, 180, catY);
+      doc.fontSize(7).fillColor(colors.textMuted).text(`Rs. ${amount.toLocaleString()}`, 210, catY);
+      catY += 22;
+    });
+    
+    // Draw actual pie chart with colored segments
+    const chartX = 380;
+    const chartY = currentY + 70;
+    const radius = 45;
+    
+    if (categoriesWithData.length > 0 && totalForPercent > 0) {
+      let startAngle = -Math.PI / 2; // Start from top
+      categoriesWithData.forEach(([category, amount]) => {
+        const sweepAngle = (amount / totalForPercent) * 2 * Math.PI;
+        const endAngle = startAngle + sweepAngle;
+        const catColor = categoryColors[category] || colors.textMuted;
+        
+        // Draw pie segment using path
+        doc.save();
+        doc.path(`M ${chartX} ${chartY} L ${chartX + radius * Math.cos(startAngle)} ${chartY + radius * Math.sin(startAngle)} A ${radius} ${radius} 0 ${sweepAngle > Math.PI ? 1 : 0} 1 ${chartX + radius * Math.cos(endAngle)} ${chartY + radius * Math.sin(endAngle)} Z`)
+          .fill(catColor);
+        doc.restore();
+        
+        startAngle = endAngle;
+      });
+      
+      // Center white circle for donut effect
+      doc.circle(chartX, chartY, 25).fill("white");
+      
+      // Total in center
+      doc.fontSize(8).fillColor(colors.textMuted).text("Total", chartX - 15, chartY - 10);
+      doc.fontSize(10).fillColor(colors.primary).text(`Rs. ${totalForPercent.toLocaleString()}`, chartX - 25, chartY + 3);
     } else {
-      doc.text(`Total Events: ${eventsSnapshot.size}`);
-      doc.moveDown(0.5);
-      let eventIndex = 1;
-      for (const eventDoc of eventsSnapshot.docs) {
-        const eventData = eventDoc.data();
-        doc.fontSize(10).fillColor("#0099B8").text(`Event ${eventIndex++}:`, { underline: true });
-        addField("  Event ID", eventData.eventId);
-        addField("  Status", eventData.status);
-        addField("  Registered Date", eventData.registeredAt?.toDate().toLocaleDateString());
-        addField("  Attended", eventData.attended ? "Yes" : "No");
-        doc.moveDown(0.3);
+      // Empty state
+      doc.circle(chartX, chartY, radius).fillAndStroke(colors.background, colors.border);
+      doc.fontSize(9).fillColor(colors.textMuted).text("No Data", chartX - 20, chartY - 5);
+    }
+    
+    // Key Programs
+    doc.fontSize(8).fillColor(colors.textMuted).text("Key Programs Supported:", 55, currentY + 120);
+    const programs = Object.keys(categoryBreakdown).filter((k) => categoryBreakdown[k] > 0).slice(0, 3).join(" - ") || "N/A";
+    doc.fontSize(8).fillColor(colors.text).text(programs, 160, currentY + 120);
+    
+    currentY += 155;
+
+    // Personal Info continued
+    currentY = drawSectionHeader("Additional Information", "[+]", currentY);
+    
+    drawCard(40, currentY, 515, 130);
+    
+    let infoY = currentY + 15;
+    const leftColX = 55;
+    const midColX = 200;
+    const rightColX = 370;
+    
+    // Row 1: Address details
+    doc.fontSize(8).fillColor(colors.textMuted).text("Address", leftColX, infoY);
+    doc.fontSize(9).fillColor(colors.text).text(volunteerData.address || volunteerData.location || "Not provided", leftColX, infoY + 12, { width: 130 });
+    
+    doc.fontSize(8).fillColor(colors.textMuted).text("City", midColX, infoY);
+    doc.fontSize(9).fillColor(colors.text).text(volunteerData.city || "Not provided", midColX, infoY + 12);
+    
+    doc.fontSize(8).fillColor(colors.textMuted).text("State", rightColX, infoY);
+    doc.fontSize(9).fillColor(colors.text).text(volunteerData.state || "Not provided", rightColX, infoY + 12);
+    
+    // Row 2: PIN, Occupation, Languages
+    doc.fontSize(8).fillColor(colors.textMuted).text("PIN Code", leftColX, infoY + 35);
+    doc.fontSize(9).fillColor(colors.text).text(volunteerData.pinCode || volunteerData.postalCode || "Not provided", leftColX, infoY + 47);
+    
+    doc.fontSize(8).fillColor(colors.textMuted).text("Occupation", midColX, infoY + 35);
+    doc.fontSize(9).fillColor(colors.text).text(volunteerData.occupation || volunteerData.profession || "Not provided", midColX, infoY + 47);
+    
+    doc.fontSize(8).fillColor(colors.textMuted).text("Languages", rightColX, infoY + 35);
+    const languages = Array.isArray(volunteerData.languages) ? volunteerData.languages.join(", ") : (volunteerData.languages || volunteerData.preferredLanguage || "Not provided");
+    doc.fontSize(9).fillColor(colors.text).text(languages, rightColX, infoY + 47);
+    
+    // Row 3: Skills
+    doc.fontSize(8).fillColor(colors.textMuted).text("Skills", leftColX, infoY + 70);
+    const skills = Array.isArray(volunteerData.skills) ? volunteerData.skills.join(", ") : (volunteerData.skills || "Not provided");
+    doc.fontSize(9).fillColor(colors.text).text(skills, leftColX, infoY + 82, { width: 480 });
+    
+    // Row 4: Interests/Bio
+    doc.fontSize(8).fillColor(colors.textMuted).text("Interests/Bio", leftColX, infoY + 100);
+    const bio = volunteerData.bio || volunteerData.interests || volunteerData.about || "Not provided";
+    doc.fontSize(9).fillColor(colors.text).text(bio.substring(0, 100) + (bio.length > 100 ? "..." : ""), leftColX, infoY + 112, { width: 480 });
+
+    drawFooter(pageNumber++);
+    doc.addPage();
+
+    // ========== PAGE 3: TRANSACTION HISTORY ==========
+    
+    drawHeader();
+    doc.fontSize(18).fillColor(colors.primary).text("Transaction History", 40, 95);
+    doc.fontSize(8).fillColor(colors.textMuted).text(`Page 3 of ${totalPages}`, 500, 97);
+
+    currentY = 125;
+
+    // Transaction History Table
+    currentY = drawSectionHeader("Transaction History", "[T]", currentY);
+    
+    // Table header
+    drawCard(40, currentY, 515, 25, { fillColor: colors.primaryLight, shadow: false });
+    doc.fontSize(8).fillColor(colors.primary)
+       .text("Date", 55, currentY + 8)
+       .text("Transaction ID", 130, currentY + 8)
+       .text("Amount", 250, currentY + 8)
+       .text("Mode", 320, currentY + 8)
+       .text("Status", 400, currentY + 8)
+       .text("NGO", 460, currentY + 8);
+    
+    currentY += 25;
+    
+    // Table rows
+    const donations = donationsSnapshot.docs.slice(0, 10);
+    donations.forEach((donDoc, index) => {
+      const donData = donDoc.data();
+      const rowY = currentY + (index * 25);
+      
+      if (index % 2 === 0) {
+        doc.rect(40, rowY, 515, 25).fill("#FAFAFA");
       }
+      
+      const txDate = donData.createdAt?.toDate().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) || "N/A";
+      const txId = `TXN${donDoc.id.substring(0, 5).toUpperCase()}`;
+      
+      doc.fontSize(8).fillColor(colors.text)
+         .text(txDate, 55, rowY + 8)
+         .text(txId, 130, rowY + 8)
+         .text(`₹${donData.amount || 0}`, 250, rowY + 8)
+         .text(donData.paymentMethod || "Card", 320, rowY + 8);
+      
+      drawBadge(400, rowY + 5, donData.status || "Success", colors.success);
+      
+      const ngoName = (donData.ngoName || "NGO").substring(0, 10);
+      doc.fontSize(8).fillColor(colors.text).text(ngoName, 460, rowY + 8);
+    });
+    
+    currentY += Math.max(donations.length * 25, 50) + 15;
+    
+    if (donations.length === 0) {
+      doc.fontSize(10).fillColor(colors.textMuted).text("No donation transactions found.", 55, currentY - 30);
     }
+    
+    doc.fontSize(7).fillColor(colors.textMuted).text(`Last updated: ${formattedDate} • Contact support for any discrepancies`, 55, currentY);
+    
+    currentY += 25;
 
-    // 5. CSR Opportunities
-    addSectionTitle("5. CSR Opportunities");
-    if (csrApplicationsSnapshot.empty) {
-      doc.text("No CSR opportunity applications.");
-    } else {
-      doc.text(`Total Applications: ${csrApplicationsSnapshot.size}`);
-      doc.moveDown(0.5);
-      let csrIndex = 1;
-      for (const csrDoc of csrApplicationsSnapshot.docs) {
-        const csrData = csrDoc.data();
-        doc.fontSize(10).fillColor("#0099B8").text(`Application ${csrIndex++}:`, { underline: true });
-        addField("  Opportunity ID", csrData.opportunityId);
-        addField("  Company", csrData.companyName);
-        addField("  Status", csrData.status);
-        addField("  Applied Date", csrData.appliedAt?.toDate().toLocaleDateString());
-        addField("  Skills Offered", csrData.skillsOffered?.join(", "));
-        doc.moveDown(0.3);
+    // Receipt Summary
+    currentY = drawSectionHeader("Receipt Summary", "[R]", currentY);
+    
+    // Receipt table header
+    drawCard(40, currentY, 515, 25, { fillColor: colors.primaryLight, shadow: false });
+    doc.fontSize(8).fillColor(colors.primary)
+       .text("Receipt Months", 55, currentY + 8)
+       .text("Receipt ID", 180, currentY + 8)
+       .text("Issue Date", 320, currentY + 8)
+       .text("Document", 430, currentY + 8);
+    
+    currentY += 25;
+    
+    // Generate receipt entries from donations
+    const receipts = donations.slice(0, 5);
+    receipts.forEach((donDoc, index) => {
+      const donData = donDoc.data();
+      const rowY = currentY + (index * 22);
+      
+      if (index % 2 === 0) {
+        doc.rect(40, rowY, 515, 22).fill("#FAFAFA");
       }
-    }
+      
+      const receiptDate = donData.createdAt?.toDate();
+      const monthName = receiptDate ? receiptDate.toLocaleString("default", { month: "short", year: "numeric" }) : "N/A";
+      const receiptId = `EM-REC-${(1001 + index).toString()}`;
+      const issueDate = receiptDate ? receiptDate.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "N/A";
+      
+      doc.fontSize(8).fillColor(colors.text)
+         .text(monthName, 55, rowY + 6)
+         .text(receiptId, 180, rowY + 6)
+         .text(issueDate, 320, rowY + 6);
+      
+      doc.fontSize(8).fillColor(colors.primary).text("PDF", 430, rowY + 6);
+    });
+    
+    currentY += Math.max(receipts.length * 22, 30) + 10;
+    
+    doc.fontSize(7).fillColor(colors.textMuted).text("Tip: Download & save receipts instantly. Contact support for reissues.", 55, currentY);
 
-    // 6. SOS Alerts
-    addSectionTitle("6. SOS Alerts");
-    if (sosAlertsSnapshot.empty) {
-      doc.text("No SOS alerts created.");
-    } else {
-      doc.text(`Total SOS Alerts: ${sosAlertsSnapshot.size}`);
-      doc.moveDown(0.5);
-      let sosIndex = 1;
-      for (const sosDoc of sosAlertsSnapshot.docs) {
-        const sosData = sosDoc.data();
-        doc.fontSize(10).fillColor("#0099B8").text(`Alert ${sosIndex++}:`, { underline: true });
-        addField("  Type", sosData.type);
-        addField("  Description", sosData.description);
-        addField("  Location", sosData.location);
-        addField("  Date", sosData.createdAt?.toDate().toLocaleDateString());
-        addField("  Status", sosData.status);
-        doc.moveDown(0.3);
+    drawFooter(pageNumber++);
+    doc.addPage();
+
+    // ========== PAGE 4: SETTINGS & PREFERENCES ==========
+    
+    drawHeader();
+    doc.fontSize(18).fillColor(colors.primary).text("Tax & Settings Information", 40, 95);
+    doc.fontSize(8).fillColor(colors.textMuted).text(`Page 4 of ${totalPages}`, 500, 97);
+
+    currentY = 125;
+
+    // Tax Benefit Information
+    currentY = drawSectionHeader("Tax Benefit Information", "[X]", currentY);
+    
+    drawCard(40, currentY, 515, 90);
+    
+    const settings = settingsSnapshot.exists ? settingsSnapshot.data() : {};
+    
+    // Settings checkboxes
+    const taxSettings = [
+      { label: "Email Updates", value: settings.emailNotifications !== false },
+      { label: "SMS Notifications", value: settings.pushNotifications !== false },
+      { label: "Monthly Impact Reports", value: true },
+      { label: "Newsletter Subscription", value: settings.campaignUpdates !== false },
+    ];
+    
+    let taxY = currentY + 15;
+    taxSettings.forEach((setting, i) => {
+      const x = i < 2 ? 55 : 300;
+      const y = taxY + (i % 2) * 30;
+      
+      doc.roundedRect(x, y, 16, 16, 3).stroke(setting.value ? colors.success : colors.border);
+      if (setting.value) {
+        doc.fontSize(10).fillColor(colors.success).text("v", x + 4, y + 2);
       }
-    }
+      doc.fontSize(9).fillColor(colors.text).text(setting.label, x + 24, y + 3);
+      doc.fontSize(8).fillColor(setting.value ? colors.success : colors.textMuted).text(setting.value ? "Yes" : "No", x + 180, y + 3);
+    });
+    
+    currentY += 105;
 
-    // 7. Settings & Preferences
-    addSectionTitle("7. Settings & Preferences");
-    if (settingsSnapshot.exists) {
-      const settings = settingsSnapshot.data();
-      doc.fontSize(11).fillColor("#0099B8").text("Notification Settings:", { underline: true });
-      addField("  Push Notifications", settings.pushNotifications ? "Enabled" : "Disabled");
-      addField("  Email Notifications", settings.emailNotifications ? "Enabled" : "Disabled");
-      addField("  Campaign Updates", settings.campaignUpdates ? "Enabled" : "Disabled");
-      addField("  Event Reminders", settings.eventReminders ? "Enabled" : "Disabled");
-      addField("  Donation Receipts", settings.donationReceipts ? "Enabled" : "Disabled");
-      addField("  SOS Alerts", settings.sosAlerts ? "Enabled" : "Disabled");
-      doc.moveDown(0.5);
-      doc.fontSize(11).fillColor("#0099B8").text("Privacy Settings:", { underline: true });
-      addField("  Show Profile", settings.showProfile ? "Yes" : "No");
-      addField("  Show Activity", settings.showActivity ? "Yes" : "No");
-      addField("  Allow Messages", settings.allowMessages ? "Yes" : "No");
-    } else {
-      doc.text("No custom settings configured.");
-    }
+    // Subscription Controls
+    currentY = drawSectionHeader("Subscription Controls", "[S]", currentY);
+    
+    drawCard(40, currentY, 515, 80);
+    
+    const subControls = [
+      { label: "Pause Subscription Allowed", value: true },
+      { label: "Cancel Anytime Policy", value: true },
+      { label: "Refund Policy Summary", value: true },
+    ];
+    
+    let subY = currentY + 15;
+    subControls.forEach((control, i) => {
+      doc.roundedRect(55, subY, 16, 16, 3).stroke(colors.success);
+      doc.fontSize(10).fillColor(colors.success).text("v", 59, subY + 2);
+      doc.fontSize(9).fillColor(colors.text).text(control.label, 80, subY + 3);
+      subY += 22;
+    });
+    
+    currentY += 95;
 
-    // Footer
-    doc.moveDown(2);
-    doc.fontSize(8).fillColor("#999999").text(
-        "This document contains your personal data from Connect NGO platform. Please keep it secure.",
-        { align: "center" },
-    );
-    doc.text(
-        "For any queries, contact support@connectngo.com",
-        { align: "center" },
-    );
+    // Campaign & Event Participation
+    currentY = drawSectionHeader("Participation Summary", "[#]", currentY);
+    
+    drawCard(40, currentY, 250, 80);
+    drawCard(305, currentY, 250, 80);
+    
+    // Campaigns - use correct count variable
+    doc.fontSize(10).fillColor(colors.primary).text("[C] Campaigns", 55, currentY + 15);
+    doc.fontSize(24).fillColor(colors.text).text(campaignsCount.toString(), 55, currentY + 35);
+    doc.fontSize(8).fillColor(colors.textMuted).text("Total Participated", 55, currentY + 58);
+    
+    // Events - use correct count variable
+    doc.fontSize(10).fillColor(colors.primary).text("[E] Events", 320, currentY + 15);
+    doc.fontSize(24).fillColor(colors.text).text(eventsCount.toString(), 320, currentY + 35);
+    doc.fontSize(8).fillColor(colors.textMuted).text("Total Attended", 320, currentY + 58);
+    
+    currentY += 95;
+
+    // Declaration
+    currentY = drawSectionHeader("Declaration", "[D]", currentY);
+    
+    drawCard(40, currentY, 515, 60);
+    doc.fontSize(8).fillColor(colors.textLight)
+       .text("This is a system-generated document and requires no physical signature.", 55, currentY + 15, { width: 490 })
+       .text("All information presented is accurate as of the generation date. For corrections or disputes,", 55, currentY + 30, { width: 490 })
+       .text("please contact support@connectngo.com within 30 days.", 55, currentY + 45, { width: 490 });
+    
+    currentY += 75;
+
+    // Final footer
+    drawCard(40, currentY, 515, 50, { fillColor: colors.background, shadow: false });
+    doc.fontSize(8).fillColor(colors.textMuted).text("Thank you for being a valued member of Connect NGO!", 200, currentY + 12);
+    doc.fontSize(8).fillColor(colors.textMuted).text("Together, we are making a difference in communities.", 200, currentY + 27);
+
+    drawFooter(pageNumber);
 
     // Finalize PDF
     doc.end();
@@ -1452,7 +1889,6 @@ exports.exportUserData = functions.https.onCall(async (data, context) => {
     const pdfBase64 = pdfBuffer.toString("base64");
 
     // Store PDF temporarily in Firestore with the email details
-    // This approach doesn't require SMTP credentials
     const exportRef = await db.collection("data_exports").add({
       userId: userId,
       userEmail: userEmail,
@@ -1460,10 +1896,10 @@ exports.exportUserData = functions.https.onCall(async (data, context) => {
       pdfData: pdfBase64,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       sent: false,
-      fileName: `ConnectNGO_UserData_${new Date().toISOString().split("T")[0]}.pdf`,
+      fileName: `ConnectNGO_Statement_${new Date().toISOString().split("T")[0]}.pdf`,
     });
 
-    // Try to send email using nodemailer if configured, otherwise just store it
+    // Try to send email using nodemailer if configured
     try {
       const mailOptions = {
         from: emailConfig.auth.user || "noreply@connectngo.com",
@@ -1484,20 +1920,17 @@ exports.exportUserData = functions.https.onCall(async (data, context) => {
                 <h3 style="color: #0099B8; margin-top: 0;">What's Included:</h3>
                 <ul style="color: #666;">
                   <li>Personal Information & Profile</li>
-                  <li>Campaign Participation History</li>
-                  <li>Donation Records</li>
-                  <li>Event Participation</li>
-                  <li>CSR Opportunity Applications</li>
-                  <li>SOS Alerts</li>
+                  <li>Lifetime Contribution Snapshot</li>
+                  <li>Impact & Utilization Details</li>
+                  <li>Transaction History</li>
+                  <li>Receipt Summary</li>
                   <li>Settings & Preferences</li>
                 </ul>
               </div>
               
               <p style="color: #666; font-size: 14px; margin-top: 20px;">
-                <strong>Note:</strong> This document contains sensitive personal information. Please store it securely and do not share it with unauthorized persons.
+                <strong>Note:</strong> This document contains sensitive personal information. Please store it securely.
               </p>
-              
-              <p>If you have any questions or did not request this export, please contact us immediately.</p>
               
               <p>Best regards,<br>
               <strong>Connect NGO Team</strong></p>
@@ -1511,14 +1944,13 @@ exports.exportUserData = functions.https.onCall(async (data, context) => {
         `,
         attachments: [
           {
-            filename: `ConnectNGO_UserData_${new Date().toISOString().split("T")[0]}.pdf`,
+            filename: `ConnectNGO_Statement_${new Date().toISOString().split("T")[0]}.pdf`,
             path: pdfPath,
             contentType: "application/pdf",
           },
         ],
       };
 
-      // Only send email if credentials are properly configured
       if (emailConfig.auth.user && emailConfig.auth.user !== "connectngo.notifications@gmail.com") {
         await transporter.sendMail(mailOptions);
         await exportRef.update({ sent: true });
@@ -1528,7 +1960,6 @@ exports.exportUserData = functions.https.onCall(async (data, context) => {
       }
     } catch (emailError) {
       console.error("Email sending failed, but export is stored:", emailError.message);
-      // Don't throw error, the data is still accessible in Firestore
     }
 
     // Clean up temporary file

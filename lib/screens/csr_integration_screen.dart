@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../services/ngo_registration_service.dart';
+import 'ngo/ngo_csr_opportunity_detail_screen.dart';
 
 class CsrIntegrationScreen extends StatefulWidget {
   final NgoRegistrationRequest ngoData;
@@ -1065,206 +1066,17 @@ class _CsrIntegrationScreenState extends State<CsrIntegrationScreen> with Single
   }
 
   void _showOpportunityDetails(String docId, Map<String, dynamic> data) {
-    final title = data['title'] ?? 'CSR Opportunity';
-    final description = data['description'] ?? '';
-    final sector = data['sector'] ?? 'General';
-    final budget = (data['budget'] ?? 0).toDouble();
-    final volunteersNeeded = data['volunteersNeeded'] ?? 0;
-    final status = data['status'] ?? 'open';
-    final createdAt = data['createdAt'] as Timestamp?;
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.75,
-        maxChildSize: 0.95,
-        minChildSize: 0.5,
-        builder: (context, scrollController) => Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade300,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            title,
-                            style: const TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        _buildStatusBadge(status),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: ListView(
-                  controller: scrollController,
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                  children: [
-                    // Sector & Budget
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: _getSectorColor(sector).withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            sector,
-                            style: TextStyle(
-                              color: _getSectorColor(sector),
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                        const Spacer(),
-                        Text(
-                          'Budget: ₹${_formatAmount(budget)}',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: successGreen,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-                    // Description
-                    const Text(
-                      'Description',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      description,
-                      style: TextStyle(
-                        color: Colors.grey.shade700,
-                        height: 1.5,
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    // Quick Stats
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade100,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
-                        children: [
-                          _buildDetailStat(Icons.people, '$volunteersNeeded', 'Volunteers Needed'),
-                          _buildDetailStat(
-                            Icons.calendar_today,
-                            createdAt != null ? _formatDate(createdAt.toDate()) : '-',
-                            'Created On',
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    // Next Steps Section
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: primary.withOpacity(0.05),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: primary.withOpacity(0.2)),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(Icons.lightbulb, color: primary, size: 20),
-                              const SizedBox(width: 8),
-                              const Text(
-                                'Next Steps',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          _buildNextStepItem(1, 'Wait for volunteers to apply', status != 'closed'),
-                          _buildNextStepItem(2, 'Review and approve volunteer applications', status != 'closed'),
-                          _buildNextStepItem(3, 'Connect with approved volunteers', status != 'closed'),
-                          _buildNextStepItem(4, 'Track project progress and impact', status != 'closed'),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    // Action Buttons
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: () {
-                              Navigator.pop(context);
-                              _viewApplicants(docId, data);
-                            },
-                            icon: const Icon(Icons.people_alt, color: Colors.white),
-                            label: const Text('View Applicants', style: TextStyle(color: Colors.white)),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: primary,
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        OutlinedButton.icon(
-                          onPressed: () {
-                            Navigator.pop(context);
-                            _showEditOpportunityDialog(docId, data);
-                          },
-                          icon: const Icon(Icons.edit),
-                          label: const Text('Edit'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: primary,
-                            side: BorderSide(color: primary),
-                            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+    // Navigate to the detailed opportunity screen with tabs for Details, Volunteers, and Impact
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => NgoCsrOpportunityDetailScreen(
+          opportunityId: docId,
+          opportunityData: data,
+          ngoId: widget.ngoData.id,
         ),
       ),
-    );
+    ).then((_) => _loadStats()); // Refresh stats when returning
   }
 
   Widget _buildDetailStat(IconData icon, String value, String label) {
@@ -1330,143 +1142,20 @@ class _CsrIntegrationScreenState extends State<CsrIntegrationScreen> with Single
   }
 
   void _viewApplicants(String docId, Map<String, dynamic> data) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.8,
-        maxChildSize: 0.95,
-        minChildSize: 0.5,
-        builder: (context, scrollController) => Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade300,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: primary.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Icon(Icons.people_alt, color: primary),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Volunteer Applicants',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              Text(
-                                data['title'] ?? 'Opportunity',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: Colors.grey.shade600,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: StreamBuilder<QuerySnapshot>(
-                  stream: FirebaseFirestore.instance
-                      .collection('csr_volunteer_applications')
-                      .where('opportunityId', isEqualTo: docId)
-                      .snapshots(),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator(color: primary));
-                    }
-
-                    final docs = snapshot.data?.docs ?? [];
-
-                    if (docs.isEmpty) {
-                      return Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.people_outline, size: 64, color: Colors.grey.shade400),
-                            const SizedBox(height: 16),
-                            Text(
-                              'No applicants yet',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.grey.shade700,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Volunteers will appear here when they apply',
-                              style: TextStyle(color: Colors.grey.shade500),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-
-                    // Separate by status
-                    final pending = docs.where((d) => (d.data() as Map)['status'] == 'pending').toList();
-                    final approved = docs.where((d) => (d.data() as Map)['status'] == 'approved').toList();
-                    final rejected = docs.where((d) => (d.data() as Map)['status'] == 'rejected').toList();
-
-                    return ListView(
-                      controller: scrollController,
-                      padding: const EdgeInsets.all(16),
-                      children: [
-                        if (pending.isNotEmpty) ...[
-                          _buildApplicantSection('Pending Review', pending, warningOrange),
-                          const SizedBox(height: 16),
-                        ],
-                        if (approved.isNotEmpty) ...[
-                          _buildApplicantSection('Approved', approved, successGreen),
-                          const SizedBox(height: 16),
-                        ],
-                        if (rejected.isNotEmpty) ...[
-                          _buildApplicantSection('Rejected', rejected, errorRed),
-                        ],
-                      ],
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
+    // Navigate to the detailed opportunity screen - it will show the Volunteers tab
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => NgoCsrOpportunityDetailScreen(
+          opportunityId: docId,
+          opportunityData: data,
+          ngoId: widget.ngoData.id,
         ),
       ),
-    );
+    ).then((_) => _loadStats()); // Refresh stats when returning
   }
 
+  // Legacy method kept for compatibility - the actual applicant viewing is now in the detail screen
   Widget _buildApplicantSection(String title, List<QueryDocumentSnapshot> docs, Color color) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

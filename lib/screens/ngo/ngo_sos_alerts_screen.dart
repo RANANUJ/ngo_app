@@ -8,11 +8,13 @@ import 'package:url_launcher/url_launcher.dart';
 class NgoSOSAlertsScreen extends StatefulWidget {
   final String ngoId;
   final String ngoName;
+  final String ngoPhone;
 
   const NgoSOSAlertsScreen({
     Key? key,
     required this.ngoId,
     required this.ngoName,
+    required this.ngoPhone,
   }) : super(key: key);
 
   @override
@@ -899,6 +901,7 @@ class _NgoSOSAlertsScreenState extends State<NgoSOSAlertsScreen> with SingleTick
           'status': 'responding',
           'respondingNgoId': widget.ngoId,
           'respondingNgoName': widget.ngoName,
+          'ngoPhone': widget.ngoPhone,
           'respondedAt': FieldValue.serverTimestamp(),
           'estimatedArrival': eta,
           'ngoLatitude': _currentPosition?.latitude,

@@ -559,6 +559,9 @@ class AppLocalizationsHi extends AppLocalizations {
   String get jobIntern => 'नौकरी / इंटर्न';
 
   @override
+  String get monthlyGiving => 'मासिक दान';
+
+  @override
   String volunteers_count(int count) {
     return '$count वॉलंटियर';
   }

@@ -1184,6 +1184,12 @@ abstract class AppLocalizations {
   /// **'Job / Intern'**
   String get jobIntern;
 
+  /// No description provided for @monthlyGiving.
+  ///
+  /// In en, this message translates to:
+  /// **'Monthly Giving'**
+  String get monthlyGiving;
+
   /// No description provided for @volunteers_count.
   ///
   /// In en, this message translates to:

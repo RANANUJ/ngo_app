@@ -9,6 +9,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import '../../services/notification_service.dart';
 import '../../services/analytics_service.dart';
+import '../../utils/network_utils.dart';
 
 class VolunteerSOSScreen extends StatefulWidget {
   final String odid;
@@ -94,11 +95,14 @@ class _VolunteerSOSScreenState extends State<VolunteerSOSScreen> with SingleTick
           .collection('volunteers')
           .doc(widget.odid)
           .get();
-      if (doc.exists) {
+      if (doc.exists && mounted) {
         setState(() {
           _volunteerPhone = doc.data()?['phone'] ?? '';
         });
       }
+    } on SocketException catch (e) {
+      debugPrint('Network error loading volunteer phone: $e');
+      // Silently fail for non-critical data
     } catch (e) {
       debugPrint('Error loading volunteer phone: $e');
     }
@@ -113,6 +117,7 @@ class _VolunteerSOSScreenState extends State<VolunteerSOSScreen> with SingleTick
   }
 
   Future<void> _getCurrentLocation() async {
+    if (!mounted) return;
     setState(() => _isLoadingLocation = true);
     
     try {
@@ -121,10 +126,12 @@ class _VolunteerSOSScreenState extends State<VolunteerSOSScreen> with SingleTick
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
-          setState(() {
-            _currentAddress = 'Location permission denied';
-            _isLoadingLocation = false;
-          });
+          if (mounted) {
+            setState(() {
+              _currentAddress = 'Location permission denied';
+              _isLoadingLocation = false;
+            });
+          }
           return;
         }
       }
@@ -154,10 +161,12 @@ class _VolunteerSOSScreenState extends State<VolunteerSOSScreen> with SingleTick
             await Geolocator.openAppSettings();
           }
         }
-        setState(() {
-          _currentAddress = 'Enable location in app settings';
-          _isLoadingLocation = false;
-        });
+        if (mounted) {
+          setState(() {
+            _currentAddress = 'Enable location in app settings';
+            _isLoadingLocation = false;
+          });
+        }
         return;
       }
 
@@ -189,10 +198,12 @@ class _VolunteerSOSScreenState extends State<VolunteerSOSScreen> with SingleTick
             await Geolocator.openLocationSettings();
           }
         }
-        setState(() {
-          _currentAddress = 'Enable GPS in device settings';
-          _isLoadingLocation = false;
-        });
+        if (mounted) {
+          setState(() {
+            _currentAddress = 'Enable GPS in device settings';
+            _isLoadingLocation = false;
+          });
+        }
         return;
       }
 
@@ -202,7 +213,9 @@ class _VolunteerSOSScreenState extends State<VolunteerSOSScreen> with SingleTick
         timeLimit: const Duration(seconds: 10),
       );
 
-      setState(() => _currentPosition = position);
+      if (mounted) {
+        setState(() => _currentPosition = position);
+      }
 
       // Get address from coordinates
       try {
@@ -211,24 +224,30 @@ class _VolunteerSOSScreenState extends State<VolunteerSOSScreen> with SingleTick
           position.longitude,
         );
 
-        if (placemarks.isNotEmpty) {
+        if (placemarks.isNotEmpty && mounted) {
           Placemark place = placemarks[0];
           setState(() {
             _currentAddress = '${place.street}, ${place.subLocality}, ${place.locality}, ${place.postalCode}';
           });
         }
       } catch (e) {
-        setState(() {
-          _currentAddress = 'Lat: ${position.latitude.toStringAsFixed(4)}, Long: ${position.longitude.toStringAsFixed(4)}';
-        });
+        if (mounted) {
+          setState(() {
+            _currentAddress = 'Lat: ${position.latitude.toStringAsFixed(4)}, Long: ${position.longitude.toStringAsFixed(4)}';
+          });
+        }
       }
     } catch (e) {
       debugPrint('Location error: $e');
-      setState(() {
-        _currentAddress = 'Tap refresh to get location';
-      });
+      if (mounted) {
+        setState(() {
+          _currentAddress = 'Tap refresh to get location';
+        });
+      }
     } finally {
-      setState(() => _isLoadingLocation = false);
+      if (mounted) {
+        setState(() => _isLoadingLocation = false);
+      }
     }
   }
 
@@ -247,17 +266,30 @@ class _VolunteerSOSScreenState extends State<VolunteerSOSScreen> with SingleTick
         return bTime.compareTo(aTime);
       });
 
-      setState(() {
-        _sosHistory = docs.take(20).map((doc) {
-          final data = doc.data();
-          data['id'] = doc.id;
-          return data;
-        }).toList();
-        _isLoadingHistory = false;
-      });
+      if (mounted) {
+        setState(() {
+          _sosHistory = docs.take(20).map((doc) {
+            final data = doc.data();
+            data['id'] = doc.id;
+            return data;
+          }).toList();
+          _isLoadingHistory = false;
+        });
+      }
+    } on SocketException catch (e) {
+      debugPrint('Network error loading SOS history: $e');
+      if (mounted) {
+        setState(() => _isLoadingHistory = false);
+        NetworkUtils.showNetworkErrorSnackbar(context, e);
+      }
     } catch (e) {
       debugPrint('Error loading SOS history: $e');
-      setState(() => _isLoadingHistory = false);
+      if (mounted) {
+        setState(() => _isLoadingHistory = false);
+        if (NetworkUtils.isNetworkError(e)) {
+          NetworkUtils.showNetworkErrorSnackbar(context, e);
+        }
+      }
     }
   }
 
@@ -383,12 +415,17 @@ class _VolunteerSOSScreenState extends State<VolunteerSOSScreen> with SingleTick
   }
 
   void _startCountdown() {
+    if (!mounted) return;
     setState(() {
       _sosCountdownActive = true;
       _countdownSeconds = 5;
     });
 
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
       if (_countdownSeconds > 1) {
         setState(() => _countdownSeconds--);
       } else {
@@ -400,13 +437,16 @@ class _VolunteerSOSScreenState extends State<VolunteerSOSScreen> with SingleTick
 
   void _cancelCountdown() {
     _countdownTimer?.cancel();
-    setState(() {
-      _sosCountdownActive = false;
-      _countdownSeconds = 5;
-    });
+    if (mounted) {
+      setState(() {
+        _sosCountdownActive = false;
+        _countdownSeconds = 5;
+      });
+    }
   }
 
   Future<void> _sendQuickSOS() async {
+    if (!mounted) return;
     setState(() {
       _sosCountdownActive = false;
       _isSendingSOS = true;
@@ -442,27 +482,42 @@ class _VolunteerSOSScreenState extends State<VolunteerSOSScreen> with SingleTick
       );
 
       // Vibrate or play sound
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: const [
-              Icon(Icons.check_circle, color: Colors.white),
-              SizedBox(width: 12),
-              Text('SOS Alert Sent! Help is on the way.'),
-            ],
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: const [
+                Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 12),
+                Text('SOS Alert Sent! Help is on the way.'),
+              ],
+            ),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 3),
           ),
-          backgroundColor: Colors.green,
-          duration: const Duration(seconds: 3),
-        ),
-      );
+        );
+      }
 
       _loadSOSHistory();
+    } on SocketException catch (e) {
+      debugPrint('Network error sending SOS: $e');
+      if (mounted) {
+        NetworkUtils.showNetworkErrorSnackbar(context, e);
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error sending SOS: $e'), backgroundColor: Colors.red),
-      );
+      if (mounted) {
+        if (NetworkUtils.isNetworkError(e)) {
+          NetworkUtils.showNetworkErrorSnackbar(context, e);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error sending SOS: $e'), backgroundColor: Colors.red),
+          );
+        }
+      }
     } finally {
-      setState(() => _isSendingSOS = false);
+      if (mounted) {
+        setState(() => _isSendingSOS = false);
+      }
     }
   }
 
@@ -765,13 +820,15 @@ class _VolunteerSOSScreenState extends State<VolunteerSOSScreen> with SingleTick
         imageQuality: 80,
       );
 
-      if (pickedFile != null) {
+      if (pickedFile != null && mounted) {
         setState(() => _emergencyImage = File(pickedFile.path));
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error picking image: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error picking image: $e')),
+        );
+      }
     }
   }
 
@@ -807,6 +864,7 @@ class _VolunteerSOSScreenState extends State<VolunteerSOSScreen> with SingleTick
       return;
     }
 
+    if (!mounted) return;
     setState(() => _isSendingSOS = true);
 
     try {
@@ -844,34 +902,51 @@ class _VolunteerSOSScreenState extends State<VolunteerSOSScreen> with SingleTick
       );
 
       // Clear form
-      setState(() {
-        _selectedEmergencyType = null;
-        _descriptionController.clear();
-        _emergencyImage = null;
-      });
+      if (mounted) {
+        setState(() {
+          _selectedEmergencyType = null;
+          _descriptionController.clear();
+          _emergencyImage = null;
+        });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: const [
-              Icon(Icons.check_circle, color: Colors.white),
-              SizedBox(width: 12),
-              Expanded(child: Text('Emergency alert sent successfully! Help is on the way.')),
-            ],
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: const [
+                Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 12),
+                Expanded(child: Text('Emergency alert sent successfully! Help is on the way.')),
+              ],
+            ),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 4),
           ),
-          backgroundColor: Colors.green,
-          duration: const Duration(seconds: 4),
-        ),
-      );
+        );
+      }
 
       _loadSOSHistory();
-      _tabController.animateTo(2); // Switch to history tab
+      if (mounted) {
+        _tabController.animateTo(2); // Switch to history tab
+      }
+    } on SocketException catch (e) {
+      debugPrint('Network error sending detailed SOS: $e');
+      if (mounted) {
+        NetworkUtils.showNetworkErrorSnackbar(context, e);
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error sending alert: $e'), backgroundColor: Colors.red),
-      );
+      if (mounted) {
+        if (NetworkUtils.isNetworkError(e)) {
+          NetworkUtils.showNetworkErrorSnackbar(context, e);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error sending alert: $e'), backgroundColor: Colors.red),
+          );
+        }
+      }
     } finally {
-      setState(() => _isSendingSOS = false);
+      if (mounted) {
+        setState(() => _isSendingSOS = false);
+      }
     }
   }
 
@@ -2250,10 +2325,27 @@ class _VolunteerLiveTrackingScreenState extends State<_VolunteerLiveTrackingScre
   }
 
   Future<void> _makePhoneCall(String phoneNumber) async {
-    if (phoneNumber.isEmpty) return;
+    if (phoneNumber.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Phone number not available. Please try again later.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
     final Uri phoneUri = Uri(scheme: 'tel', path: phoneNumber);
     if (await canLaunchUrl(phoneUri)) {
       await launchUrl(phoneUri);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not launch phone dialer'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 

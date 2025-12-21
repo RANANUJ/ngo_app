@@ -1,9 +1,11 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'community_post_detail_screen.dart';
 import 'create_post_screen.dart';
 import 'edit_community_screen.dart';
+import '../utils/network_utils.dart';
 
 class CommunityDetailScreen extends StatefulWidget {
   final String communityId;
@@ -55,7 +57,7 @@ class _CommunityDetailScreenState extends State<CommunityDetailScreen>
           .doc(widget.communityId)
           .get();
 
-      if (doc.exists) {
+      if (doc.exists && mounted) {
         final userId = widget.userId ?? FirebaseAuth.instance.currentUser?.uid;
         setState(() {
           _communityData = doc.data();
@@ -63,8 +65,20 @@ class _CommunityDetailScreenState extends State<CommunityDetailScreen>
           _isLoading = false;
         });
       }
+    } on SocketException catch (e) {
+      debugPrint('Network error loading community: $e');
+      if (mounted) {
+        setState(() => _isLoading = false);
+        NetworkUtils.showNetworkErrorSnackbar(context, e);
+      }
     } catch (e) {
-      setState(() => _isLoading = false);
+      debugPrint('Error loading community: $e');
+      if (mounted) {
+        setState(() => _isLoading = false);
+        if (NetworkUtils.isNetworkError(e)) {
+          NetworkUtils.showNetworkErrorSnackbar(context, e);
+        }
+      }
     }
   }
 
@@ -79,7 +93,9 @@ class _CommunityDetailScreenState extends State<CommunityDetailScreen>
         .doc(userId)
         .get();
 
-    setState(() => _isMember = memberDoc.exists);
+    if (mounted) {
+      setState(() => _isMember = memberDoc.exists);
+    }
   }
 
   void _showCommunityOptions() {
@@ -290,10 +306,12 @@ class _CommunityDetailScreenState extends State<CommunityDetailScreen>
           'membersCount': FieldValue.increment(-1),
         });
 
-        setState(() => _isMember = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Left community')),
-        );
+        if (mounted) {
+          setState(() => _isMember = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Left community')),
+          );
+        }
       } else {
         // Join community
         await FirebaseFirestore.instance
@@ -316,19 +334,23 @@ class _CommunityDetailScreenState extends State<CommunityDetailScreen>
           'membersCount': FieldValue.increment(1),
         });
 
-        setState(() => _isMember = true);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Joined community successfully!'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        if (mounted) {
+          setState(() => _isMember = true);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Joined community successfully!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
       }
       _loadCommunityData();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
     }
   }
 

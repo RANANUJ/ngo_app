@@ -1,3 +1,4 @@
+import 'ngo_document_management_modal.dart';
 import 'dart:io';
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -6,6 +7,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:vibration/vibration.dart';
 import '../../services/ngo_registration_service.dart';
 import '../../services/local_storage_service.dart';
 import '../../services/notification_service.dart';
@@ -31,6 +34,7 @@ import 'ngo_privacy_security_screen.dart';
 import 'ngo_help_support_screen.dart';
 import 'ngo_about_app_screen.dart';
 import 'ngo_sos_alerts_screen.dart';
+import 'ngo_monthly_funding_screen.dart';
 
 class NgoHomeScreen extends StatefulWidget {
   final NgoRegistrationRequest ngoData;
@@ -46,6 +50,9 @@ class _NgoHomeScreenState extends State<NgoHomeScreen> {
   int _selectedIndex = 0;
   String? _ngoLogo;
   bool _isRefreshing = false;
+  
+  // Audio player for emergency sound
+  final AudioPlayer _audioPlayer = AudioPlayer();
   
   // Data variables for real-time updates
   int _campaignsCount = 0;
@@ -74,6 +81,7 @@ class _NgoHomeScreenState extends State<NgoHomeScreen> {
   @override
   void dispose() {
     _sosNotificationSubscription?.cancel();
+    _audioPlayer.dispose();
     super.dispose();
   }
 
@@ -123,7 +131,31 @@ class _NgoHomeScreenState extends State<NgoHomeScreen> {
     });
   }
 
-  /// Show SOS alert popup dialog
+  /// Play emergency sound
+  Future<void> _playEmergencySound() async {
+    try {
+      await _audioPlayer.setReleaseMode(ReleaseMode.loop);
+      await _audioPlayer.play(AssetSource('emergency_alert.mp3'));
+      // Also vibrate
+      if (await Vibration.hasVibrator() ?? false) {
+        Vibration.vibrate(pattern: [500, 1000, 500, 1000, 500, 1000], repeat: 0);
+      }
+    } catch (e) {
+      debugPrint('Error playing emergency sound: $e');
+    }
+  }
+
+  /// Stop emergency sound
+  Future<void> _stopEmergencySound() async {
+    try {
+      await _audioPlayer.stop();
+      Vibration.cancel();
+    } catch (e) {
+      debugPrint('Error stopping emergency sound: $e');
+    }
+  }
+
+  /// Show full-screen SOS alert with emergency sound
   void _showSOSAlertPopup(Map<String, dynamic> data, String notificationId) {
     if (!mounted) return;
     
@@ -131,170 +163,60 @@ class _NgoHomeScreenState extends State<NgoHomeScreen> {
     final emergencyType = data['emergencyType'] ?? 'Emergency';
     final address = data['address'] ?? 'Unknown location';
     final volunteerPhone = data['volunteerPhone'];
+    final sosId = data['sosId'];
     
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        contentPadding: EdgeInsets.zero,
-        content: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            gradient: const LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [Color(0xFFE53935), Color(0xFFC62828)],
-            ),
-          ),
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Emergency Icon with animation
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.warning_rounded,
-                  color: Colors.white,
-                  size: 48,
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                '🚨 EMERGENCY SOS 🚨',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                emergencyType.toUpperCase(),
-                style: const TextStyle(
-                  color: Colors.yellow,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.person, color: Colors.white, size: 20),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            volunteerName,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Icon(Icons.location_on, color: Colors.white, size: 20),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            address,
-                            style: const TextStyle(color: Colors.white70, fontSize: 14),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                    if (volunteerPhone != null && volunteerPhone.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          const Icon(Icons.phone, color: Colors.white, size: 20),
-                          const SizedBox(width: 8),
-                          Text(
-                            volunteerPhone,
-                            style: const TextStyle(color: Colors.white, fontSize: 14),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        _markNotificationAsRead(notificationId);
-                      },
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.white,
-                        side: const BorderSide(color: Colors.white),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30),
-                        ),
-                      ),
-                      child: const Text('Dismiss'),
-                    ),
+    // Play emergency sound
+    _playEmergencySound();
+    
+    // Show full-screen red alert
+    Navigator.of(context).push(
+      PageRouteBuilder(
+        opaque: true,
+        barrierDismissible: false,
+        pageBuilder: (context, animation, secondaryAnimation) {
+          return _FullScreenSOSAlert(
+            volunteerName: volunteerName,
+            emergencyType: emergencyType,
+            address: address,
+            volunteerPhone: volunteerPhone,
+            sosId: sosId,
+            notificationId: notificationId,
+            onDismiss: () {
+              _stopEmergencySound();
+              Navigator.of(context).pop();
+              _markNotificationAsRead(notificationId);
+            },
+            onViewDetails: () {
+              _stopEmergencySound();
+              Navigator.of(context).pop();
+              _markNotificationAsRead(notificationId);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => NgoSOSAlertsScreen(
+                    ngoId: widget.ngoData.id,
+                    ngoName: widget.ngoData.ngoName,
+                    ngoPhone: widget.ngoData.mobileNo.isNotEmpty ? widget.ngoData.mobileNo : widget.ngoData.officialPhone,
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        _markNotificationAsRead(notificationId);
-                        // Navigate to SOS Alerts screen
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => NgoSOSAlertsScreen(
-                              ngoId: widget.ngoData.id,
-                              ngoName: widget.ngoData.ngoName,
-                            ),
-                          ),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: const Color(0xFFE53935),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30),
-                        ),
-                      ),
-                      child: const Text(
-                        'View Details',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
+                ),
+              );
+            },
+            onStopSound: () {
+              _stopEmergencySound();
+            },
+            onCall: volunteerPhone != null && volunteerPhone.isNotEmpty
+                ? () async {
+                    final Uri phoneUri = Uri(scheme: 'tel', path: volunteerPhone);
+                    if (await canLaunchUrl(phoneUri)) {
+                      await launchUrl(phoneUri);
+                    }
+                  }
+                : null,
+          );
+        },
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
       ),
     );
   }
@@ -767,6 +689,7 @@ class _NgoHomeScreenState extends State<NgoHomeScreen> {
                 builder: (context) => NgoSOSAlertsScreen(
                   ngoId: widget.ngoData.id!,
                   ngoName: widget.ngoData.ngoName,
+                  ngoPhone: widget.ngoData.mobileNo.isNotEmpty ? widget.ngoData.mobileNo : widget.ngoData.officialPhone,
                 ),
               ),
             );
@@ -854,7 +777,7 @@ class _NgoHomeScreenState extends State<NgoHomeScreen> {
             const SizedBox(width: 12),
             Expanded(child: _buildFeatureCardWithImage('assets/—Pngtree—government icon_4270824.png', 'Govt. Schemes', cardBgColor)),
             const SizedBox(width: 12),
-            Expanded(child: _buildFeatureCardWithImage('assets/Online connection-rafiki.png', 'Connection', cardBgColor)),
+            Expanded(child: _buildFeatureCardWithImage('assets/Charity-cuate.png', 'Monthly Funding', cardBgColor)),
           ],
         ),
       ],
@@ -1210,7 +1133,18 @@ class _NgoHomeScreenState extends State<NgoHomeScreen> {
           ),
         );
         break;
-      case 'Connection':
+      case 'Monthly Funding':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => NgoMonthlyFundingScreen(
+              ngoId: widget.ngoData.id,
+              ngoName: widget.ngoData.ngoName,
+              ngoEmail: widget.ngoData.email,
+            ),
+          ),
+        );
+        break;
       default:
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -2164,11 +2098,24 @@ class _NgoHomeScreenState extends State<NgoHomeScreen> {
     ).then((_) => _loadAllData()); // Refresh data when returning
   }
 
-  void _manageDocuments() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Document Management - Coming Soon!')),
+  void _manageDocuments() async {
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => DocumentManagementModal(
+        ngoId: widget.ngoData.id,
+        ngoData: widget.ngoData,
+        onDocumentsUpdated: () {
+          setState(() {}); // Refresh UI after document update
+        },
+      ),
     );
   }
+
+
 
   void _resetPassword() {
     Navigator.push(
@@ -2289,5 +2236,304 @@ class _NgoHomeScreenState extends State<NgoHomeScreen> {
         );
       }
     }
+  }
+}
+
+/// Full-screen SOS Alert Widget with emergency visuals
+class _FullScreenSOSAlert extends StatefulWidget {
+  final String volunteerName;
+  final String emergencyType;
+  final String address;
+  final String? volunteerPhone;
+  final String? sosId;
+  final String notificationId;
+  final VoidCallback onDismiss;
+  final VoidCallback onViewDetails;
+  final VoidCallback onStopSound;
+  final VoidCallback? onCall;
+
+  const _FullScreenSOSAlert({
+    required this.volunteerName,
+    required this.emergencyType,
+    required this.address,
+    this.volunteerPhone,
+    this.sosId,
+    required this.notificationId,
+    required this.onDismiss,
+    required this.onViewDetails,
+    required this.onStopSound,
+    this.onCall,
+  });
+
+  @override
+  State<_FullScreenSOSAlert> createState() => _FullScreenSOSAlertState();
+}
+
+class _FullScreenSOSAlertState extends State<_FullScreenSOSAlert> with SingleTickerProviderStateMixin {
+  late AnimationController _animationController;
+  late Animation<double> _pulseAnimation;
+  bool _soundMuted = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    )..repeat(reverse: true);
+    
+    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.15).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFFE53935), Color(0xFFB71C1C)],
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              // Top bar with mute button
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    IconButton(
+                      onPressed: () {
+                        setState(() => _soundMuted = !_soundMuted);
+                        if (_soundMuted) {
+                          widget.onStopSound();
+                        }
+                      },
+                      icon: Icon(
+                        _soundMuted ? Icons.volume_off : Icons.volume_up,
+                        color: Colors.white,
+                        size: 28,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              const Spacer(),
+              
+              // Pulsing warning icon
+              AnimatedBuilder(
+                animation: _pulseAnimation,
+                builder: (context, child) {
+                  return Transform.scale(
+                    scale: _pulseAnimation.value,
+                    child: Container(
+                      padding: const EdgeInsets.all(30),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.white.withOpacity(0.3),
+                            blurRadius: 30,
+                            spreadRadius: 10,
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.warning_rounded,
+                        color: Colors.white,
+                        size: 80,
+                      ),
+                    ),
+                  );
+                },
+              ),
+              
+              const SizedBox(height: 30),
+              
+              // Emergency text
+              const Text(
+                '🚨 EMERGENCY SOS 🚨',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 2,
+                ),
+              ),
+              
+              const SizedBox(height: 12),
+              
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Colors.yellow,
+                  borderRadius: BorderRadius.circular(30),
+                ),
+                child: Text(
+                  widget.emergencyType.toUpperCase(),
+                  style: const TextStyle(
+                    color: Color(0xFFB71C1C),
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              
+              const Spacer(),
+              
+              // Volunteer info card
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 20),
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.white.withOpacity(0.3)),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.person, color: Colors.white, size: 28),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Volunteer in distress',
+                                style: TextStyle(color: Colors.white70, fontSize: 13),
+                              ),
+                              Text(
+                                widget.volunteerName,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (widget.onCall != null)
+                          IconButton(
+                            onPressed: widget.onCall,
+                            icon: Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: const BoxDecoration(
+                                color: Colors.green,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.call, color: Colors.white, size: 24),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.location_on, color: Colors.white70, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            widget.address,
+                            style: const TextStyle(color: Colors.white, fontSize: 15),
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (widget.volunteerPhone != null && widget.volunteerPhone!.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          const Icon(Icons.phone, color: Colors.white70, size: 20),
+                          const SizedBox(width: 8),
+                          Text(
+                            widget.volunteerPhone!,
+                            style: const TextStyle(color: Colors.white, fontSize: 15),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              
+              const Spacer(),
+              
+              // Action buttons
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  children: [
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: widget.onViewDetails,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: const Color(0xFFE53935),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                        ),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.visibility),
+                            SizedBox(width: 8),
+                            Text(
+                              'RESPOND NOW',
+                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextButton(
+                      onPressed: widget.onDismiss,
+                      child: const Text(
+                        'Dismiss',
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

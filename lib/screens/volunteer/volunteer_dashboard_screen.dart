@@ -26,6 +26,7 @@ import 'volunteer_notifications_screen.dart';
 import 'volunteer_settings_screen.dart';
 import 'volunteer_help_support_screen.dart';
 import 'volunteer_privacy_policy_screen.dart';
+import 'monthly_donation_screen.dart';
 import '../../services/cache_service.dart';
 import '../../services/notification_service.dart';
 import '../../services/analytics_service.dart';
@@ -778,7 +779,7 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
       },
       {
         'image': 'assets/Office work-rafiki.png',
-        'label': l10n.jobIntern,
+        'label': 'Monthly Giving',
         'bgColor': const Color(0xFFE0F4F7),
       },
       {
@@ -898,8 +899,13 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
           ),
         );
         break;
-      case 3: // Job / Intern
-        _showComingSoon(AppLocalizations.of(context)!.jobIntern);
+      case 3: // Monthly Giving
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const MonthlyDonationScreen(),
+          ),
+        );
         break;
       case 4: // CSR Integration
         Navigator.push(
