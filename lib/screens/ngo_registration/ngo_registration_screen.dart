@@ -3,8 +3,8 @@ import 'package:file_picker/file_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:io';
 
-import '../../services/ngo_registration_service.dart';
-import '../../services/local_storage_service.dart';
+import 'package:ngo_app/features/ngo/data/services/ngo_registration_service.dart';
+import 'package:ngo_app/features/storage/data/services/local_storage_service.dart';
 import '../ngo/ngo_verification_status_screen.dart';
 
 import 'constants.dart';

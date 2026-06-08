@@ -1,6 +1,6 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'volunteer_resource_detail_screen.dart';
+import 'package:ngo_app/screens/resources/resource_detail_screen.dart';
 
 class VolunteerResourcesScreen extends StatefulWidget {
   const VolunteerResourcesScreen({super.key});

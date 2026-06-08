@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../../services/monthly_funding_service.dart';
-import '../../services/email_service.dart';
+import 'package:ngo_app/features/ngo/data/services/monthly_funding_service.dart';
+import 'package:ngo_app/core/services/email_service.dart';
 
 class NgoMonthlyFundingScreen extends StatefulWidget {
   final String ngoId;

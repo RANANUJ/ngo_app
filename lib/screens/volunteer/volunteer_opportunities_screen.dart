@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../l10n/app_localizations.dart';
-import '../opportunity_detail_screen.dart';
+import 'package:ngo_app/screens/campaigns/opportunity_detail_screen.dart';
 
 class VolunteerOpportunitiesScreen extends StatefulWidget {
   final bool isEmbedded;

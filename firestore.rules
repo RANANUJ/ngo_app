@@ -1,18 +1,6 @@
 rules_version = '2';
-
-// DEVELOPMENT RULES - Allow all reads and writes for testing
-// WARNING: These rules are NOT secure for production!
-// Replace with proper authentication-based rules before deploying to production.
-
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // NGO Registrations collection - allow all operations for development
-    match /ngo_registrations/{registrationId} {
-      allow read, write: if true;
-    }
-    
-    // Fallback rule for any other collections during development
     match /{document=**} {
       allow read, write: if true;
     }

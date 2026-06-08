@@ -4,7 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'package:intl/intl.dart';
-import '../../services/receipt_service.dart';
+import 'package:ngo_app/features/storage/data/services/receipt_service.dart';
 
 class MonthlyDonationScreen extends StatefulWidget {
   const MonthlyDonationScreen({Key? key}) : super(key: key);

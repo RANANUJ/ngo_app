@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../campaign_list_screen.dart';
+import '../campaigns/campaign_list_screen.dart';
 import 'ngo_explore_screen.dart';
 import 'ngo_notifications_screen.dart';
 

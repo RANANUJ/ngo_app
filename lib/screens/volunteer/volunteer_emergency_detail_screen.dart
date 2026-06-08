@@ -1,5 +1,5 @@
-﻿import 'package:flutter/material.dart';
-import '../payment_donation_screen.dart';
+import 'package:flutter/material.dart';
+import 'package:ngo_app/screens/donations/payment_donation_screen.dart';
 
 class VolunteerEmergencyDetailScreen extends StatefulWidget {
   final String emergencyId;
@@ -50,7 +50,7 @@ class _VolunteerEmergencyDetailScreenState extends State<VolunteerEmergencyDetai
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    '₹${data['collectedAmount'] ?? 0} raised of ₹${data['targetAmount'] ?? 0}',
+                    '?${data['collectedAmount'] ?? 0} raised of ?${data['targetAmount'] ?? 0}',
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ],

@@ -1,3 +1,4 @@
+import 'package:ngo_app/core/utils/network/network_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -115,7 +116,7 @@ class _VolunteerEventsScreenState extends State<VolunteerEventsScreen>
         _isLoading = false;
       });
     } catch (e) {
-      debugPrint('Error loading events: $e');
+      secureLog('Error loading events: $e');
       setState(() => _isLoading = false);
     }
   }

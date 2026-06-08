@@ -1,6 +1,7 @@
-﻿import 'package:flutter/material.dart';
+import 'package:ngo_app/core/utils/network/network_utils.dart';
+import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'volunteer_emergency_detail_screen.dart';
+import 'package:ngo_app/screens/emergency/emergency_detail_screen.dart';
 
 class VolunteerEmergencyScreen extends StatefulWidget {
   const VolunteerEmergencyScreen({super.key});
@@ -51,7 +52,7 @@ class _VolunteerEmergencyScreenState extends State<VolunteerEmergencyScreen> {
           }
           
           if (snapshot.hasError) {
-            debugPrint('Error loading emergencies: ${snapshot.error}');
+            secureLog('Error loading emergencies: ${snapshot.error}');
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -254,7 +255,7 @@ class _VolunteerEmergencyScreenState extends State<VolunteerEmergencyScreen> {
                   Row(
                     children: [
                       Text(
-                        '₹${collectedAmount.toInt()} raised',
+                        '?${collectedAmount.toInt()} raised',
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -263,7 +264,7 @@ class _VolunteerEmergencyScreenState extends State<VolunteerEmergencyScreen> {
                       ),
                       const Spacer(),
                       Text(
-                        'of ₹${targetAmount.toInt()}',
+                        'of ?${targetAmount.toInt()}',
                         style: TextStyle(
                           fontSize: 14,
                           color: Colors.grey.shade600,

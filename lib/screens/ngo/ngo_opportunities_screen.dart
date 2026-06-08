@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../create_opportunity_screen.dart';
-import '../opportunity_detail_screen.dart';
+import '../campaigns/create_opportunity_screen.dart';
+import 'package:ngo_app/screens/campaigns/opportunity_detail_screen.dart';
 
 class NgoOpportunitiesScreen extends StatefulWidget {
   final String ngoId;

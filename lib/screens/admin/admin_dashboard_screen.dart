@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../services/ngo_registration_service.dart';
-import '../government_schemes_screen.dart';
+import 'package:ngo_app/features/ngo/data/services/ngo_registration_service.dart';
+import 'package:ngo_app/screens/government/government_schemes_screen.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({Key? key}) : super(key: key);

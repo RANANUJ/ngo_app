@@ -1,12 +1,13 @@
-ï»¿import 'package:flutter/material.dart';
+import 'package:ngo_app/core/utils/network/network_utils.dart';
+import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'volunteer_emergency_screen.dart';
 import 'volunteer_resources_screen.dart';
 import 'volunteer_impacts_screen.dart';
-import 'volunteer_donation_request_screen.dart';
-import 'volunteer_donation_history_screen.dart';
+import 'package:ngo_app/screens/donations/donation_request_screen.dart';
+import 'package:ngo_app/screens/donations/donation_history_screen.dart';
 
 class VolunteerDonationScreen extends StatefulWidget {
   const VolunteerDonationScreen({super.key});
@@ -146,7 +147,7 @@ class _VolunteerDonationScreenState extends State<VolunteerDonationScreen> {
         });
       }
     } catch (e) {
-      debugPrint('Error loading donation data: $e');
+      secureLog('Error loading donation data: $e');
       if (mounted) {
         setState(() => _isLoading = false);
       }
@@ -325,7 +326,7 @@ class _VolunteerDonationScreenState extends State<VolunteerDonationScreen> {
                     getTooltipColor: (group) => Colors.blueGrey,
                     getTooltipItem: (group, groupIndex, rod, rodIndex) {
                       return BarTooltipItem(
-                        'â‚¹${(rod.toY * 1000).toStringAsFixed(0)}',
+                        '?${(rod.toY * 1000).toStringAsFixed(0)}',
                         const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                       );
                     },
@@ -447,7 +448,7 @@ class _VolunteerDonationScreenState extends State<VolunteerDonationScreen> {
     final features = [
       _FeatureItem(
         title: 'Emergency',
-        imagePath: 'assets/â€”Pngtreeâ€”emergency light flashing red warning_18600445.png',
+        imagePath: 'assets/—Pngtree—emergency light flashing red warning_18600445.png',
         color: const Color(0xFFFFE4E4),
         onTap: () => Navigator.push(
           context,
@@ -456,7 +457,7 @@ class _VolunteerDonationScreenState extends State<VolunteerDonationScreen> {
       ),
       _FeatureItem(
         title: 'Donation Req',
-        imagePath: 'assets/â€”Pngtreeâ€”money donation vector icon in_5684260.png',
+        imagePath: 'assets/—Pngtree—money donation vector icon in_5684260.png',
         color: const Color(0xFFE8F5F5),
         onTap: () => Navigator.push(
           context,
@@ -471,7 +472,7 @@ class _VolunteerDonationScreenState extends State<VolunteerDonationScreen> {
       ),
       _FeatureItem(
         title: 'Share Resource',
-        imagePath: 'assets/â€”Pngtreeâ€”share resource_5610380.png',
+        imagePath: 'assets/—Pngtree—share resource_5610380.png',
         color: const Color(0xFFE3F2FD),
         onTap: () => Navigator.push(
           context,

@@ -91,33 +91,30 @@ The app serves two primary user types:
 
 ```
 lib/
-├── main.dart                 # App entry point
+├── app/                      # App-level composition (bootstrap, routing)
+├── core/                     # Technical foundation (theme, config, network, shared services)
+├── shared/                   # Cross-feature reusable models and widgets
+├── features/                 # Feature-first business modules
+│   ├── auth/
+│   ├── ngo/
+│   ├── volunteer/
+│   ├── admin/
+│   ├── donations/
+│   ├── campaigns/
+│   ├── community/
+│   ├── emergency/
+│   ├── opportunities/
+│   ├── notifications/
+│   ├── home/
+│   └── profile/
+├── l10n/                     # Localizations
 ├── firebase_options.dart     # Firebase configuration
-├── screens/
-│   ├── admin/               # Admin panel screens
-│   ├── ngo/                 # NGO-specific screens
-│   │   ├── ngo_dashboard_screen.dart
-│   │   ├── ngo_home_screen.dart
-│   │   ├── ngo_volunteers_screen.dart
-│   │   ├── ngo_reports_screen.dart
-│   │   └── ...
-│   ├── volunteer/           # Volunteer-specific screens
-│   │   ├── volunteer_dashboard_screen.dart
-│   │   ├── volunteer_opportunities_screen.dart
-│   │   ├── volunteer_impacts_screen.dart
-│   │   └── ...
-│   ├── campaign_*.dart      # Campaign management
-│   ├── community_*.dart     # Community features
-│   ├── donation_*.dart      # Donation features
-│   └── ...
-├── services/
-│   ├── auth_service.dart           # Authentication logic
-│   ├── notification_service.dart   # Push notifications
-│   ├── cache_service.dart          # Local caching
-│   └── ...
-├── utils/                   # Helper utilities
-└── widgets/                 # Reusable UI components
+└── main.dart                 # App entry point
 ```
+
+Current status: migration is incremental. Legacy folders (`screens`, `services`, `utils`, `widgets`) are still present and being moved feature-by-feature to avoid breaking changes.
+
+See `docs/architecture/FOLDER_STRUCTURE.md` for the complete migration map and team conventions.
 
 ---
 
@@ -135,9 +132,11 @@ lib/
 
 1. **Clone the repository**
    ```bash
+
    git clone https://github.com/RANANUJ/ngo_app.git
+
    cd ngo_app
-   ```
+
 
 2. **Install dependencies**
    ```bash
@@ -145,29 +144,27 @@ lib/
    ```
 
 3. **Configure Firebase**
-   - Create a Firebase project at [Firebase Console](https://console.firebase.google.com/)
-   - Add Android and iOS apps to your Firebase project
-   - Download and add `google-services.json` (Android) and `GoogleService-Info.plist` (iOS)
+
    - Enable Authentication, Firestore, Storage, and Cloud Messaging
 
 4. **Configure Google Maps**
-   - Get an API key from [Google Cloud Console](https://console.cloud.google.com/)
+
    - Add the API key to:
-     - `android/app/src/main/AndroidManifest.xml`
-     - `ios/Runner/AppDelegate.swift`
+
 
 5. **Run the app**
    ```bash
    flutter run
-   ```
 
----
+
+
 
 ## 📱 Screenshots
 
 <p align="center">
   <i>Coming Soon</i>
 </p>
+
 
 ---
 
@@ -181,8 +178,6 @@ The app uses comprehensive Firestore security rules to protect user data. See `f
 
 The app supports:
 - **Foreground notifications** - Displayed while app is open
-- **Background notifications** - Received when app is minimized
-- **Terminated state notifications** - Received when app is closed
 
 Notification channels include:
 - SOS Alerts (High Priority)

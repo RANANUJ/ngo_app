@@ -1,8 +1,9 @@
+import 'package:ngo_app/core/utils/network/network_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class VolunteerNotificationsScreen extends StatefulWidget {
   const VolunteerNotificationsScreen({Key? key}) : super(key: key);
@@ -42,28 +43,34 @@ class _VolunteerNotificationsScreenState extends State<VolunteerNotificationsScr
     super.dispose();
   }
 
+  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
   Future<void> _loadSettings() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      
+      final pushNotifications = await _secureStorage.read(key: 'pushNotifications');
+      final emailNotifications = await _secureStorage.read(key: 'emailNotifications');
+      final campaignUpdates = await _secureStorage.read(key: 'campaignUpdates');
+      final eventReminders = await _secureStorage.read(key: 'eventReminders');
+      final donationReceipts = await _secureStorage.read(key: 'donationReceipts');
+      final sosAlerts = await _secureStorage.read(key: 'sosAlerts');
+      final ngoUpdates = await _secureStorage.read(key: 'ngoUpdates');
+
       setState(() {
-        _pushNotifications = prefs.getBool('pushNotifications') ?? true;
-        _emailNotifications = prefs.getBool('emailNotifications') ?? true;
-        _campaignUpdates = prefs.getBool('campaignUpdates') ?? true;
-        _eventReminders = prefs.getBool('eventReminders') ?? true;
-        _donationReceipts = prefs.getBool('donationReceipts') ?? true;
-        _sosAlerts = prefs.getBool('sosAlerts') ?? true;
-        _ngoUpdates = prefs.getBool('ngoUpdates') ?? true;
+        _pushNotifications = pushNotifications == null ? true : pushNotifications == 'true';
+        _emailNotifications = emailNotifications == null ? true : emailNotifications == 'true';
+        _campaignUpdates = campaignUpdates == null ? true : campaignUpdates == 'true';
+        _eventReminders = eventReminders == null ? true : eventReminders == 'true';
+        _donationReceipts = donationReceipts == null ? true : donationReceipts == 'true';
+        _sosAlerts = sosAlerts == null ? true : sosAlerts == 'true';
+        _ngoUpdates = ngoUpdates == null ? true : ngoUpdates == 'true';
         _isLoadingSettings = false;
       });
-      
+
       // Load from Firestore
       if (_userId != null) {
         final doc = await FirebaseFirestore.instance
             .collection('volunteer_settings')
             .doc(_userId)
             .get();
-        
         if (doc.exists) {
           final data = doc.data()!;
           setState(() {
@@ -85,16 +92,14 @@ class _VolunteerNotificationsScreenState extends State<VolunteerNotificationsScr
 
   Future<void> _saveSettings() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      
-      await prefs.setBool('pushNotifications', _pushNotifications);
-      await prefs.setBool('emailNotifications', _emailNotifications);
-      await prefs.setBool('campaignUpdates', _campaignUpdates);
-      await prefs.setBool('eventReminders', _eventReminders);
-      await prefs.setBool('donationReceipts', _donationReceipts);
-      await prefs.setBool('sosAlerts', _sosAlerts);
-      await prefs.setBool('ngoUpdates', _ngoUpdates);
-      
+      await _secureStorage.write(key: 'pushNotifications', value: _pushNotifications.toString());
+      await _secureStorage.write(key: 'emailNotifications', value: _emailNotifications.toString());
+      await _secureStorage.write(key: 'campaignUpdates', value: _campaignUpdates.toString());
+      await _secureStorage.write(key: 'eventReminders', value: _eventReminders.toString());
+      await _secureStorage.write(key: 'donationReceipts', value: _donationReceipts.toString());
+      await _secureStorage.write(key: 'sosAlerts', value: _sosAlerts.toString());
+      await _secureStorage.write(key: 'ngoUpdates', value: _ngoUpdates.toString());
+
       if (_userId != null) {
         await FirebaseFirestore.instance
             .collection('volunteer_settings')
@@ -110,7 +115,7 @@ class _VolunteerNotificationsScreenState extends State<VolunteerNotificationsScr
           'updatedAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
       }
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(

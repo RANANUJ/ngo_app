@@ -1,5 +1,5 @@
-﻿import 'package:flutter/material.dart';
-import '../payment_donation_screen.dart';
+import 'package:flutter/material.dart';
+import 'package:ngo_app/screens/donations/payment_donation_screen.dart';
 
 class VolunteerImpactDetailScreen extends StatefulWidget {
   final String impactId;

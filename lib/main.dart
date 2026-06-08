@@ -1,3 +1,4 @@
+import 'package:ngo_app/core/utils/network/network_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -6,21 +7,16 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'firebase_options.dart';
-import 'screens/splash_screen.dart';
-import 'utils/seed_government_schemes.dart';
-import 'services/notification_service.dart';
-import 'services/cache_service.dart';
-import 'services/language_service.dart';
-import 'services/crashlytics_service.dart';
-import 'services/remote_config_service.dart';
-import 'services/analytics_service.dart';
+import 'package:ngo_app/screens/auth/splash_screen.dart';
+import 'package:ngo_app/core/utils/seeding/seed_government_schemes.dart';
+import 'package:ngo_app/core/services/notification_service.dart';
+import 'package:ngo_app/core/services/cache_service.dart';
+import 'package:ngo_app/core/services/language_service.dart';
+import 'package:ngo_app/core/services/crashlytics_service.dart';
+import 'package:ngo_app/core/services/remote_config_service.dart';
+import 'package:ngo_app/core/services/analytics_service.dart';
 import 'l10n/app_localizations.dart';
 
-// IMPORTANT: Add your platform config files from the Firebase console:
-// - Android: place `google-services.json` into `android/app/`
-// - iOS: place `GoogleService-Info.plist` into `ios/Runner/`
-// Also follow the Firebase Flutter setup docs to add the Gradle plugin and
-// iOS bundle configuration. See README notes below after running pub get.
 
 // Flutter local notifications plugin instance for background use
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
@@ -30,7 +26,7 @@ final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  debugPrint('Background message: ${message.notification?.title}');
+  secureLog('Background message: ${message.notification?.title}');
   
   // Show local notification when app is in background/terminated
   await _showBackgroundNotification(message);
@@ -103,7 +99,7 @@ Future<void> _showBackgroundNotification(RemoteMessage message) async {
       ),
     );
     
-    debugPrint('Background notification shown: ${notification.title}');
+    secureLog('Background notification shown: ${notification.title}');
   }
 }
 

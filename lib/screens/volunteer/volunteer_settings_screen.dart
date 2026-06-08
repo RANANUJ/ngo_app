@@ -1,14 +1,16 @@
+import 'package:ngo_app/core/utils/network/network_utils.dart';
+import 'package:encrypt/encrypt.dart' as encrypt;
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
-import '../../services/language_service.dart';
+import 'package:ngo_app/core/services/language_service.dart';
 import '../../l10n/app_localizations.dart';
 
 class VolunteerSettingsScreen extends StatefulWidget {
@@ -19,6 +21,11 @@ class VolunteerSettingsScreen extends StatefulWidget {
 }
 
 class _VolunteerSettingsScreenState extends State<VolunteerSettingsScreen> {
+  // Encryption key and IV (should be managed securely in production)
+  final encrypt.Key _key = encrypt.Key.fromUtf8('my32lengthsupersecretnooneknows!');
+  final encrypt.IV _iv = encrypt.IV.fromLength(16);
+  late final encrypt.Encrypter _encrypter = encrypt.Encrypter(encrypt.AES(_key));
+
   static const Color primary = Color(0xFF0099B8);
   
   // Notification Settings
@@ -46,26 +53,37 @@ class _VolunteerSettingsScreenState extends State<VolunteerSettingsScreen> {
     _loadSettings();
   }
 
+  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
   Future<void> _loadSettings() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      
-      // Load from SharedPreferences
+      // Load from FlutterSecureStorage
+      final pushNotifications = await _secureStorage.read(key: 'pushNotifications');
+      final emailNotifications = await _secureStorage.read(key: 'emailNotifications');
+      final campaignUpdates = await _secureStorage.read(key: 'campaignUpdates');
+      final eventReminders = await _secureStorage.read(key: 'eventReminders');
+      final donationReceipts = await _secureStorage.read(key: 'donationReceipts');
+      final sosAlerts = await _secureStorage.read(key: 'sosAlerts');
+      final showProfile = await _secureStorage.read(key: 'showProfile');
+      final showActivity = await _secureStorage.read(key: 'showActivity');
+      final allowMessages = await _secureStorage.read(key: 'allowMessages');
+      final darkMode = await _secureStorage.read(key: 'darkMode');
+      final language = await _secureStorage.read(key: 'language');
+
       setState(() {
-        _pushNotifications = prefs.getBool('pushNotifications') ?? true;
-        _emailNotifications = prefs.getBool('emailNotifications') ?? true;
-        _campaignUpdates = prefs.getBool('campaignUpdates') ?? true;
-        _eventReminders = prefs.getBool('eventReminders') ?? true;
-        _donationReceipts = prefs.getBool('donationReceipts') ?? true;
-        _sosAlerts = prefs.getBool('sosAlerts') ?? true;
-        _showProfile = prefs.getBool('showProfile') ?? true;
-        _showActivity = prefs.getBool('showActivity') ?? true;
-        _allowMessages = prefs.getBool('allowMessages') ?? true;
-        _darkMode = prefs.getBool('darkMode') ?? false;
-        _language = prefs.getString('language') ?? 'English';
+        _pushNotifications = pushNotifications == null ? true : pushNotifications == 'true';
+        _emailNotifications = emailNotifications == null ? true : emailNotifications == 'true';
+        _campaignUpdates = campaignUpdates == null ? true : campaignUpdates == 'true';
+        _eventReminders = eventReminders == null ? true : eventReminders == 'true';
+        _donationReceipts = donationReceipts == null ? true : donationReceipts == 'true';
+        _sosAlerts = sosAlerts == null ? true : sosAlerts == 'true';
+        _showProfile = showProfile == null ? true : showProfile == 'true';
+        _showActivity = showActivity == null ? true : showActivity == 'true';
+        _allowMessages = allowMessages == null ? true : allowMessages == 'true';
+        _darkMode = darkMode == null ? false : darkMode == 'true';
+        _language = language ?? 'English';
         _isLoading = false;
       });
-      
+
       // Also try to load from Firestore
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
@@ -73,7 +91,6 @@ class _VolunteerSettingsScreenState extends State<VolunteerSettingsScreen> {
             .collection('volunteer_settings')
             .doc(user.uid)
             .get();
-        
         if (doc.exists) {
           final data = doc.data()!;
           setState(() {
@@ -90,21 +107,16 @@ class _VolunteerSettingsScreenState extends State<VolunteerSettingsScreen> {
         }
       }
     } catch (e) {
-      debugPrint('Error loading settings: $e');
+      secureLog('Error loading settings: $e');
       setState(() => _isLoading = false);
     }
   }
 
   Future<void> _saveSetting(String key, dynamic value) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      
-      if (value is bool) {
-        await prefs.setBool(key, value);
-      } else if (value is String) {
-        await prefs.setString(key, value);
+      if (value is bool || value is String) {
+        await _secureStorage.write(key: key, value: value.toString());
       }
-      
       // Also save to Firestore
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
@@ -114,7 +126,7 @@ class _VolunteerSettingsScreenState extends State<VolunteerSettingsScreen> {
             .set({key: value}, SetOptions(merge: true));
       }
     } catch (e) {
-      debugPrint('Error saving setting: $e');
+      secureLog('Error saving setting: $e');
     }
   }
 
@@ -751,6 +763,8 @@ class _VolunteerSettingsScreenState extends State<VolunteerSettingsScreen> {
 
       // Decode the base64 PDF
       final pdfBytes = base64Decode(pdfBase64);
+      // Encrypt PDF bytes before saving
+      final encrypted = _encrypter.encryptBytes(pdfBytes, iv: _iv);
 
       // Get the downloads directory
       Directory? directory;
@@ -767,7 +781,7 @@ class _VolunteerSettingsScreenState extends State<VolunteerSettingsScreen> {
 
       final filePath = '${directory!.path}/$fileName';
       final file = File(filePath);
-      await file.writeAsBytes(pdfBytes);
+      await file.writeAsBytes(encrypted.bytes);
 
       // Close loading dialog
       if (mounted) Navigator.pop(context);
@@ -790,7 +804,7 @@ class _VolunteerSettingsScreenState extends State<VolunteerSettingsScreen> {
       // Close loading dialog
       if (mounted) Navigator.pop(context);
 
-      debugPrint('Data export error: $e');
+      secureLog('Data export error: $e');
 
       // Parse error message
       String errorMessage = 'Failed to export data. Please try again.';

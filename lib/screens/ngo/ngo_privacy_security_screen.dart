@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../services/ngo_registration_service.dart';
+import 'package:ngo_app/features/ngo/data/services/ngo_registration_service.dart';
 import 'ngo_reset_password_screen.dart';
 
 class NgoPrivacySecurityScreen extends StatefulWidget {

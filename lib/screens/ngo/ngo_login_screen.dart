@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:async';
-import '../../services/ngo_registration_service.dart';
-import '../../services/local_storage_service.dart';
+import 'package:ngo_app/features/ngo/data/services/ngo_registration_service.dart';
+import 'package:ngo_app/features/storage/data/services/local_storage_service.dart';
 import 'ngo_home_screen.dart';
 
 class NgoLoginScreen extends StatefulWidget {

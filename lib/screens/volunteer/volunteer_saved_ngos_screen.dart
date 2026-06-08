@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../ngo/ngo_public_profile_screen.dart';
-import '../../services/ngo_registration_service.dart';
+import 'package:ngo_app/features/ngo/data/services/ngo_registration_service.dart';
 
 class VolunteerSavedNgosScreen extends StatefulWidget {
   const VolunteerSavedNgosScreen({Key? key}) : super(key: key);
@@ -33,7 +33,7 @@ class _VolunteerSavedNgosScreenState extends State<VolunteerSavedNgosScreen> {
   Widget _buildNgosList() {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
-          .collection('volunteer_registrations')
+          .collection('volunteer_requests')
           .where('volunteerId', isEqualTo: _userId)
           .where('status', isEqualTo: 'approved')
           .snapshots(),
@@ -96,7 +96,7 @@ class _VolunteerSavedNgosScreenState extends State<VolunteerSavedNgosScreen> {
   Widget _buildAlternateNgosList() {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
-          .collection('volunteer_registrations')
+          .collection('volunteer_requests')
           .where('volunteerId', isEqualTo: _userId)
           .snapshots(),
       builder: (context, snapshot) {

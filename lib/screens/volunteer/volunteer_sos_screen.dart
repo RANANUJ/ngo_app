@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
@@ -7,9 +8,9 @@ import 'package:geocoding/geocoding.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import '../../services/notification_service.dart';
-import '../../services/analytics_service.dart';
-import '../../utils/network_utils.dart';
+import 'package:ngo_app/core/services/notification_service.dart';
+import 'package:ngo_app/core/services/analytics_service.dart';
+import 'package:ngo_app/core/utils/network/network_utils.dart';
 
 class VolunteerSOSScreen extends StatefulWidget {
   final String odid;
@@ -26,6 +27,19 @@ class VolunteerSOSScreen extends StatefulWidget {
 }
 
 class _VolunteerSOSScreenState extends State<VolunteerSOSScreen> with SingleTickerProviderStateMixin {
+    // Haversine formula to calculate distance between two lat/lng points in km
+    double calculateDistance(double lat1, double lon1, double lat2, double lon2) {
+      const earthRadius = 6371.0; // km
+      final dLat = (lat2 - lat1) * (3.141592653589793 / 180.0);
+      final dLon = (lon2 - lon1) * (3.141592653589793 / 180.0);
+      final a =
+          (sin(dLat / 2) * sin(dLat / 2)) +
+          cos(lat1 * (3.141592653589793 / 180.0)) *
+          cos(lat2 * (3.141592653589793 / 180.0)) *
+          (sin(dLon / 2) * sin(dLon / 2));
+      final c = 2 * atan2(sqrt(a), sqrt(1 - a));
+      return earthRadius * c;
+    }
   static const Color primary = Color(0xFF0099B8);
   static const Color sosRed = Color(0xFFE53935);
 
@@ -1068,7 +1082,6 @@ class _VolunteerSOSScreenState extends State<VolunteerSOSScreen> with SingleTick
       stream: FirebaseFirestore.instance
           .collection('ngo_registrations')
           .where('status', isEqualTo: 'approved')
-          .limit(10)
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -1086,15 +1099,60 @@ class _VolunteerSOSScreenState extends State<VolunteerSOSScreen> with SingleTick
           );
         }
 
-        // Filter out NGOs without names or phone numbers
-        final validNgos = snapshot.data!.docs.where((doc) {
+        // If user location is not available, show all valid NGOs (fallback)
+        if (_currentPosition == null) {
+          final validNgos = snapshot.data!.docs.where((doc) {
+            final ngo = doc.data() as Map<String, dynamic>;
+            final name = ngo['ngoName']?.toString().trim() ?? '';
+            final phone = ngo['mobileNo']?.toString().trim() ?? '';
+            return name.isNotEmpty && phone.isNotEmpty;
+          }).take(5).toList();
+          if (validNgos.isEmpty) {
+            return Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Center(child: Text('No nearby NGOs found')),
+            );
+          }
+          return ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: validNgos.length,
+            itemBuilder: (context, index) {
+              final ngo = validNgos[index].data() as Map<String, dynamic>;
+              return _buildNGOContactCard(ngo);
+            },
+          );
+        }
+
+        // Filter NGOs by distance (within 10km)
+        final userLat = _currentPosition!.latitude;
+        final userLon = _currentPosition!.longitude;
+        final List<Map<String, dynamic>> nearbyNgos = [];
+
+        for (final doc in snapshot.data!.docs) {
           final ngo = doc.data() as Map<String, dynamic>;
           final name = ngo['ngoName']?.toString().trim() ?? '';
           final phone = ngo['mobileNo']?.toString().trim() ?? '';
-          return name.isNotEmpty && phone.isNotEmpty;
-        }).take(5).toList();
+          final lat = ngo['latitude'];
+          final lon = ngo['longitude'];
+          if (name.isNotEmpty && phone.isNotEmpty && lat != null && lon != null) {
+            final distance = calculateDistance(userLat, userLon, lat.toDouble(), lon.toDouble());
+            if (distance <= 10.0) {
+              final ngoWithDistance = Map<String, dynamic>.from(ngo);
+              ngoWithDistance['distance'] = distance;
+              nearbyNgos.add(ngoWithDistance);
+            }
+          }
+        }
 
-        if (validNgos.isEmpty) {
+        // Sort by distance
+        nearbyNgos.sort((a, b) => (a['distance'] as double).compareTo(b['distance'] as double));
+
+        if (nearbyNgos.isEmpty) {
           return Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
@@ -1108,9 +1166,9 @@ class _VolunteerSOSScreenState extends State<VolunteerSOSScreen> with SingleTick
         return ListView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          itemCount: validNgos.length,
+          itemCount: nearbyNgos.length,
           itemBuilder: (context, index) {
-            final ngo = validNgos[index].data() as Map<String, dynamic>;
+            final ngo = nearbyNgos[index];
             return _buildNGOContactCard(ngo);
           },
         );

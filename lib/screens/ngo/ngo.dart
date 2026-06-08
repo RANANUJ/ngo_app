@@ -4,7 +4,7 @@
 
 export 'ngo_dashboard_screen.dart';
 export 'ngo_home_screen.dart';
-export 'ngo_login_screen.dart';
+export 'package:ngo_app/screens/auth/login_screen.dart';
 export 'ngo_verification_status_screen.dart';
 export 'ngo_volunteers_screen.dart';
 export 'ngo_progress_screen.dart';

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../post_feed_screen.dart';
+import '../community/post_feed_screen.dart';
 
 class NgoExploreScreen extends StatefulWidget {
   final String? userId;

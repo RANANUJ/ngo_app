@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
-import '../../services/ngo_registration_service.dart';
+import 'package:ngo_app/features/ngo/data/services/ngo_registration_service.dart';
 
 class NgoEditProfileScreen extends StatefulWidget {
   final NgoRegistrationRequest ngoData;

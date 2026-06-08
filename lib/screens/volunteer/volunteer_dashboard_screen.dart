@@ -1,3 +1,4 @@
+ import 'package:ngo_app/core/utils/network/network_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -5,12 +6,12 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../../l10n/app_localizations.dart';
-import '../user_type_screen.dart';
-import '../discover_ngo_screen.dart';
-import '../campaign_list_screen.dart';
-import '../government_schemes_screen.dart';
+import 'package:ngo_app/screens/auth/user_type_screen.dart';
+import 'package:ngo_app/screens/discovery/discover_ngo_screen.dart';
+import '../campaigns/campaign_list_screen.dart';
+import 'package:ngo_app/screens/government/government_schemes_screen.dart';
 import 'volunteer_opportunities_screen.dart';
-import '../community_screen.dart';
+import '../community/community_screen.dart';
 import 'volunteer_donation_screen.dart';
 import 'volunteer_csr_screen.dart';
 import '../ngo/ngo_explore_screen.dart';
@@ -19,7 +20,7 @@ import 'volunteer_progress_screen.dart';
 import 'volunteer_sos_screen.dart';
 import 'volunteer_edit_profile_screen.dart';
 import 'volunteer_my_campaigns_screen.dart';
-import 'volunteer_donation_history_screen.dart';
+import 'package:ngo_app/screens/donations/donation_history_screen.dart';
 import 'volunteer_my_events_screen.dart';
 import 'volunteer_saved_ngos_screen.dart';
 import 'volunteer_notifications_screen.dart';
@@ -27,9 +28,9 @@ import 'volunteer_settings_screen.dart';
 import 'volunteer_help_support_screen.dart';
 import 'volunteer_privacy_policy_screen.dart';
 import 'monthly_donation_screen.dart';
-import '../../services/cache_service.dart';
-import '../../services/notification_service.dart';
-import '../../services/analytics_service.dart';
+import 'package:ngo_app/core/services/cache_service.dart';
+import 'package:ngo_app/core/services/notification_service.dart';
+import 'package:ngo_app/core/services/analytics_service.dart';
 
 class VolunteerDashboardScreen extends StatefulWidget {
   const VolunteerDashboardScreen({Key? key}) : super(key: key);
@@ -68,7 +69,7 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
     super.initState();
     // Cache userId immediately
     _userId = FirebaseAuth.instance.currentUser?.uid;
-    debugPrint('VolunteerDashboard: User ID = $_userId');
+    secureLog('VolunteerDashboard: User ID = $_userId');
     
     // Track screen view and set user properties
     _analytics.logScreenView('volunteer_dashboard', screenClass: 'VolunteerDashboardScreen');
@@ -85,12 +86,12 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
   Future<void> _initializeVolunteerNotifications() async {
     if (_userId != null) {
       try {
-        debugPrint('🟢 Initializing volunteer notifications for user: $_userId');
+        secureLog('🟢 Initializing volunteer notifications for user: $_userId');
         await NotificationService().initialize();
         await NotificationService().updateVolunteerFcmToken(_userId!);
-        debugPrint('✅ Volunteer notifications initialized successfully');
+        secureLog('✅ Volunteer notifications initialized successfully');
       } catch (e) {
-        debugPrint('❌ Error initializing volunteer notifications: $e');
+        secureLog('❌ Error initializing volunteer notifications: $e');
       }
     }
   }
@@ -120,16 +121,16 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
       }
       
       await CacheService().preloadNetworkImages(imageUrls);
-      debugPrint('Preloaded ${imageUrls.length} NGO logos');
+      secureLog('Preloaded ${imageUrls.length} NGO logos');
     } catch (e) {
-      debugPrint('Error preloading NGO logos: $e');
+      secureLog('Error preloading NGO logos: $e');
     }
   }
 
   Future<void> _loadUserProfile() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      debugPrint('VolunteerDashboard: No Firebase user found');
+      secureLog('VolunteerDashboard: No Firebase user found');
       return;
     }
     
@@ -193,7 +194,7 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
         _isLoadingProfile = false;
       });
     } catch (e) {
-      debugPrint('Error loading profile: $e');
+      secureLog('Error loading profile: $e');
       setState(() => _isLoadingProfile = false);
     }
   }
@@ -1641,11 +1642,11 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
       // Remove FCM token before logout
       if (_userId != null) {
         try {
-          debugPrint('🔴 Logging out volunteer: $_userId');
+          secureLog('🔴 Logging out volunteer: $_userId');
           await NotificationService().removeVolunteerFcmToken(_userId!);
-          debugPrint('✅ FCM cleanup completed');
+          secureLog('✅ FCM cleanup completed');
         } catch (e) {
-          debugPrint('❌ Error during FCM cleanup: $e');
+          secureLog('❌ Error during FCM cleanup: $e');
         }
       }
       

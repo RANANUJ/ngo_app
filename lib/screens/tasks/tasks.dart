@@ -1,0 +1,1 @@
+export 'quick_task_screen.dart';

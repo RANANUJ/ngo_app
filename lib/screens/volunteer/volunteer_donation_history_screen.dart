@@ -1,3 +1,4 @@
+import 'package:ngo_app/core/utils/network/network_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -67,7 +68,7 @@ class _VolunteerDonationHistoryScreenState extends State<VolunteerDonationHistor
         });
       }
     } catch (e) {
-      debugPrint('Error loading stats: $e');
+      secureLog('Error loading stats: $e');
     }
   }
 
@@ -221,14 +222,125 @@ class _VolunteerDonationHistoryScreenState extends State<VolunteerDonationHistor
             padding: const EdgeInsets.symmetric(horizontal: 16),
             itemCount: allDonations.length,
             itemBuilder: (context, index) {
-              final donation = allDonations[index];
-              return _buildDonationCard(donation);
-            },
-          ),
-        );
-      },
-    );
+            final donation = allDonations[index];
+            return GestureDetector(
+              onTap: () => showDonationDetailDialog(context, donation),
+              child: _buildDonationCard(donation),
+            );
+          },
+        ),
+      );
+    },
+  );
+}
+
+void showDonationDetailDialog(BuildContext context, Map<String, dynamic> donation) {
+  final type = donation['type'] as String;
+  final amount = donation['amount'] ?? 0;
+  final createdAt = donation['createdAt'] as Timestamp?;
+  final isAnonymous = donation['isAnonymous'] ?? false;
+  final paymentId = donation['paymentId'] ?? '';
+  final ngoName = donation['ngoName'] ?? donation['receiverName'] ?? 'N/A';
+  final donorName = donation['donorName'] ?? 'N/A';
+  final donorEmail = donation['donorEmail'] ?? '';
+  final donorPhone = donation['donorPhone'] ?? '';
+  String title;
+  switch (type) {
+    case 'emergency':
+      title = donation['emergencyTitle'] ?? 'Emergency Donation';
+      break;
+    case 'impact':
+      title = donation['impactTitle'] ?? 'Impact Support';
+      break;
+    default:
+      title = donation['requestTitle'] ?? 'Donation';
   }
+  String dateStr = 'N/A';
+  if (createdAt != null) {
+    final date = createdAt.toDate();
+    dateStr = '${date.day}/${date.month}/${date.year}';
+  }
+  showDialog(
+    context: context,
+    builder: (context) {
+      return Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.receipt_long, color: Color(0xFF0099B8), size: 32),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Donation Details',
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF0099B8)),
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 16),
+              detailRow('Title', title),
+              detailRow('NGO', ngoName),
+              detailRow('Amount', '₹$amount'),
+              detailRow('Date', dateStr),
+              if (paymentId.isNotEmpty) detailRow('Payment ID', paymentId),
+              if (isAnonymous)
+                detailRow('Donor', 'Anonymous'),
+              if (!isAnonymous) ...[
+                detailRow('Donor', donorName),
+                if (donorEmail.isNotEmpty) detailRow('Email', donorEmail),
+                if (donorPhone.isNotEmpty) detailRow('Phone', donorPhone),
+              ],
+              SizedBox(height: 24),
+              Align(
+                alignment: Alignment.centerRight,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color(0xFF0099B8),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  onPressed: () => Navigator.pop(context),
+                  child: Text('Close'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}
+
+Widget detailRow(String label, String value) {
+  return Padding(
+    padding: const EdgeInsets.symmetric(vertical: 4),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 100,
+          child: Text(
+            label,
+            style: TextStyle(fontWeight: FontWeight.w600, color: Colors.grey[700]),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: TextStyle(color: Colors.black87),
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    ),
+  );
+}
 
   Future<List<Map<String, dynamic>>> _getAllDonations(String userId) async {
     List<Map<String, dynamic>> allDonations = [];
@@ -249,7 +361,7 @@ class _VolunteerDonationHistoryScreenState extends State<VolunteerDonationHistor
         });
       }
     } catch (e) {
-      debugPrint('Error loading donations: $e');
+      secureLog('Error loading donations: $e');
     }
 
     try {
@@ -268,7 +380,7 @@ class _VolunteerDonationHistoryScreenState extends State<VolunteerDonationHistor
         });
       }
     } catch (e) {
-      debugPrint('Error loading emergency donations: $e');
+      secureLog('Error loading emergency donations: $e');
     }
 
     try {
@@ -287,7 +399,7 @@ class _VolunteerDonationHistoryScreenState extends State<VolunteerDonationHistor
         });
       }
     } catch (e) {
-      debugPrint('Error loading impact donations: $e');
+      secureLog('Error loading impact donations: $e');
     }
 
     // Sort by createdAt
@@ -299,7 +411,7 @@ class _VolunteerDonationHistoryScreenState extends State<VolunteerDonationHistor
 
     return allDonations;
   }
-
+ 
   Widget _buildDonationCard(Map<String, dynamic> donation) {
     final type = donation['type'] as String;
     final amount = donation['amount'] ?? 0;
