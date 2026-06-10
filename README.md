@@ -161,9 +161,36 @@ See `docs/architecture/FOLDER_STRUCTURE.md` for the complete migration map and t
 
 ## 📱 Screenshots
 
+<div align="center">
+
+### NGO Dashboard
+
 <p align="center">
-  <i>Coming Soon</i>
+  <img src="assets/screenshots/ngo/ngo_splash.jpeg" alt="NGO Splash" width="220" />
+  <img src="assets/screenshots/ngo/ngo_login.jpeg" alt="NGO Login" width="220" />
+  <img src="assets/screenshots/ngo/ngo_signup.jpeg" alt="NGO Signup" width="220" />
+  <img src="assets/screenshots/ngo/ngo_home.jpeg" alt="NGO Home" width="220" />
+  <img src="assets/screenshots/ngo/ngo_alert.jpeg" alt="NGO Alert" width="220" />
+  <img src="assets/screenshots/ngo/ngo_csr.jpeg" alt="NGO CSR" width="220" />
+  <img src="assets/screenshots/ngo/ngo_gov.jpeg" alt="NGO Government" width="220" />
+  <img src="assets/screenshots/ngo/ngo_gov1.jpeg" alt="NGO Government 2" width="220" />
 </p>
+
+---
+
+### Volunteer Dashboard
+
+<p align="center">
+  <img src="assets/screenshots/vol/vol_home.jpeg" alt="Volunteer Home" width="220" />
+  <img src="assets/screenshots/vol/vol_event.jpeg" alt="Volunteer Event" width="220" />
+  <img src="assets/screenshots/vol/vol_donation.jpeg" alt="Volunteer Donation" width="220" />
+  <img src="assets/screenshots/vol/vol_emergency.jpeg" alt="Volunteer Emergency" width="220" />
+  <img src="assets/screenshots/vol/vol_comm.jpeg" alt="Volunteer Community" width="220" />
+  <img src="assets/screenshots/vol/vol_expert.jpeg" alt="Volunteer Expert" width="220" />
+  <img src="assets/screenshots/vol/vol_gov.jpeg" alt="Volunteer Government" width="220" />
+</p>
+
+</div>
 
 
 ---
