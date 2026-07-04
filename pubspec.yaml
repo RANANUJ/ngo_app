@@ -44,6 +44,8 @@ dependencies:
   pdf: ^3.11.3
   path_provider: ^2.1.5
   encrypt: ^5.0.3
+  flutter_cache_manager: ^3.4.1
+  typed_data: ^1.4.0
 
 dev_dependencies:
   flutter_test:

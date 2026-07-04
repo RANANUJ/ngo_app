@@ -298,7 +298,7 @@ class _NgoReportsScreenState extends State<NgoReportsScreen> with SingleTickerPr
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(icon, color: color, size: 24),
@@ -470,7 +470,7 @@ class _NgoReportsScreenState extends State<NgoReportsScreen> with SingleTickerPr
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(icon, color: color, size: 28),
@@ -606,7 +606,7 @@ class _NgoReportsScreenState extends State<NgoReportsScreen> with SingleTickerPr
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -694,7 +694,7 @@ class _NgoReportsScreenState extends State<NgoReportsScreen> with SingleTickerPr
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [primary, primary.withOpacity(0.7)],
+                colors: [primary, primary.withValues(alpha: 0.7)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -731,7 +731,7 @@ class _NgoReportsScreenState extends State<NgoReportsScreen> with SingleTickerPr
           if (_recentDonations.isEmpty)
             _buildEmptyState('No donations yet', 'Share your campaigns to receive donations')
           else
-            ...(_recentDonations.map((donation) => _buildDonationCard(donation)).toList()),
+            ...(_recentDonations.map((donation) => _buildDonationCard(donation))),
         ],
       ),
     );
@@ -757,7 +757,7 @@ class _NgoReportsScreenState extends State<NgoReportsScreen> with SingleTickerPr
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: Colors.green.withOpacity(0.1),
+              color: Colors.green.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: const Icon(Icons.volunteer_activism, color: Colors.green),

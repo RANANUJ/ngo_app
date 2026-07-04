@@ -2450,12 +2450,23 @@ class _MonthlyDonationScreenState extends State<MonthlyDonationScreen>
     );
   }
 
-  void _processFirstPayment() {
+  void _processFirstPayment() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
+    String activeKeyId = 'rzp_test_Rsb9ATnbTWb7WI';
+    try {
+      final configDoc = await FirebaseFirestore.instance
+          .collection('app_config')
+          .doc('razorpay')
+          .get();
+      if (configDoc.exists) {
+        activeKeyId = configDoc.data()?['keyId'] ?? 'rzp_test_Rsb9ATnbTWb7WI';
+      }
+    } catch (_) {}
+
     final options = {
-      'key': 'rzp_test_Rsb9ATnbTWb7WI', // Test key - same as razorpay_service.dart
+      'key': activeKeyId,
       'amount': _selectedAmount * 100, // Amount in paise
       'name': 'Connect NGO',
       'description': 'Monthly Donation - ${_getCategoryName(_selectedCategory!)}',

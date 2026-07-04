@@ -2,7 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:http/http.dart' as http;
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ngo_app/core/utils/network/network_utils.dart';
 
 class LocationPickerScreen extends StatefulWidget {
   final double? initialLatitude;
@@ -22,7 +23,7 @@ class LocationPickerScreen extends StatefulWidget {
 
 class _LocationPickerScreenState extends State<LocationPickerScreen> {
   static const Color primary = Color(0xFF0099B8);
-  static const String _apiKey = 'AIzaSyD8MQh5_4U9rKnVVTuRxYapD1DvQNq0EDU';
+  String _activeApiKey = 'AIzaSyD8MQh5_4U9rKnVVTuRxYapD1DvQNq0EDU';
   
   final Completer<GoogleMapController> _controller = Completer();
   final TextEditingController _searchController = TextEditingController();
@@ -38,11 +39,26 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
   @override
   void initState() {
     super.initState();
+    _loadApiKey();
     if (widget.initialLatitude != null && widget.initialLongitude != null) {
       _selectedLocation = LatLng(widget.initialLatitude!, widget.initialLongitude!);
       _selectedAddress = widget.initialAddress ?? '';
     }
     _updateMarker();
+  }
+
+  void _loadApiKey() async {
+    try {
+      final doc = await FirebaseFirestore.instance.collection('app_config').doc('maps').get();
+      if (doc.exists && mounted) {
+        final key = doc.data()?['apiKey'];
+        if (key != null && key.toString().isNotEmpty) {
+          setState(() {
+            _activeApiKey = key.toString();
+          });
+        }
+      }
+    } catch (_) {}
   }
 
   void _updateMarker() {
@@ -65,8 +81,8 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
     setState(() => _isLoading = true);
     
     try {
-      final url = 'https://maps.googleapis.com/maps/api/geocode/json?latlng=${position.latitude},${position.longitude}&key=$_apiKey';
-      final response = await http.get(Uri.parse(url));
+      final url = 'https://maps.googleapis.com/maps/api/geocode/json?latlng=${position.latitude},${position.longitude}&key=$_activeApiKey';
+      final response = await SecureHttp.get(Uri.parse(url));
       
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -96,8 +112,8 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
     setState(() => _isSearching = true);
 
     try {
-      final url = 'https://maps.googleapis.com/maps/api/geocode/json?address=${Uri.encodeComponent(query)}&key=$_apiKey';
-      final response = await http.get(Uri.parse(url));
+      final url = 'https://maps.googleapis.com/maps/api/geocode/json?address=${Uri.encodeComponent(query)}&key=$_activeApiKey';
+      final response = await SecureHttp.get(Uri.parse(url));
       
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -218,7 +234,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
+                        color: Colors.black.withValues(alpha: 0.1),
                         blurRadius: 10,
                         offset: const Offset(0, 2),
                       ),
@@ -262,7 +278,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                       borderRadius: BorderRadius.circular(12),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
+                          color: Colors.black.withValues(alpha: 0.1),
                           blurRadius: 10,
                           offset: const Offset(0, 2),
                         ),
@@ -332,7 +348,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
+                    color: Colors.black.withValues(alpha: 0.1),
                     blurRadius: 10,
                     offset: const Offset(0, 2),
                   ),
@@ -347,7 +363,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: primary.withOpacity(0.1),
+                          color: primary.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Icon(Icons.location_on, color: primary, size: 24),

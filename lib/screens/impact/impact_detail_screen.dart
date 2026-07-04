@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:ngo_app/screens/donations/payment_donation_screen.dart';
+import 'package:ngo_app/features/donations/presentation/screens/payment_donation_screen.dart';
 
 class ImpactDetailScreen extends StatefulWidget {
   final Map<String, dynamic> data;
@@ -83,12 +83,12 @@ class _ImpactDetailScreenState extends State<ImpactDetailScreen> {
                           images.first,
                           fit: BoxFit.cover,
                           errorBuilder: (_, __, ___) => Container(
-                            color: primary.withOpacity(0.3),
+                            color: primary.withValues(alpha: 0.3),
                             child: const Icon(Icons.insights, size: 80, color: Colors.white),
                           ),
                         )
                       : Container(
-                          color: primary.withOpacity(0.3),
+                          color: primary.withValues(alpha: 0.3),
                           child: const Icon(Icons.insights, size: 80, color: Colors.white),
                         ),
                 ),
@@ -137,7 +137,7 @@ class _ImpactDetailScreenState extends State<ImpactDetailScreen> {
                           borderRadius: BorderRadius.circular(12),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.grey.withOpacity(0.1),
+                              color: Colors.grey.withValues(alpha: 0.1),
                               blurRadius: 4,
                               offset: const Offset(0, 2),
                             ),
@@ -150,7 +150,7 @@ class _ImpactDetailScreenState extends State<ImpactDetailScreen> {
                               backgroundImage: ngoLogo.isNotEmpty
                                   ? NetworkImage(ngoLogo)
                                   : null,
-                              backgroundColor: primary.withOpacity(0.1),
+                              backgroundColor: primary.withValues(alpha: 0.1),
                               child: ngoLogo.isEmpty
                                   ? const Icon(Icons.business, color: primary)
                                   : null,
@@ -191,7 +191,7 @@ class _ImpactDetailScreenState extends State<ImpactDetailScreen> {
                               decoration: BoxDecoration(
                                 color: Colors.white,
                                 borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: primary.withOpacity(0.3)),
+                                border: Border.all(color: primary.withValues(alpha: 0.3)),
                               ),
                               child: Column(
                                 children: [
@@ -223,7 +223,7 @@ class _ImpactDetailScreenState extends State<ImpactDetailScreen> {
                               decoration: BoxDecoration(
                                 color: Colors.white,
                                 borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: Colors.green.withOpacity(0.3)),
+                                border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
                               ),
                               child: Column(
                                 children: [
@@ -328,7 +328,7 @@ class _ImpactDetailScreenState extends State<ImpactDetailScreen> {
                     color: Colors.white,
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.grey.withOpacity(0.2),
+                        color: Colors.grey.withValues(alpha: 0.2),
                         blurRadius: 8,
                         offset: const Offset(0, -4),
                       ),
@@ -378,7 +378,7 @@ class _ImpactDetailScreenState extends State<ImpactDetailScreen> {
                     color: Colors.white,
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.grey.withOpacity(0.2),
+                        color: Colors.grey.withValues(alpha: 0.2),
                         blurRadius: 8,
                         offset: const Offset(0, -4),
                       ),

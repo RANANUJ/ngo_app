@@ -4,33 +4,38 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:ngo_app/screens/volunteer/volunteer_donation_history_screen.dart';
+import 'package:ngo_app/features/donations/presentation/screens/volunteer_donation_screen.dart';
 import 'dart:io';
+import 'dart:convert';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../l10n/app_localizations.dart';
-import 'package:ngo_app/screens/auth/user_type_screen.dart';
+import 'package:ngo_app/features/auth/presentation/screens/user_type_screen.dart';
 import 'package:ngo_app/screens/discovery/discover_ngo_screen.dart';
-import '../campaigns/campaign_list_screen.dart';
+import 'package:ngo_app/features/campaigns/presentation/screens/campaign_list_screen.dart';
 import 'package:ngo_app/screens/government/government_schemes_screen.dart';
-import 'volunteer_opportunities_screen.dart';
-import '../community/community_screen.dart';
-import 'volunteer_donation_screen.dart';
+import 'package:ngo_app/features/opportunities/presentation/screens/volunteer_opportunities_screen.dart';
+import 'package:ngo_app/features/community/presentation/screens/community_screen.dart';
 import 'volunteer_csr_screen.dart';
 import '../ngo/ngo_explore_screen.dart';
 import 'volunteer_events_screen.dart';
 import 'volunteer_progress_screen.dart';
-import 'volunteer_sos_screen.dart';
+import 'package:ngo_app/features/emergency/presentation/screens/volunteer_sos_screen.dart';
 import 'volunteer_edit_profile_screen.dart';
-import 'volunteer_my_campaigns_screen.dart';
-import 'package:ngo_app/screens/donations/donation_history_screen.dart';
-import 'volunteer_my_events_screen.dart';
+import 'package:ngo_app/features/campaigns/presentation/screens/volunteer_my_campaigns_screen.dart';
+
+import 'package:ngo_app/features/opportunities/presentation/screens/volunteer_my_events_screen.dart';
 import 'volunteer_saved_ngos_screen.dart';
 import 'volunteer_notifications_screen.dart';
 import 'volunteer_settings_screen.dart';
+import 'package:ngo_app/features/community/presentation/screens/community_security_wrapper.dart';
 import 'volunteer_help_support_screen.dart';
 import 'volunteer_privacy_policy_screen.dart';
 import 'monthly_donation_screen.dart';
 import 'package:ngo_app/core/services/cache_service.dart';
 import 'package:ngo_app/core/services/notification_service.dart';
 import 'package:ngo_app/core/services/analytics_service.dart';
+import 'package:ngo_app/shared/widgets/skeleton_loader.dart';
 
 class VolunteerDashboardScreen extends StatefulWidget {
   const VolunteerDashboardScreen({Key? key}) : super(key: key);
@@ -79,8 +84,11 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
     }
     
     _loadUserProfile();
-    _preloadData();
-    _initializeVolunteerNotifications();
+    
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _preloadData();
+      _initializeVolunteerNotifications();
+    });
   }
 
   Future<void> _initializeVolunteerNotifications() async {
@@ -137,30 +145,87 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
     // Update userId if not set
     _userId ??= user.uid;
 
+    const secureStorage = FlutterSecureStorage();
     try {
-      // Load profile from Firestore
-      final doc = await FirebaseFirestore.instance
-          .collection('volunteers')
-          .doc(user.uid)
-          .get();
-
-      if (doc.exists) {
-        final data = doc.data()!;
+      final cachedProfile = await secureStorage.read(key: 'volunteer_profile_cache');
+      if (cachedProfile != null && _isLoadingProfile) {
+        final Map<String, dynamic> cachedData = jsonDecode(cachedProfile);
         setState(() {
-          _profilePhotoUrl = data['photoUrl'] ?? user.photoURL;
-          _userName = data['displayName'] ?? user.displayName ?? 'User';
-          _userEmail = data['email'] ?? user.email ?? '';
-          _userPhone = data['phone'] ?? '';
-          _userBio = data['bio'] ?? '';
-          _userLocation = data['location'] ?? '';
-          _eventsJoined = data['eventsJoined'] ?? 0;
-          _ngosFollowed = data['ngosFollowed'] ?? 0;
-          _totalDonated = data['totalDonated'] ?? 0;
-          _hoursVolunteered = data['hoursVolunteered'] ?? 0;
+          _profilePhotoUrl = cachedData['photoUrl'];
+          _userName = cachedData['displayName'] ?? 'User';
+          _userEmail = cachedData['email'] ?? '';
+          _userPhone = cachedData['phone'] ?? '';
+          _userBio = cachedData['bio'] ?? '';
+          _userLocation = cachedData['location'] ?? '';
+          _eventsJoined = cachedData['eventsJoined'] ?? 0;
+          _ngosFollowed = cachedData['ngosFollowed'] ?? 0;
+          _totalDonated = (cachedData['totalDonated'] ?? 0.0).toDouble();
+          _hoursVolunteered = (cachedData['hoursVolunteered'] ?? 0.0).toDouble();
+          _campaignsJoined = cachedData['campaignsJoined'] ?? 0;
+          _isLoadingProfile = false;
         });
-      } else {
-        // Create initial profile document
-        await FirebaseFirestore.instance
+      }
+    } catch (e) {
+      secureLog('Error loading cached profile: $e');
+    }
+
+    try {
+      // Run profile and campaigns queries in parallel to speed up dashboard initialization
+      final results = await Future.wait([
+        FirebaseFirestore.instance.collection('volunteers').doc(user.uid).get(),
+        FirebaseFirestore.instance.collection('campaign_participants').where('userId', isEqualTo: user.uid).get(),
+      ]);
+
+      final doc = results[0] as DocumentSnapshot<Map<String, dynamic>>;
+      final campaignsCount = results[1] as QuerySnapshot<Map<String, dynamic>>;
+
+      if (doc.exists && mounted) {
+        final data = doc.data()!;
+        final displayPhoto = data['photoUrl'] ?? user.photoURL ?? '';
+        final displayName = data['displayName'] ?? user.displayName ?? 'User';
+        final email = data['email'] ?? user.email ?? '';
+        final phone = data['phone'] ?? '';
+        final bio = data['bio'] ?? '';
+        final location = data['location'] ?? '';
+        final events = data['eventsJoined'] ?? 0;
+        final ngos = data['ngosFollowed'] ?? 0;
+        final donated = (data['totalDonated'] ?? 0.0).toDouble();
+        final hours = (data['hoursVolunteered'] ?? 0.0).toDouble();
+        final campaigns = campaignsCount.docs.length;
+
+        setState(() {
+          _profilePhotoUrl = displayPhoto.isEmpty ? null : displayPhoto;
+          _userName = displayName;
+          _userEmail = email;
+          _userPhone = phone;
+          _userBio = bio;
+          _userLocation = location;
+          _eventsJoined = events;
+          _ngosFollowed = ngos;
+          _totalDonated = donated;
+          _hoursVolunteered = hours;
+          _campaignsJoined = campaigns;
+          _isLoadingProfile = false;
+        });
+
+        // Cache fresh data to secure storage
+        final cacheMap = {
+          'photoUrl': _profilePhotoUrl,
+          'displayName': _userName,
+          'email': _userEmail,
+          'phone': _userPhone,
+          'bio': _userBio,
+          'location': _userLocation,
+          'eventsJoined': _eventsJoined,
+          'ngosFollowed': _ngosFollowed,
+          'totalDonated': _totalDonated,
+          'hoursVolunteered': _hoursVolunteered,
+          'campaignsJoined': _campaignsJoined,
+        };
+        await secureStorage.write(key: 'volunteer_profile_cache', value: jsonEncode(cacheMap));
+      } else if (mounted) {
+        // Create initial profile document (non-blocking)
+        FirebaseFirestore.instance
             .collection('volunteers')
             .doc(user.uid)
             .set({
@@ -180,19 +245,16 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
           _userName = user.displayName ?? 'User';
           _userEmail = user.email ?? '';
           _profilePhotoUrl = user.photoURL;
+          _isLoadingProfile = false;
         });
       }
 
-      // Load campaigns joined count
-      final campaignsCount = await FirebaseFirestore.instance
-          .collection('campaign_participants')
-          .where('userId', isEqualTo: user.uid)
-          .get();
-      
-      setState(() {
-        _campaignsJoined = campaignsCount.docs.length;
-        _isLoadingProfile = false;
-      });
+      if (mounted) {
+        setState(() {
+          _campaignsJoined = campaignsCount.docs.length;
+          _isLoadingProfile = false;
+        });
+      }
     } catch (e) {
       secureLog('Error loading profile: $e');
       setState(() => _isLoadingProfile = false);
@@ -208,7 +270,16 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
       body: SafeArea(
-        child: _buildCurrentTab(),
+        child: IndexedStack(
+          index: _currentIndex,
+          children: [
+            _buildHomeTab(),
+            _buildExploreTab(),
+            _buildMyFeedTab(),
+            _buildCommunityTab(),
+            _buildProfileTab(),
+          ],
+        ),
       ),
       bottomNavigationBar: _buildBottomNavBar(),
     );
@@ -241,38 +312,97 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
   }
 
   Widget _buildHomeTab() {
-    return RefreshIndicator(
-      onRefresh: _refreshDashboard,
-      color: primary,
-      child: SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
+    if (_isLoadingProfile) {
+      return const SingleChildScrollView(
+        padding: EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
-            _buildHeader(),
-            
-            const SizedBox(height: 24),
-            
-            // Quick Actions (Events, Progress, Report Help, SOS)
-            _buildQuickActions(),
-            
-            const SizedBox(height: 24),
-            
-            // Live Events Section Title
-            _buildLiveEventsSection(),
-            
-            // Live Events Scrollable Cards
-            _buildLiveEventsCards(),
-            
-            const SizedBox(height: 24),
-            
-            // Features Grid
-            _buildFeaturesGrid(),
-            
-            const SizedBox(height: 100),
+            Row(
+              children: [
+                SkeletonContainer(width: 56, height: 56, borderRadius: BorderRadius.all(Radius.circular(28))),
+                SizedBox(width: 12),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SkeletonContainer(height: 20, width: 140),
+                    SizedBox(height: 6),
+                    SkeletonContainer(height: 12, width: 180),
+                  ],
+                ),
+              ],
+            ),
+            SizedBox(height: 32),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                SkeletonContainer(width: 60, height: 60, borderRadius: BorderRadius.all(Radius.circular(30))),
+                SkeletonContainer(width: 60, height: 60, borderRadius: BorderRadius.all(Radius.circular(30))),
+                SkeletonContainer(width: 60, height: 60, borderRadius: BorderRadius.all(Radius.circular(30))),
+                SkeletonContainer(width: 60, height: 60, borderRadius: BorderRadius.all(Radius.circular(30))),
+              ],
+            ),
+            SizedBox(height: 32),
+            SkeletonContainer(height: 20, width: 100),
+            SizedBox(height: 16),
+            SkeletonContainer(height: 160, width: double.infinity),
+            SizedBox(height: 32),
+            SkeletonContainer(height: 20, width: 120),
+            SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(child: SkeletonContainer(height: 100, borderRadius: BorderRadius.all(Radius.circular(16)))),
+                SizedBox(width: 12),
+                Expanded(child: SkeletonContainer(height: 100, borderRadius: BorderRadius.all(Radius.circular(16)))),
+                SizedBox(width: 12),
+                Expanded(child: SkeletonContainer(height: 100, borderRadius: BorderRadius.all(Radius.circular(16)))),
+              ],
+            ),
           ],
         ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _refreshDashboard,
+      color: primary,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header (Fixed at the top)
+          _buildHeader(),
+          
+          const SizedBox(height: 16),
+          
+          // Quick Actions (Fixed at the top)
+          _buildQuickActions(),
+          
+          const SizedBox(height: 16),
+          
+          // Scrollable Section
+          Expanded(
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Live Events Section Title
+                  _buildLiveEventsSection(),
+                  
+                  // Live Events Scrollable Cards
+                  _buildLiveEventsCards(),
+                  
+                  const SizedBox(height: 24),
+                  
+                  // Features Grid
+                  _buildFeaturesGrid(),
+                  
+                  const SizedBox(height: 100),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -934,15 +1064,23 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
   }
 
   Widget _buildMyFeedTab() {
-    return NgoExploreScreen(userId: _userId);
+    return CommunitySecurityWrapper(
+      userId: _userId,
+      userType: 'volunteer',
+      child: NgoExploreScreen(userId: _userId),
+    );
   }
 
   Widget _buildCommunityTab() {
-    return CommunityScreen(
+    return CommunitySecurityWrapper(
       userId: _userId,
-      userName: _userName,
-      userPhoto: _profilePhotoUrl,
       userType: 'volunteer',
+      child: CommunityScreen(
+        userId: _userId,
+        userName: _userName,
+        userPhoto: _profilePhotoUrl,
+        userType: 'volunteer',
+      ),
     );
   }
 
@@ -950,7 +1088,7 @@ class _VolunteerDashboardScreenState extends State<VolunteerDashboardScreen> {
     final l10n = AppLocalizations.of(context)!;
     
     if (_isLoadingProfile) {
-      return const Center(child: CircularProgressIndicator());
+      return const ProfileSkeleton();
     }
     
     return RefreshIndicator(

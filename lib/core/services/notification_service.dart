@@ -318,7 +318,7 @@ class NotificationService {
     
     try {
       // Check if device has vibration capability
-      final hasVibrator = await Vibration.hasVibrator() ?? false;
+      final hasVibrator = await Vibration.hasVibrator() == true;
       debugPrint('Device has vibrator: $hasVibrator');
       
       if (!hasVibrator) {

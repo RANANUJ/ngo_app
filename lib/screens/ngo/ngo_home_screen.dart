@@ -3,7 +3,6 @@ import 'dart:io';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:image_picker/image_picker.dart';
@@ -13,18 +12,19 @@ import 'package:ngo_app/features/ngo/data/services/ngo_registration_service.dart
 import 'package:ngo_app/features/storage/data/services/local_storage_service.dart';
 import 'package:ngo_app/core/services/notification_service.dart';
 import 'package:ngo_app/core/services/cache_service.dart';
-import 'package:ngo_app/screens/auth/user_type_screen.dart';
+import 'package:ngo_app/features/auth/presentation/screens/user_type_screen.dart';
 import 'ngo_public_profile_screen.dart';
 import 'ngo_volunteers_screen.dart';
-import '../campaigns/create_campaign_screen.dart';
-import '../campaigns/campaign_list_screen.dart';
+import 'package:ngo_app/features/campaigns/presentation/screens/create_campaign_screen.dart';
+import 'package:ngo_app/features/campaigns/presentation/screens/campaign_list_screen.dart';
 import 'package:ngo_app/screens/government/government_schemes_screen.dart';
-import 'ngo_opportunities_screen.dart';
-import 'package:ngo_app/screens/events/event_calendar_screen.dart';
-import '../community/community_screen.dart';
-import 'ngo_donation_screen.dart';
+import 'package:ngo_app/features/opportunities/presentation/screens/ngo_opportunities_screen.dart';
+import 'package:ngo_app/features/events/presentation/screens/event_calendar_screen.dart';
+import 'package:ngo_app/features/community/presentation/screens/community_screen.dart';
+import 'package:ngo_app/features/donations/presentation/screens/ngo_donation_screen.dart';
 import 'ngo_explore_screen.dart';
-import 'package:ngo_app/screens/tasks/quick_task_screen.dart';
+import 'package:ngo_app/features/community/presentation/screens/community_security_wrapper.dart';
+import 'package:ngo_app/features/tasks/presentation/screens/quick_task_screen.dart';
 import 'ngo_progress_screen.dart';
 import 'ngo_edit_profile_screen.dart';
 import 'ngo_reset_password_screen.dart';
@@ -33,8 +33,9 @@ import 'ngo_notifications_screen.dart';
 import 'ngo_privacy_security_screen.dart';
 import 'ngo_help_support_screen.dart';
 import 'ngo_about_app_screen.dart';
-import 'ngo_sos_alerts_screen.dart';
-import 'ngo_monthly_funding_screen.dart';
+import 'package:ngo_app/features/emergency/presentation/screens/ngo_sos_alerts_screen.dart';
+import 'package:ngo_app/shared/widgets/skeleton_loader.dart';
+import 'package:ngo_app/features/donations/presentation/screens/ngo_monthly_funding_screen.dart';
 
 class NgoHomeScreen extends StatefulWidget {
   final NgoRegistrationRequest ngoData;
@@ -49,16 +50,10 @@ class _NgoHomeScreenState extends State<NgoHomeScreen> {
   static const Color primary = Color(0xFF0099B8);
   int _selectedIndex = 0;
   String? _ngoLogo;
-  bool _isRefreshing = false;
+  bool _isUploadingImage = false;
   
   // Audio player for emergency sound
   final AudioPlayer _audioPlayer = AudioPlayer();
-  
-  // Data variables for real-time updates
-  int _campaignsCount = 0;
-  int _opportunitiesCount = 0;
-  int _volunteersCount = 0;
-  Map<String, dynamic>? _ngoData;
   
   // SOS notification listener
   StreamSubscription<QuerySnapshot>? _sosNotificationSubscription;
@@ -68,9 +63,11 @@ class _NgoHomeScreenState extends State<NgoHomeScreen> {
   void initState() {
     super.initState();
     _loadAllData();
-    _initializeNotifications();
-    _listenForSOSNotifications();
-    _preloadData();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initializeNotifications();
+      _listenForSOSNotifications();
+      _preloadData();
+    });
   }
 
   Future<void> _preloadData() async {
@@ -137,7 +134,7 @@ class _NgoHomeScreenState extends State<NgoHomeScreen> {
       await _audioPlayer.setReleaseMode(ReleaseMode.loop);
       await _audioPlayer.play(AssetSource('emergency_alert.mp3'));
       // Also vibrate
-      if (await Vibration.hasVibrator() ?? false) {
+      if (await Vibration.hasVibrator() == true) {
         Vibration.vibrate(pattern: [500, 1000, 500, 1000, 500, 1000], repeat: 0);
       }
     } catch (e) {
@@ -243,10 +240,8 @@ class _NgoHomeScreenState extends State<NgoHomeScreen> {
   }
 
   Future<void> _onRefresh() async {
-    setState(() => _isRefreshing = true);
     await _loadAllData();
     if (mounted) {
-      setState(() => _isRefreshing = false);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Data refreshed successfully'),
@@ -263,9 +258,7 @@ class _NgoHomeScreenState extends State<NgoHomeScreen> {
           .collection('campaigns')
           .where('ngoId', isEqualTo: widget.ngoData.id)
           .get();
-      if (mounted) {
-        setState(() => _campaignsCount = snapshot.docs.length);
-      }
+      debugPrint('Campaigns count: ${snapshot.docs.length}');
     } catch (e) {
       debugPrint('Error loading campaigns count: $e');
     }
@@ -277,9 +270,7 @@ class _NgoHomeScreenState extends State<NgoHomeScreen> {
           .collection('volunteer_opportunities')
           .where('ngoId', isEqualTo: widget.ngoData.id)
           .get();
-      if (mounted) {
-        setState(() => _opportunitiesCount = snapshot.docs.length);
-      }
+      debugPrint('Opportunities count: ${snapshot.docs.length}');
     } catch (e) {
       debugPrint('Error loading opportunities count: $e');
     }
@@ -292,9 +283,7 @@ class _NgoHomeScreenState extends State<NgoHomeScreen> {
           .where('ngoId', isEqualTo: widget.ngoData.id)
           .where('status', isEqualTo: 'accepted')
           .get();
-      if (mounted) {
-        setState(() => _volunteersCount = snapshot.docs.length);
-      }
+      debugPrint('Volunteers count: ${snapshot.docs.length}');
     } catch (e) {
       debugPrint('Error loading volunteers count: $e');
     }
@@ -306,8 +295,8 @@ class _NgoHomeScreenState extends State<NgoHomeScreen> {
           .collection('ngo_registrations')
           .doc(widget.ngoData.id)
           .get();
-      if (doc.exists && mounted) {
-        setState(() => _ngoData = doc.data());
+      if (doc.exists) {
+        debugPrint('NGO details loaded');
       }
     } catch (e) {
       debugPrint('Error loading NGO details: $e');
@@ -396,20 +385,16 @@ class _NgoHomeScreenState extends State<NgoHomeScreen> {
   }
 
   Widget _buildBody() {
-    switch (_selectedIndex) {
-      case 0:
-        return _buildHomeTab();
-      case 1:
-        return _buildExploreTab();
-      case 2:
-        return _buildCreateTab();
-      case 3:
-        return _buildCommunityTab();
-      case 4:
-        return _buildProfileTab();
-      default:
-        return _buildHomeTab();
-    }
+    return IndexedStack(
+      index: _selectedIndex,
+      children: [
+        _buildHomeTab(),
+        _buildExploreTab(),
+        _buildCreateTab(),
+        _buildCommunityTab(),
+        _buildProfileTab(),
+      ],
+    );
   }
 
   Widget _buildHomeTab() {
@@ -613,7 +598,7 @@ class _NgoHomeScreenState extends State<NgoHomeScreen> {
               context,
               MaterialPageRoute(
                 builder: (context) => EventCalendarScreen(
-                  ngoId: widget.ngoData.id!,
+                  ngoId: widget.ngoData.id,
                   ngoName: widget.ngoData.ngoName,
                 ),
               ),
@@ -624,7 +609,7 @@ class _NgoHomeScreenState extends State<NgoHomeScreen> {
               context,
               MaterialPageRoute(
                 builder: (context) => NgoProgressScreen(
-                  ngoId: widget.ngoData.id!,
+                  ngoId: widget.ngoData.id,
                   ngoName: widget.ngoData.ngoName,
                 ),
               ),
@@ -687,7 +672,7 @@ class _NgoHomeScreenState extends State<NgoHomeScreen> {
               context,
               MaterialPageRoute(
                 builder: (context) => NgoSOSAlertsScreen(
-                  ngoId: widget.ngoData.id!,
+                  ngoId: widget.ngoData.id,
                   ngoName: widget.ngoData.ngoName,
                   ngoPhone: widget.ngoData.mobileNo.isNotEmpty ? widget.ngoData.mobileNo : widget.ngoData.officialPhone,
                 ),
@@ -824,42 +809,6 @@ class _NgoHomeScreenState extends State<NgoHomeScreen> {
     );
   }
 
-  Widget _buildFeatureCard(IconData icon, String label, Color bgColor, Color iconColor) {
-    return GestureDetector(
-      onTap: () => _onFeatureCardTap(label),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
-        decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, color: iconColor, size: 28),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              label,
-              style: TextStyle(
-                color: Colors.grey.shade800,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildEventBanner() {
     return Container(
       decoration: BoxDecoration(
@@ -977,7 +926,11 @@ class _NgoHomeScreenState extends State<NgoHomeScreen> {
 
   Widget _buildExploreTab() {
     // Use NGO's registration ID since they don't use Firebase Auth
-    return NgoExploreScreen(userId: widget.ngoData.id);
+    return CommunitySecurityWrapper(
+      userId: widget.ngoData.id,
+      userType: 'ngo',
+      child: NgoExploreScreen(userId: widget.ngoData.id),
+    );
   }
 
   Widget _buildCreateTab() {
@@ -1075,11 +1028,15 @@ class _NgoHomeScreenState extends State<NgoHomeScreen> {
   }
 
   Widget _buildCommunityTab() {
-    return CommunityScreen(
+    return CommunitySecurityWrapper(
       userId: widget.ngoData.id,
-      userName: widget.ngoData.ngoName,
-      userPhoto: _ngoLogo ?? widget.ngoData.profileImageUrl,
       userType: 'ngo',
+      child: CommunityScreen(
+        userId: widget.ngoData.id,
+        userName: widget.ngoData.ngoName,
+        userPhoto: _ngoLogo ?? widget.ngoData.profileImageUrl,
+        userType: 'ngo',
+      ),
     );
   }
 
@@ -1636,43 +1593,6 @@ class _NgoHomeScreenState extends State<NgoHomeScreen> {
     );
   }
 
-  Widget _buildDocumentItem(String name, bool uploaded) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: uploaded ? Colors.green.withOpacity(0.1) : Colors.orange.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(
-              uploaded ? Icons.check_circle : Icons.pending,
-              color: uploaded ? Colors.green : Colors.orange,
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              name,
-              style: const TextStyle(fontSize: 14),
-            ),
-          ),
-          Text(
-            uploaded ? 'Verified' : 'Pending',
-            style: TextStyle(
-              color: uploaded ? Colors.green : Colors.orange,
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildDocumentItemClickable(String name, bool uploaded, String? documentUrl) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
@@ -1914,43 +1834,10 @@ class _NgoHomeScreenState extends State<NgoHomeScreen> {
     );
   }
 
-  Widget _buildProfileInfoRow(IconData icon, String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        children: [
-          Icon(icon, size: 20, color: primary),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    color: Colors.grey.shade500,
-                    fontSize: 12,
-                  ),
-                ),
-                Text(
-                  value.isNotEmpty ? value : 'N/A',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   // =============== PROFILE ACTION METHODS ===============
 
   final ImagePicker _imagePicker = ImagePicker();
-  bool _isUploadingImage = false;
+
 
   void _pickProfileImage() {
     showModalBottomSheet(

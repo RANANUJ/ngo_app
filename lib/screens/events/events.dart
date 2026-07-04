@@ -1,1 +1,1 @@
-export 'event_calendar_screen.dart';
+export 'package:ngo_app/features/events/presentation/screens/event_calendar_screen.dart';

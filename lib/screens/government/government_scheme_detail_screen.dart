@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class GovernmentSchemeDetailScreen extends StatefulWidget {
   final Map<String, dynamic> scheme;
@@ -20,11 +22,29 @@ class _GovernmentSchemeDetailScreenState extends State<GovernmentSchemeDetailScr
   bool _isRequirementsExpanded = false;
   bool _isBenefitsExpanded = false;
 
+  List<String> _cleanBulletPoints(dynamic input) {
+    if (input == null) return [];
+    final List<String> list = input is List 
+        ? List<String>.from(input)
+        : input.toString().split('\n');
+
+    return list
+        .map((item) {
+          var cleaned = item.trim();
+          if (cleaned.startsWith('•')) cleaned = cleaned.substring(1).trim();
+          else if (cleaned.startsWith('-')) cleaned = cleaned.substring(1).trim();
+          else if (cleaned.startsWith('*')) cleaned = cleaned.substring(1).trim();
+          return cleaned;
+        })
+        .where((s) => s.isNotEmpty)
+        .toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = widget.scheme;
-    final requirements = (scheme['requirements'] ?? '').toString().split('\n').where((s) => s.trim().isNotEmpty).toList();
-    final benefits = (scheme['benefits'] ?? '').toString().split('\n').where((s) => s.trim().isNotEmpty).toList();
+    final requirements = _cleanBulletPoints(scheme['requirements']);
+    final benefits = _cleanBulletPoints(scheme['benefits']);
 
     return Scaffold(
       appBar: AppBar(
@@ -89,7 +109,7 @@ class _GovernmentSchemeDetailScreenState extends State<GovernmentSchemeDetailScr
                     errorBuilder: (context, error, stackTrace) => Container(
                       height: 180,
                       decoration: BoxDecoration(
-                        color: primary.withOpacity(0.1),
+                        color: primary.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Center(
@@ -118,7 +138,7 @@ class _GovernmentSchemeDetailScreenState extends State<GovernmentSchemeDetailScr
                 child: Container(
                   height: 180,
                   decoration: BoxDecoration(
-                    color: primary.withOpacity(0.1),
+                    color: primary.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Center(
@@ -170,21 +190,23 @@ class _GovernmentSchemeDetailScreenState extends State<GovernmentSchemeDetailScr
                     overflow: _isDetailsExpanded ? null : TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 4),
-                  GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _isDetailsExpanded = !_isDetailsExpanded;
-                      });
-                    },
-                    child: Text(
-                      _isDetailsExpanded ? 'View less' : 'View more',
-                      style: TextStyle(
-                        color: primary,
-                        decoration: TextDecoration.underline,
-                        fontSize: 14,
+                  if ((scheme['description'] ?? '').toString().length > 120 || 
+                      (scheme['description'] ?? '').toString().contains('\n'))
+                    GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _isDetailsExpanded = !_isDetailsExpanded;
+                        });
+                      },
+                      child: Text(
+                        _isDetailsExpanded ? 'View less' : 'View more',
+                        style: TextStyle(
+                          color: primary,
+                          decoration: TextDecoration.underline,
+                          fontSize: 14,
+                        ),
                       ),
                     ),
-                  ),
                 ],
               ),
             ),
@@ -300,7 +322,7 @@ class _GovernmentSchemeDetailScreenState extends State<GovernmentSchemeDetailScr
           color: Colors.white,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 10,
               offset: const Offset(0, -2),
             ),
@@ -352,11 +374,7 @@ class _GovernmentSchemeDetailScreenState extends State<GovernmentSchemeDetailScr
     if (applyLink != null && applyLink.toString().isNotEmpty) {
       try {
         final uri = Uri.parse(applyLink);
-        if (await canLaunchUrl(uri)) {
-          await launchUrl(uri, mode: LaunchMode.externalApplication);
-        } else {
-          _showApplyDialog();
-        }
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
       } catch (e) {
         _showApplyDialog();
       }
@@ -366,6 +384,11 @@ class _GovernmentSchemeDetailScreenState extends State<GovernmentSchemeDetailScr
   }
 
   void _showApplyDialog() {
+    final requirements = _cleanBulletPoints(widget.scheme['requirements']);
+    final documentList = requirements.isNotEmpty
+        ? requirements.map((r) => '• $r').join('\n')
+        : '• Aadhaar Card\n• Income Certificate\n• Residence Proof\n• Bank Account Details';
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -395,7 +418,7 @@ class _GovernmentSchemeDetailScreenState extends State<GovernmentSchemeDetailScr
             ),
             const SizedBox(height: 8),
             Text(
-              '• Aadhaar Card\n• Income Certificate\n• Residence Proof\n• Bank Account Details',
+              documentList,
               style: TextStyle(
                 color: Colors.grey.shade600,
                 fontSize: 13,
@@ -409,14 +432,32 @@ class _GovernmentSchemeDetailScreenState extends State<GovernmentSchemeDetailScr
             child: const Text('Close'),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Application process initiated. Check your email for further instructions.'),
-                  backgroundColor: Colors.green,
-                ),
-              );
+              
+              final currentUser = FirebaseAuth.instance.currentUser;
+              if (currentUser != null) {
+                try {
+                  await FirebaseFirestore.instance.collection('scheme_registrations').add({
+                    'userId': currentUser.uid,
+                    'userEmail': currentUser.email,
+                    'schemeId': widget.scheme['id'] ?? '',
+                    'schemeName': widget.scheme['name'] ?? '',
+                    'registeredAt': FieldValue.serverTimestamp(),
+                  });
+                } catch (e) {
+                  debugPrint('Error registering interest: $e');
+                }
+              }
+
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Application process initiated. Check your email for further instructions.'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              }
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: primary,

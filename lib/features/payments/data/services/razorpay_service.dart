@@ -2,18 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'notification_manager.dart';
-import 'notification_service.dart';
+import 'package:cloud_functions/cloud_functions.dart';
+import 'package:ngo_app/core/services/notification_manager.dart';
+import 'package:ngo_app/core/services/notification_service.dart';
+import 'package:ngo_app/features/donations/domain/models/donation.dart';
+import 'package:ngo_app/features/donations/data/repositories/firebase_donation_repository.dart';
 
 class RazorpayService {
   late Razorpay _razorpay;
   Function(PaymentSuccessResponse)? _onSuccess;
   Function(PaymentFailureResponse)? _onFailure;
 
-  // Razorpay API keys
-  static const String keyId = 'rzp_test_Rsb9ATnbTWb7WI'; // Test key
-  static const String keySecret = 'WspWYiYrBvLOemXCtCh33h5V'; // Test key secret
-  // For production: static const String keyId = 'rzp_live_YOUR_KEY_ID';
+  // Razorpay API key (default test key, production keys fetched from Firestore)
+  static const String keyId = 'rzp_test_Rsb9ATnbTWb7WI';
 
   RazorpayService() {
     _razorpay = Razorpay();
@@ -36,7 +37,7 @@ class RazorpayService {
     debugPrint('External Wallet: ${response.walletName}');
   }
 
-  void openCheckout({
+  Future<void> openCheckout({
     required double amount,
     required String donorName,
     required String donorEmail,
@@ -45,12 +46,24 @@ class RazorpayService {
     String? description,
     required Function(PaymentSuccessResponse) onSuccess,
     required Function(PaymentFailureResponse) onFailure,
-  }) {
+  }) async {
     _onSuccess = onSuccess;
     _onFailure = onFailure;
 
+    // Load active key dynamically from Firestore config
+    String activeKeyId = keyId;
+    try {
+      final configDoc = await FirebaseFirestore.instance
+          .collection('app_config')
+          .doc('razorpay')
+          .get();
+      if (configDoc.exists) {
+        activeKeyId = configDoc.data()?['keyId'] ?? keyId;
+      }
+    } catch (_) {}
+
     var options = {
-      'key': keyId,
+      'key': activeKeyId,
       'amount': (amount * 100).toInt(), // Convert to paise
       'name': 'NGO App',
       'description': description ?? 'Donation for $campaignTitle',
@@ -135,103 +148,26 @@ class RazorpayService {
         }
       }
 
-      final donationData = {
-        // Payment details
+      print('💳 Razorpay: Triggering payment verification Cloud Function');
+      final callable = FirebaseFunctions.instance.httpsCallable('verifyAndSaveDonation');
+      final result = await callable.call(<String, dynamic>{
         'paymentId': paymentId,
         'orderId': orderId,
         'signature': signature,
         'amount': amount,
-        'status': 'success',
-        'paymentMethod': 'razorpay',
-        
-        // Donor details
-        'donorName': isAnonymous ? 'Anonymous' : donorName,
-        'donorEmail': isAnonymous ? '' : donorEmail,
-        'donorPhone': isAnonymous ? '' : donorPhone,
-        'donorId': volunteerId,
-        'profileImageUrl': isAnonymous ? null : profileImageUrl,
-        'isAnonymous': isAnonymous,
-        
-        // Campaign details
+        'donorName': donorName,
+        'donorEmail': donorEmail,
+        'donorPhone': donorPhone,
         'campaignId': campaignId,
         'campaignTitle': campaignTitle,
         'campaignType': campaignType,
+        'isAnonymous': isAnonymous,
         'ngoId': finalNgoId,
-        
-        // Additional info
         'message': message,
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      };
-      
-      print('💳 Razorpay: Saving donation with profileImageUrl: ${donationData['profileImageUrl']}');
-      
-      // Save to main donations collection
-      final donationRef = await FirebaseFirestore.instance
-          .collection('donations')
-          .add(donationData);
+      });
 
-      // Also save to NGO-specific donations subcollection if NGO ID exists
-      if (finalNgoId != null && finalNgoId.isNotEmpty) {
-        await FirebaseFirestore.instance
-            .collection('ngos')
-            .doc(finalNgoId)
-            .collection('received_donations')
-            .doc(donationRef.id)
-            .set(donationData);
-      }
-
-      // Update campaign raised amount
-      final campaignRef = FirebaseFirestore.instance
-          .collection(_getCollectionName(campaignType))
-          .doc(campaignId);
-      
-      debugPrint('Updating campaign: ${_getCollectionName(campaignType)}/$campaignId');
-      debugPrint('Campaign Type: $campaignType');
-      debugPrint('Donation Amount: $amount');
-      
-      final campaignDoc = await campaignRef.get();
-      
-      if (campaignDoc.exists) {
-        final data = campaignDoc.data();
-        
-        // Determine the correct field name based on campaign type
-        String amountField;
-        switch (campaignType) {
-          case 'donation_request':
-            amountField = 'collectedAmount';
-            break;
-          case 'emergency':
-            amountField = 'collectedAmount';
-            break;
-          case 'impact':
-            amountField = 'donationsReceived';
-            break;
-          case 'campaign':
-          default:
-            amountField = 'raisedAmount';
-            break;
-        }
-        
-        debugPrint('Using field: $amountField');
-        final currentRaised = (data?[amountField] ?? 0).toDouble();
-        debugPrint('Current raised: $currentRaised');
-        debugPrint('New total: ${currentRaised + amount}');
-        
-        final donorCount = (data?['donorCount'] ?? data?['donorsCount'] ?? 0) as int;
-        
-        await campaignRef.update({
-          amountField: currentRaised + amount,
-          'donorCount': donorCount + 1,
-          'lastDonationAt': FieldValue.serverTimestamp(),
-        });
-        
-        debugPrint('Campaign updated successfully');
-      } else {
-        debugPrint('WARNING: Campaign document does not exist!');
-      }
-
-      debugPrint('Donation saved successfully: ${donationRef.id}');
+      final donationId = result.data['donationId'] as String;
+      debugPrint('Donation verified and saved successfully: $donationId');
       
       // Send notifications after successful save
       try {
@@ -248,7 +184,7 @@ class RazorpayService {
               'amount': amount,
               'campaignTitle': campaignTitle,
               'campaignId': campaignId,
-              'donationId': donationRef.id,
+              'donationId': donationId,
             },
           );
           
@@ -292,7 +228,7 @@ class RazorpayService {
                 'amount': amount,
                 'campaignTitle': campaignTitle,
                 'campaignId': campaignId,
-                'donationId': donationRef.id,
+                'donationId': donationId,
                 'ngoId': finalNgoId,
                 'profileImageUrl': profileImageUrl,
               },

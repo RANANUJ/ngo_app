@@ -1,33 +1,171 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if true;
+
+    // Helper function to check if the user is an admin
+    function isAdmin() {
+      return request.auth != null && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    // Admins Collection
+    match /admins/{adminId} {
+      allow read: if request.auth != null;
+      // Allow creation only if the email matches the primary admin email
+      allow create: if request.auth != null && request.auth.uid == adminId && request.auth.token.email == 'rana1452005@gmail.com';
+      allow update, delete: if isAdmin();
+    }
+
+    // NGO Registrations Requests
+    match /ngo_registrations/{registrationId} {
+      allow create: if true;
+      allow read: if request.auth != null;
+      allow update: if isAdmin();
+      allow delete: if false;
+    }
+
+    // Volunteers / Users profiles
+    match /volunteers/{volunteerId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.auth.uid == volunteerId;
+      allow update: if request.auth != null && (request.auth.uid == volunteerId || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    // Community Posts
+    match /community_posts/{postId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null && (resource.data.authorId == request.auth.uid || isAdmin());
+
+      // Likes subcollection
+      match /likes/{likeId} {
+        allow read, write: if request.auth != null;
+      }
+
+      // Comments subcollection
+      match /comments/{commentId} {
+        allow read: if request.auth != null;
+        allow create: if request.auth != null;
+        allow update, delete: if request.auth != null && (resource.data.authorId == request.auth.uid || isAdmin());
+
+        // Comment Likes subcollection
+        match /likes/{likeId} {
+          allow read, write: if request.auth != null;
+        }
+      }
+    }
+
+    // Announcements
+    match /announcements/{announcementId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
+    // Event Registrations
+    match /event_registrations/{regId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+
+    // Campaign Participants
+    match /campaign_participants/{partId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+
+    // App Configuration
+    match /app_config/{configId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
+    // Donations & Payment Records (Writes strictly prohibited for client SDKs)
+    match /donations/{donationId} {
+      allow create: if false;
+      allow read: if request.auth != null && (resource.data.userId == request.auth.uid || isAdmin());
+      allow update, delete: if false;
+    }
+    match /emergency_donations_records/{recId} {
+      allow create: if request.auth != null;
+      allow read: if request.auth != null && (resource.data.userId == request.auth.uid || isAdmin());
+      allow update, delete: if false;
+    }
+    match /impact_donations/{recId} {
+      allow create: if request.auth != null;
+      allow read: if request.auth != null && (resource.data.userId == request.auth.uid || isAdmin());
+      allow update, delete: if false;
+    }
+    match /donation_posts/{postId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+    match /emergency_donations/{postId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
+    // CSR & Task features
+    match /csr_opportunities/{oppId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+    match /csr_volunteer_applications/{appId} {
+      allow create: if request.auth != null;
+      allow read: if request.auth != null && (resource.data.userId == request.auth.uid || isAdmin());
+      allow update, delete: if request.auth != null && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+    match /volunteer_tasks/{taskId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+    match /volunteer_activities/{actId} {
+      allow create: if request.auth != null;
+      allow read: if request.auth != null && (resource.data.userId == request.auth.uid || isAdmin());
+      allow update, delete: if false;
+    }
+
+    // Notifications & user settings
+    match /notifications/{notifId} {
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow delete: if request.auth != null && resource.data.userId == request.auth.uid;
+    }
+    match /volunteer_settings/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    match /feedback/{feedbackId} {
+      allow create: if request.auth != null;
+      allow read, update, delete: if isAdmin();
+    }
+
+    // Secure Email Queue - strictly validate recipient against matching sender email
+    match /email_queue/{emailId} {
+      allow create: if request.auth != null && request.resource.data.to == request.auth.token.email;
+      allow read, update, delete: if isAdmin();
+    }
+
+    // SOS Alerts
+    match /sos_alerts/{sosId} {
+      allow read, write: if request.auth != null;
+    }
+    match /od_volunteers/{volId} {
+      allow read, write: if request.auth != null;
+    }
+    match /sos_notifications/{notifId} {
+      allow read, write: if request.auth != null;
+    }
+    match /volunteer_sos_notifications/{notifId} {
+      allow read, write: if request.auth != null;
+    }
+    match /impact_stories/{storyId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
     }
   }
 }
-
-// ============================================================
-// PRODUCTION RULES (use these when deploying to production):
-// ============================================================
-// 
-// service cloud.firestore {
-//   match /databases/{database}/documents {
-//     
-//     // NGO Registrations - anyone can submit, only admins can update
-//     match /ngo_registrations/{registrationId} {
-//       // Anyone can create a registration
-//       allow create: if true;
-//       
-//       // Anyone can read their own registration (by email match or ID)
-//       allow read: if true;
-//       
-//       // Only authenticated admins can update (approve/reject)
-//       allow update: if request.auth != null && 
-//                       request.auth.token.email == 'rana1452005@gmail.com';
-//       
-//       // No one can delete registrations
-//       allow delete: if false;
-//     }
-//   }
-// }

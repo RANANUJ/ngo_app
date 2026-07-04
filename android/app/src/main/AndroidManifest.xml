@@ -22,7 +22,7 @@
         <!-- Google Maps API Key -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="AIzaSyD8MQh5_4U9rKnVVTuRxYapD1DvQNq0EDU"/>
+            android:value="${mapsApiKey}"/>
         
         <!-- Firebase Cloud Messaging -->
         <meta-data

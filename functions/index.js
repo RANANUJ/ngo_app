@@ -1991,3 +1991,82 @@ exports.exportUserData = functions.https.onCall(async (data, context) => {
     throw new functions.https.HttpsError("internal", error.message);
   }
 });
+
+/**
+ * HTTPS Callable function to verify Razorpay checkout signature and save donations
+ */
+exports.verifyAndSaveDonation = functions.https.onCall(async (data, context) => {
+  if (!context.auth) {
+    throw new functions.https.HttpsError("unauthenticated", "Authentication required");
+  }
+
+  const { 
+    paymentId, 
+    orderId, 
+    signature, 
+    amount, 
+    donorName, 
+    donorEmail, 
+    donorPhone, 
+    campaignId, 
+    campaignTitle, 
+    campaignType, 
+    isAnonymous, 
+    ngoId, 
+    message 
+  } = data;
+
+  if (!paymentId || !signature || !amount || !campaignId) {
+    throw new functions.https.HttpsError("invalid-argument", "Missing payment verification parameters");
+  }
+
+  // Retrieve Razorpay config key secret dynamically from database
+  let keySecret = "your-app-password";
+  try {
+    const configDoc = await db.collection("app_config").doc("razorpay").get();
+    if (configDoc.exists) {
+      keySecret = configDoc.data().keySecret || keySecret;
+    }
+  } catch (err) {
+    console.error("Failed to read Razorpay secret:", err);
+  }
+
+  const crypto = require("crypto");
+  const body = orderId + "|" + paymentId;
+  const expectedSignature = crypto
+    .createHmac("sha256", keySecret)
+    .update(body.toString())
+    .digest("hex");
+
+  if (expectedSignature !== signature) {
+    throw new functions.https.HttpsError("permission-denied", "Razorpay payment verification signature mismatch");
+  }
+
+  const donationRef = db.collection("donations").doc();
+  const donationData = {
+    id: donationRef.id,
+    paymentId,
+    orderId,
+    signature,
+    amount: Number(amount),
+    status: "success",
+    paymentMethod: "razorpay",
+    donorName: isAnonymous ? "Anonymous" : donorName,
+    donorEmail: isAnonymous ? "" : donorEmail,
+    donorPhone: isAnonymous ? "" : donorPhone,
+    donorId: context.auth.uid,
+    isAnonymous: Boolean(isAnonymous),
+    campaignId,
+    campaignTitle,
+    campaignType,
+    ngoId: ngoId || "",
+    message: message || "",
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+  };
+
+  await donationRef.set(donationData);
+  console.log(`Donation verified and saved: ${donationRef.id}`);
+
+  return { success: true, donationId: donationRef.id };
+});
+

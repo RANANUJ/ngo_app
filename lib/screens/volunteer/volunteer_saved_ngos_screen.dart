@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../ngo/ngo_public_profile_screen.dart';
 import 'package:ngo_app/features/ngo/data/services/ngo_registration_service.dart';
+import 'package:ngo_app/shared/widgets/skeleton_loader.dart';
 
 class VolunteerSavedNgosScreen extends StatefulWidget {
   const VolunteerSavedNgosScreen({Key? key}) : super(key: key);
@@ -39,7 +40,7 @@ class _VolunteerSavedNgosScreenState extends State<VolunteerSavedNgosScreen> {
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return const ListSkeleton(itemCount: 4, height: 80);
         }
 
         if (snapshot.hasError) {
@@ -101,7 +102,7 @@ class _VolunteerSavedNgosScreenState extends State<VolunteerSavedNgosScreen> {
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return const ListSkeleton(itemCount: 4, height: 80);
         }
 
         final allRegistrations = snapshot.data?.docs ?? [];
@@ -211,24 +212,21 @@ class _VolunteerSavedNgosScreenState extends State<VolunteerSavedNgosScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
       ),
-      child: Row(
+      child: const Row(
         children: [
-          Container(
+          SkeletonContainer(
             width: 70,
             height: 70,
-            decoration: BoxDecoration(
-              color: Colors.grey.shade200,
-              borderRadius: BorderRadius.circular(12),
-            ),
+            borderRadius: BorderRadius.all(Radius.circular(12)),
           ),
-          const SizedBox(width: 16),
+          SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(width: 150, height: 16, color: Colors.grey.shade200),
-                const SizedBox(height: 8),
-                Container(width: 100, height: 12, color: Colors.grey.shade200),
+                SkeletonContainer(width: 150, height: 16),
+                SizedBox(height: 8),
+                SkeletonContainer(width: 100, height: 12),
               ],
             ),
           ),
@@ -302,9 +300,9 @@ class _VolunteerSavedNgosScreenState extends State<VolunteerSavedNgosScreen> {
                     width: 70,
                     height: 70,
                     decoration: BoxDecoration(
-                      color: primary.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: primary.withOpacity(0.2)),
+                      color: primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: primary.withValues(alpha: 0.2)),
                     ),
                     child: logoUrl != null && logoUrl.isNotEmpty
                         ? ClipRRect(
@@ -342,7 +340,7 @@ class _VolunteerSavedNgosScreenState extends State<VolunteerSavedNgosScreen> {
                               vertical: 2,
                             ),
                             decoration: BoxDecoration(
-                              color: primary.withOpacity(0.1),
+                              color: primary.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(10),
                             ),
                             child: Text(

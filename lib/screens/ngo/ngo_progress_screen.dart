@@ -181,7 +181,7 @@ class _NgoProgressScreenState extends State<NgoProgressScreen> {
                   Container(
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.15),
+                      color: Colors.white.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Row(
@@ -189,7 +189,7 @@ class _NgoProgressScreenState extends State<NgoProgressScreen> {
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
+                            color: Colors.white.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Icon(
@@ -217,7 +217,7 @@ class _NgoProgressScreenState extends State<NgoProgressScreen> {
                                   Text(
                                     '${stats.impactScore} pts',
                                     style: TextStyle(
-                                      color: Colors.white.withOpacity(0.9),
+                                      color: Colors.white.withValues(alpha: 0.9),
                                       fontSize: 14,
                                       fontWeight: FontWeight.w500,
                                     ),
@@ -230,7 +230,7 @@ class _NgoProgressScreenState extends State<NgoProgressScreen> {
                                   Container(
                                     height: 5,
                                     decoration: BoxDecoration(
-                                      color: Colors.white.withOpacity(0.3),
+                                      color: Colors.white.withValues(alpha: 0.3),
                                       borderRadius: BorderRadius.circular(3),
                                     ),
                                   ),
@@ -250,7 +250,7 @@ class _NgoProgressScreenState extends State<NgoProgressScreen> {
                               Text(
                                 '$progress% to ${_getNextLevel(level)}',
                                 style: TextStyle(
-                                  color: Colors.white.withOpacity(0.8),
+                                  color: Colors.white.withValues(alpha: 0.8),
                                   fontSize: 11,
                                 ),
                               ),
@@ -350,7 +350,7 @@ class _NgoProgressScreenState extends State<NgoProgressScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF10B981).withOpacity(0.1),
+                  color: const Color(0xFF10B981).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
@@ -536,7 +536,7 @@ class _NgoProgressScreenState extends State<NgoProgressScreen> {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: primary.withOpacity(0.1),
+                  color: primary.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(Icons.arrow_forward_ios, color: primary, size: 16),
@@ -739,7 +739,7 @@ class _StatCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -755,7 +755,7 @@ class _StatCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: iconColor.withOpacity(0.1),
+                  color: iconColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(icon, color: iconColor, size: 20),
@@ -822,7 +822,7 @@ class _SectionCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -836,7 +836,7 @@ class _SectionCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: iconColor.withOpacity(0.1),
+                  color: iconColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(icon, color: iconColor, size: 20),
@@ -924,8 +924,8 @@ class _CampaignProgressTile extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
                   color: isActive
-                      ? const Color(0xFF10B981).withOpacity(0.1)
-                      : Colors.grey.withOpacity(0.1),
+                      ? const Color(0xFF10B981).withValues(alpha: 0.1)
+                      : Colors.grey.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
@@ -1003,7 +1003,7 @@ class _CampaignTile extends StatelessWidget {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: const Color(0xFF10B981).withOpacity(0.1),
+              color: const Color(0xFF10B981).withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(
@@ -1037,8 +1037,8 @@ class _CampaignTile extends StatelessWidget {
                       ),
                       decoration: BoxDecoration(
                         color: isActive
-                            ? const Color(0xFF10B981).withOpacity(0.1)
-                            : Colors.grey.withOpacity(0.1),
+                            ? const Color(0xFF10B981).withValues(alpha: 0.1)
+                            : Colors.grey.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
@@ -1123,7 +1123,7 @@ class _EventTile extends StatelessWidget {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: const Color(0xFFF59E0B).withOpacity(0.1),
+              color: const Color(0xFFF59E0B).withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Column(
@@ -1239,7 +1239,7 @@ class _VolunteerAvatar extends StatelessWidget {
         color: _getColor(index),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -1289,10 +1289,10 @@ class _MilestoneChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: achieved ? color.withOpacity(0.1) : Colors.grey[100],
+        color: achieved ? color.withValues(alpha: 0.1) : Colors.grey[100],
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: achieved ? color.withOpacity(0.3) : Colors.grey[300]!,
+          color: achieved ? color.withValues(alpha: 0.3) : Colors.grey[300]!,
         ),
       ),
       child: Row(

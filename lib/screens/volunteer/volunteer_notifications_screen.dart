@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:ngo_app/shared/widgets/skeleton_loader.dart';
 
 class VolunteerNotificationsScreen extends StatefulWidget {
   const VolunteerNotificationsScreen({Key? key}) : super(key: key);
@@ -214,7 +215,7 @@ class _VolunteerNotificationsScreenState extends State<VolunteerNotificationsScr
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return const ListSkeleton(itemCount: 5, height: 70);
         }
 
         if (snapshot.hasError) {
@@ -253,7 +254,7 @@ class _VolunteerNotificationsScreenState extends State<VolunteerNotificationsScr
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return const ListSkeleton(itemCount: 5, height: 70);
         }
 
         final notifications = snapshot.data?.docs ?? [];
@@ -346,10 +347,10 @@ class _VolunteerNotificationsScreenState extends State<VolunteerNotificationsScr
         child: Container(
           margin: const EdgeInsets.only(bottom: 12),
           decoration: BoxDecoration(
-            color: isRead ? Colors.white : primary.withOpacity(0.05),
+            color: isRead ? Colors.white : primary.withValues(alpha: 0.05),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: isRead ? Colors.grey.shade200 : primary.withOpacity(0.2),
+              color: isRead ? Colors.grey.shade200 : primary.withValues(alpha: 0.2),
             ),
             boxShadow: [
               BoxShadow(
@@ -368,7 +369,7 @@ class _VolunteerNotificationsScreenState extends State<VolunteerNotificationsScr
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: _getNotificationColor(type).withOpacity(0.1),
+                    color: _getNotificationColor(type).withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
@@ -595,7 +596,7 @@ class _VolunteerNotificationsScreenState extends State<VolunteerNotificationsScr
       secondary: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: primary.withOpacity(0.1),
+          color: primary.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Icon(icon, color: primary, size: 20),

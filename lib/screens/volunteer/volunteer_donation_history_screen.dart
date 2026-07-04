@@ -2,6 +2,7 @@ import 'package:ngo_app/core/utils/network/network_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:ngo_app/shared/widgets/skeleton_loader.dart';
 
 class VolunteerDonationHistoryScreen extends StatefulWidget {
   const VolunteerDonationHistoryScreen({super.key});
@@ -166,7 +167,7 @@ class _VolunteerDonationHistoryScreenState extends State<VolunteerDonationHistor
       future: _getAllDonations(userId),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator(color: primary));
+          return const ListSkeleton(itemCount: 4, height: 75);
         }
 
         if (snapshot.hasError) {

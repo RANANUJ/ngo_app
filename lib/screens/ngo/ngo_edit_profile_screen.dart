@@ -299,8 +299,8 @@ class _NgoEditProfileScreenState extends State<NgoEditProfileScreen> {
                           height: 120,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: primary.withOpacity(0.1),
-                            border: Border.all(color: primary.withOpacity(0.3), width: 3),
+                            color: primary.withValues(alpha: 0.1),
+                            border: Border.all(color: primary.withValues(alpha: 0.3), width: 3),
                             image: _selectedImage != null
                                 ? DecorationImage(
                                     image: FileImage(_selectedImage!),
@@ -528,7 +528,7 @@ class _NgoEditProfileScreenState extends State<NgoEditProfileScreen> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: icon == Icons.delete ? Colors.red.withOpacity(0.1) : primary.withOpacity(0.1),
+              color: icon == Icons.delete ? Colors.red.withValues(alpha: 0.1) : primary.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(icon, color: icon == Icons.delete ? Colors.red : primary, size: 28),

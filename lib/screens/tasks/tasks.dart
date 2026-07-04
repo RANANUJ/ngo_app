@@ -1,1 +1,1 @@
-export 'quick_task_screen.dart';
+export 'package:ngo_app/features/tasks/presentation/screens/quick_task_screen.dart';

@@ -239,7 +239,7 @@ class _NgoPrivacySecurityScreenState extends State<NgoPrivacySecurityScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: isPublic ? Colors.green.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
+              color: isPublic ? Colors.green.withValues(alpha: 0.1) : Colors.grey.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
@@ -275,7 +275,7 @@ class _NgoPrivacySecurityScreenState extends State<NgoPrivacySecurityScreen> {
             leading: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: primary.withOpacity(0.1),
+                color: primary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(Icons.lock, color: primary),
@@ -300,7 +300,7 @@ class _NgoPrivacySecurityScreenState extends State<NgoPrivacySecurityScreen> {
             leading: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.1),
+                color: Colors.orange.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: const Icon(Icons.security, color: Colors.orange),
@@ -332,7 +332,7 @@ class _NgoPrivacySecurityScreenState extends State<NgoPrivacySecurityScreen> {
             leading: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.blue.withOpacity(0.1),
+                color: Colors.blue.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: const Icon(Icons.devices, color: Colors.blue),
@@ -402,7 +402,7 @@ class _NgoPrivacySecurityScreenState extends State<NgoPrivacySecurityScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: Colors.green.withOpacity(0.1),
+                color: Colors.green.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: const Text(

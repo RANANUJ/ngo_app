@@ -337,7 +337,7 @@ class _NgoLoginScreenState extends State<NgoLoginScreen> {
                 width: 100,
                 height: 100,
                 decoration: BoxDecoration(
-                  color: primary.withOpacity(0.1),
+                  color: primary.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(

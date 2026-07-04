@@ -7,7 +7,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'firebase_options.dart';
-import 'package:ngo_app/screens/auth/splash_screen.dart';
+import 'package:ngo_app/features/auth/presentation/screens/splash_screen.dart';
 import 'package:ngo_app/core/utils/seeding/seed_government_schemes.dart';
 import 'package:ngo_app/core/services/notification_service.dart';
 import 'package:ngo_app/core/services/cache_service.dart';
@@ -15,9 +15,35 @@ import 'package:ngo_app/core/services/language_service.dart';
 import 'package:ngo_app/core/services/crashlytics_service.dart';
 import 'package:ngo_app/core/services/remote_config_service.dart';
 import 'package:ngo_app/core/services/analytics_service.dart';
+import 'package:ngo_app/features/auth/presentation/controllers/auth_controller.dart';
+import 'package:ngo_app/features/emergency/domain/repositories/sos_repository.dart';
+import 'package:ngo_app/features/emergency/data/repositories/firebase_sos_repository.dart';
+import 'package:ngo_app/features/emergency/presentation/controllers/sos_controller.dart';
+import 'package:ngo_app/features/donations/domain/repositories/donation_repository.dart';
+import 'package:ngo_app/features/donations/data/repositories/firebase_donation_repository.dart';
+import 'package:ngo_app/features/donations/presentation/controllers/donation_controller.dart';
+import 'package:ngo_app/features/campaigns/domain/repositories/campaign_repository.dart';
+import 'package:ngo_app/features/campaigns/data/repositories/firebase_campaign_repository.dart';
+import 'package:ngo_app/features/campaigns/presentation/controllers/campaign_controller.dart';
+import 'package:ngo_app/features/opportunities/domain/repositories/opportunity_repository.dart';
+import 'package:ngo_app/features/opportunities/data/repositories/firebase_opportunity_repository.dart';
+import 'package:ngo_app/features/opportunities/presentation/controllers/opportunity_controller.dart';
+import 'package:ngo_app/features/resources/domain/repositories/resource_repository.dart';
+import 'package:ngo_app/features/resources/data/repositories/firebase_resource_repository.dart';
+import 'package:ngo_app/features/resources/presentation/controllers/resource_controller.dart';
+import 'package:ngo_app/features/tasks/domain/repositories/task_repository.dart';
+import 'package:ngo_app/features/tasks/data/repositories/firebase_task_repository.dart';
+import 'package:ngo_app/features/tasks/presentation/controllers/task_controller.dart';
+import 'package:ngo_app/features/community/domain/repositories/community_repository.dart';
+import 'package:ngo_app/features/community/data/repositories/firebase_community_repository.dart';
+import 'package:ngo_app/features/community/presentation/controllers/community_controller.dart';
+import 'package:ngo_app/features/profile/domain/repositories/profile_repository.dart';
+import 'package:ngo_app/features/profile/data/repositories/firebase_profile_repository.dart';
+import 'package:ngo_app/features/profile/presentation/controllers/profile_controller.dart';
 import 'l10n/app_localizations.dart';
+import 'package:ngo_app/core/utils/route_observer.dart';
 
-
+ 
 // Flutter local notifications plugin instance for background use
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
@@ -150,8 +176,27 @@ class MainApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => LanguageService(),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => LanguageService()),
+        ChangeNotifierProvider(create: (_) => AuthController()),
+        Provider<SosRepository>(create: (_) => FirebaseSosRepository()),
+        ChangeNotifierProvider(create: (context) => SosController(context.read<SosRepository>())),
+        Provider<DonationRepository>(create: (_) => FirebaseDonationRepository()),
+        ChangeNotifierProvider(create: (context) => DonationController(context.read<DonationRepository>())),
+        Provider<CampaignRepository>(create: (_) => FirebaseCampaignRepository()),
+        ChangeNotifierProvider(create: (context) => CampaignController(context.read<CampaignRepository>())),
+        Provider<OpportunityRepository>(create: (_) => FirebaseOpportunityRepository()),
+        ChangeNotifierProvider(create: (context) => OpportunityController(context.read<OpportunityRepository>())),
+        Provider<ResourceRepository>(create: (_) => FirebaseResourceRepository()),
+        ChangeNotifierProvider(create: (context) => ResourceController(context.read<ResourceRepository>())),
+        Provider<TaskRepository>(create: (_) => FirebaseTaskRepository()),
+        ChangeNotifierProvider(create: (context) => TaskController(context.read<TaskRepository>())),
+        Provider<CommunityRepository>(create: (_) => FirebaseCommunityRepository()),
+        ChangeNotifierProvider(create: (context) => CommunityController(context.read<CommunityRepository>())),
+        Provider<ProfileRepository>(create: (_) => FirebaseProfileRepository()),
+        ChangeNotifierProvider(create: (context) => ProfileController(context.read<ProfileRepository>())),
+      ],
       child: Consumer<LanguageService>(
         builder: (context, languageService, child) {
           return MaterialApp(
@@ -171,7 +216,7 @@ class MainApp extends StatelessWidget {
             theme: ThemeData(
               useMaterial3: true,
             ),
-            navigatorObservers: <NavigatorObserver>[observer],
+            navigatorObservers: <NavigatorObserver>[observer, routeObserver],
             home: const SplashScreen(),
           );
         },

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:ngo_app/screens/donations/payment_donation_screen.dart';
+import 'package:ngo_app/features/donations/presentation/screens/payment_donation_screen.dart';
 
 class EmergencyDetailScreen extends StatefulWidget {
   final Map<String, dynamic> data;
@@ -84,12 +84,12 @@ class _EmergencyDetailScreenState extends State<EmergencyDetailScreen> {
                           images.first,
                           fit: BoxFit.cover,
                           errorBuilder: (_, __, ___) => Container(
-                            color: emergencyRed.withOpacity(0.3),
+                            color: emergencyRed.withValues(alpha: 0.3),
                             child: const Icon(Icons.emergency, size: 80, color: Colors.white),
                           ),
                         )
                       : Container(
-                          color: emergencyRed.withOpacity(0.3),
+                          color: emergencyRed.withValues(alpha: 0.3),
                           child: const Icon(Icons.emergency, size: 80, color: Colors.white),
                         ),
                 ),
@@ -145,7 +145,7 @@ class _EmergencyDetailScreenState extends State<EmergencyDetailScreen> {
                           borderRadius: BorderRadius.circular(12),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.grey.withOpacity(0.1),
+                              color: Colors.grey.withValues(alpha: 0.1),
                               blurRadius: 4,
                               offset: const Offset(0, 2),
                             ),
@@ -195,7 +195,7 @@ class _EmergencyDetailScreenState extends State<EmergencyDetailScreen> {
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: emergencyRed.withOpacity(0.3)),
+                          border: Border.all(color: emergencyRed.withValues(alpha: 0.3)),
                         ),
                         child: Column(
                           children: [
@@ -375,7 +375,7 @@ class _EmergencyDetailScreenState extends State<EmergencyDetailScreen> {
               color: Colors.white,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.grey.withOpacity(0.2),
+                  color: Colors.grey.withValues(alpha: 0.2),
                   blurRadius: 8,
                   offset: const Offset(0, -4),
                 ),

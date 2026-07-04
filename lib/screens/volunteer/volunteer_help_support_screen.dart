@@ -122,7 +122,7 @@ class VolunteerHelpSupportScreen extends StatelessWidget {
       leading: Container(
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: primary.withOpacity(0.1),
+          color: primary.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(10),
         ),
         child: Icon(icon, color: primary, size: 22),
@@ -294,7 +294,7 @@ class VolunteerHelpSupportScreen extends StatelessWidget {
       leading: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: primary.withOpacity(0.1),
+          color: primary.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Icon(icon, color: primary, size: 20),
@@ -336,7 +336,7 @@ class VolunteerHelpSupportScreen extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.1),
+                  color: Colors.orange.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Icon(
@@ -547,7 +547,7 @@ class VolunteerHelpSupportScreen extends StatelessWidget {
                                 setState(() => selectedType = type);
                               }
                             },
-                            selectedColor: primary.withOpacity(0.2),
+                            selectedColor: primary.withValues(alpha: 0.2),
                           ))
                       .toList(),
                 ),

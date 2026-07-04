@@ -4,7 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
-import 'volunteer_opportunities_screen.dart';
+import 'package:ngo_app/features/opportunities/presentation/screens/volunteer_opportunities_screen.dart';
 
 class VolunteerRegistrationScreen extends StatefulWidget {
   final String ngoId;

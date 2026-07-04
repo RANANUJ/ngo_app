@@ -7,12 +7,9 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:intl/intl.dart';
 import 'package:encrypt/encrypt.dart' as encrypt;
+import 'package:ngo_app/core/services/encryption_helper.dart';
 
 class ReceiptService {
-  // Encryption key and IV (for demonstration; use secure key management in production)
-  static final _key = encrypt.Key.fromUtf8('my32lengthsupersecretnooknows!'); // 32 chars
-  static final _iv = encrypt.IV.fromLength(16);
-  static final _encrypter = encrypt.Encrypter(encrypt.AES(_key));
   
   static Future<File> generateDonationReceipt({
     required String receiptNumber,
@@ -90,18 +87,34 @@ class ReceiptService {
     );
 
     // Save encrypted PDF
+    final pdfBytes = await pdf.save();
     final directory = await getApplicationDocumentsDirectory();
     final file = File('${directory.path}/donation_receipt_$receiptNumber.pdf');
-    final pdfBytes = await pdf.save();
-    final encrypted = _encrypter.encryptBytes(pdfBytes, iv: _iv);
-    await file.writeAsBytes(encrypted.bytes);
+    final key = await EncryptionHelper.getEncryptionKey();
+    final encrypter = encrypt.Encrypter(encrypt.AES(key));
+    final iv = encrypt.IV.fromSecureRandom(16);
+    final encrypted = encrypter.encryptBytes(pdfBytes, iv: iv);
+    
+    final combinedBytes = Uint8List(iv.bytes.length + encrypted.bytes.length);
+    combinedBytes.setRange(0, iv.bytes.length, iv.bytes);
+    combinedBytes.setRange(iv.bytes.length, combinedBytes.length, encrypted.bytes);
+    await file.writeAsBytes(combinedBytes);
     return file;
   }
 
   /// Decrypts an encrypted PDF receipt file
   static Future<Uint8List> decryptReceiptFile(File file) async {
-    final encryptedBytes = await file.readAsBytes();
-    final decrypted = _encrypter.decryptBytes(encrypt.Encrypted(encryptedBytes), iv: _iv);
+    final fileBytes = await file.readAsBytes();
+    if (fileBytes.length < 16) {
+      throw Exception('Invalid encrypted receipt file structure');
+    }
+    final ivBytes = fileBytes.sublist(0, 16);
+    final encryptedBytes = fileBytes.sublist(16);
+    
+    final iv = encrypt.IV(ivBytes);
+    final key = await EncryptionHelper.getEncryptionKey();
+    final encrypter = encrypt.Encrypter(encrypt.AES(key));
+    final decrypted = encrypter.decryptBytes(encrypt.Encrypted(encryptedBytes), iv: iv);
     return Uint8List.fromList(decrypted);
   }
 

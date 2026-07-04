@@ -1,7 +1,9 @@
-import 'package:ngo_app/core/utils/network/network_utils.dart';
 import 'package:encrypt/encrypt.dart' as encrypt;
+import 'package:ngo_app/core/utils/network/network_utils.dart';
+import 'package:ngo_app/core/services/encryption_helper.dart';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -21,11 +23,6 @@ class VolunteerSettingsScreen extends StatefulWidget {
 }
 
 class _VolunteerSettingsScreenState extends State<VolunteerSettingsScreen> {
-  // Encryption key and IV (should be managed securely in production)
-  final encrypt.Key _key = encrypt.Key.fromUtf8('my32lengthsupersecretnooneknows!');
-  final encrypt.IV _iv = encrypt.IV.fromLength(16);
-  late final encrypt.Encrypter _encrypter = encrypt.Encrypter(encrypt.AES(_key));
-
   static const Color primary = Color(0xFF0099B8);
   
   // Notification Settings
@@ -399,7 +396,7 @@ class _VolunteerSettingsScreenState extends State<VolunteerSettingsScreen> {
       leading: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: primary.withOpacity(0.1),
+          color: primary.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Icon(icon, color: primary, size: 20),
@@ -436,7 +433,7 @@ class _VolunteerSettingsScreenState extends State<VolunteerSettingsScreen> {
       leading: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Icon(icon, color: color, size: 20),
@@ -471,7 +468,7 @@ class _VolunteerSettingsScreenState extends State<VolunteerSettingsScreen> {
       leading: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: primary.withOpacity(0.1),
+          color: primary.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Icon(icon, color: primary, size: 20),
@@ -498,7 +495,7 @@ class _VolunteerSettingsScreenState extends State<VolunteerSettingsScreen> {
       leading: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: primary.withOpacity(0.1),
+          color: primary.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Icon(Icons.language, color: primary, size: 20),
@@ -763,8 +760,11 @@ class _VolunteerSettingsScreenState extends State<VolunteerSettingsScreen> {
 
       // Decode the base64 PDF
       final pdfBytes = base64Decode(pdfBase64);
-      // Encrypt PDF bytes before saving
-      final encrypted = _encrypter.encryptBytes(pdfBytes, iv: _iv);
+      // Encrypt PDF bytes before saving using dynamic key and random IV
+      final encryptionKey = await EncryptionHelper.getEncryptionKey();
+      final encrypter = encrypt.Encrypter(encrypt.AES(encryptionKey));
+      final iv = encrypt.IV.fromSecureRandom(16);
+      final encrypted = encrypter.encryptBytes(pdfBytes, iv: iv);
 
       // Get the downloads directory
       Directory? directory;
@@ -781,7 +781,11 @@ class _VolunteerSettingsScreenState extends State<VolunteerSettingsScreen> {
 
       final filePath = '${directory!.path}/$fileName';
       final file = File(filePath);
-      await file.writeAsBytes(encrypted.bytes);
+      
+      final combinedBytes = Uint8List(iv.bytes.length + encrypted.bytes.length);
+      combinedBytes.setRange(0, iv.bytes.length, iv.bytes);
+      combinedBytes.setRange(iv.bytes.length, combinedBytes.length, encrypted.bytes);
+      await file.writeAsBytes(combinedBytes);
 
       // Close loading dialog
       if (mounted) Navigator.pop(context);

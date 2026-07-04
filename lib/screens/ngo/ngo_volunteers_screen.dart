@@ -405,7 +405,7 @@ class _NgoVolunteersScreenState extends State<NgoVolunteersScreen> {
       height: 60,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(8),
-        color: primary.withOpacity(0.1),
+        color: primary.withValues(alpha: 0.1),
       ),
       child: volunteerId != null
           ? FutureBuilder<DocumentSnapshot>(

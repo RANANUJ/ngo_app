@@ -34,8 +34,6 @@ class _NgoRegistrationScreenState extends State<NgoRegistrationScreen> {
 
   /// Current step index (0-based)
   int _currentStep = 0;
-
-  /// Flag to track if verification is in progress
   bool _isVerifying = false;
 
   // ==========================================================================

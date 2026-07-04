@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../community/post_feed_screen.dart';
+import 'package:ngo_app/features/community/presentation/screens/post_feed_screen.dart';
+import 'package:ngo_app/features/community/domain/models/community_post.dart';
+import 'package:ngo_app/features/community/presentation/screens/video_player_widget.dart';
+import 'package:ngo_app/shared/widgets/skeleton_loader.dart';
 
 class NgoExploreScreen extends StatefulWidget {
   final String? userId;
@@ -19,6 +22,12 @@ class _NgoExploreScreenState extends State<NgoExploreScreen> with SingleTickerPr
   final TextEditingController _searchController = TextEditingController();
   String? _currentUserId;
 
+  late Stream<QuerySnapshot> _feedStream;
+  late Stream<QuerySnapshot> _ngosStream;
+  late Stream<QuerySnapshot> _ngosFallbackStream;
+  late Stream<QuerySnapshot> _volunteerStream;
+  late Stream<QuerySnapshot> _volunteerFallbackStream;
+
   @override
   void initState() {
     super.initState();
@@ -26,6 +35,8 @@ class _NgoExploreScreenState extends State<NgoExploreScreen> with SingleTickerPr
     // Cache userId - prefer passed parameter, then try Firebase Auth
     _currentUserId = widget.userId ?? FirebaseAuth.instance.currentUser?.uid;
     debugPrint('NgoExploreScreen: User ID = $_currentUserId');
+    
+    _initStreams();
     
     // Listen for auth state changes in case user wasn't fully loaded
     FirebaseAuth.instance.authStateChanges().listen((User? user) {
@@ -36,6 +47,36 @@ class _NgoExploreScreenState extends State<NgoExploreScreen> with SingleTickerPr
         debugPrint('NgoExploreScreen: Auth state updated - User ID = $_currentUserId');
       }
     });
+  }
+
+  void _initStreams() {
+    _feedStream = FirebaseFirestore.instance
+        .collection('community_posts')
+        .orderBy('createdAt', descending: true)
+        .limit(30)
+        .snapshots();
+
+    _ngosStream = FirebaseFirestore.instance
+        .collection('community_posts')
+        .where('userType', isEqualTo: 'ngo')
+        .orderBy('createdAt', descending: true)
+        .limit(30)
+        .snapshots();
+
+    _ngosFallbackStream = FirebaseFirestore.instance
+        .collection('community_posts')
+        .snapshots();
+
+    _volunteerStream = FirebaseFirestore.instance
+        .collection('community_posts')
+        .where('userType', isEqualTo: 'volunteer')
+        .orderBy('createdAt', descending: true)
+        .limit(30)
+        .snapshots();
+
+    _volunteerFallbackStream = FirebaseFirestore.instance
+        .collection('community_posts')
+        .snapshots();
   }
 
   @override
@@ -121,14 +162,10 @@ class _NgoExploreScreenState extends State<NgoExploreScreen> with SingleTickerPr
   // My Feed - All posts
   Widget _buildFeedGrid() {
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('community_posts')
-          .orderBy('createdAt', descending: true)
-          .limit(30)
-          .snapshots(),
+      stream: _feedStream,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return const GridSkeleton();
         }
         
         if (snapshot.hasError) {
@@ -149,15 +186,10 @@ class _NgoExploreScreenState extends State<NgoExploreScreen> with SingleTickerPr
   // NGOs tab - Posts by NGO members
   Widget _buildNgosGrid() {
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('community_posts')
-          .where('userType', isEqualTo: 'ngo')
-          .orderBy('createdAt', descending: true)
-          .limit(30)
-          .snapshots(),
+      stream: _ngosStream,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return const GridSkeleton();
         }
         
         if (snapshot.hasError) {
@@ -178,12 +210,10 @@ class _NgoExploreScreenState extends State<NgoExploreScreen> with SingleTickerPr
 
   Widget _buildNgosGridFallback() {
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('community_posts')
-          .snapshots(),
+      stream: _ngosFallbackStream,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return const GridSkeleton();
         }
         
         final allPosts = snapshot.data?.docs ?? [];
@@ -204,15 +234,10 @@ class _NgoExploreScreenState extends State<NgoExploreScreen> with SingleTickerPr
   // Volunteer tab - Posts by Volunteers
   Widget _buildVolunteerGrid() {
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('community_posts')
-          .where('userType', isEqualTo: 'volunteer')
-          .orderBy('createdAt', descending: true)
-          .limit(30)
-          .snapshots(),
+      stream: _volunteerStream,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return const GridSkeleton();
         }
         
         if (snapshot.hasError) {
@@ -233,12 +258,10 @@ class _NgoExploreScreenState extends State<NgoExploreScreen> with SingleTickerPr
 
   Widget _buildVolunteerGridFallback() {
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('community_posts')
-          .snapshots(),
+      stream: _volunteerFallbackStream,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return const GridSkeleton();
         }
         
         final allPosts = snapshot.data?.docs ?? [];
@@ -285,10 +308,19 @@ class _NgoExploreScreenState extends State<NgoExploreScreen> with SingleTickerPr
   }
 
   Widget _buildStaggeredGrid(List<QueryDocumentSnapshot> posts) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        children: _buildGridRows(posts, posts),
+    return RefreshIndicator(
+      onRefresh: () async {
+        setState(() {
+          _initStreams();
+        });
+      },
+      color: primary,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Column(
+          children: _buildGridRows(posts, posts),
+        ),
       ),
     );
   }
@@ -414,7 +446,7 @@ class _NgoExploreScreenState extends State<NgoExploreScreen> with SingleTickerPr
           context,
           MaterialPageRoute(
             builder: (context) => PostFeedScreen(
-              posts: allPosts,
+              posts: allPosts.map((doc) => CommunityPost.fromMap(doc.id, doc.data() as Map<String, dynamic>)).toList(),
               initialIndex: postIndex >= 0 ? postIndex : 0,
               userId: _currentUserId,
             ),
@@ -436,7 +468,7 @@ class _NgoExploreScreenState extends State<NgoExploreScreen> with SingleTickerPr
                 Stack(
                   fit: StackFit.expand,
                   children: [
-                    Container(color: Colors.grey.shade900),
+                    VideoThumbnailPlayer(videoUrl: videoUrl),
                     const Center(
                       child: Icon(Icons.play_circle_fill, color: Colors.white, size: 40),
                     ),
@@ -464,7 +496,7 @@ class _NgoExploreScreenState extends State<NgoExploreScreen> with SingleTickerPr
                         begin: Alignment.bottomCenter,
                         end: Alignment.topCenter,
                         colors: [
-                          Colors.black.withOpacity(0.7),
+                          Colors.black.withValues(alpha: 0.7),
                           Colors.transparent,
                         ],
                       ),
@@ -508,7 +540,7 @@ class _NgoExploreScreenState extends State<NgoExploreScreen> with SingleTickerPr
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: userType == 'ngo' 
-              ? [primary.withOpacity(0.8), primary]
+              ? [primary.withValues(alpha: 0.8), primary]
               : [Colors.purple.shade400, Colors.purple.shade600],
         ),
       ),

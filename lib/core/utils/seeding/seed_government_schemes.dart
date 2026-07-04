@@ -1,4 +1,3 @@
-import 'network_utils.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class GovernmentSchemeSeeder {
@@ -10,22 +9,22 @@ class GovernmentSchemeSeeder {
     final existing = await collection.get();
     
     if (forceReseed && existing.docs.isNotEmpty) {
-    secureLog('Force reseeding: Deleting ${existing.docs.length} existing schemes...');
+    print('Force reseeding: Deleting ${existing.docs.length} existing schemes...');
       for (final doc in existing.docs) {
         await doc.reference.delete();
       }
-    secureLog('Deleted all existing schemes');
+    print('Deleted all existing schemes');
     } else if (existing.docs.length >= 10) {
-    secureLog('Government schemes already seeded (${existing.docs.length} found)');
+    print('Government schemes already seeded (${existing.docs.length} found)');
       return;
     } else if (existing.docs.isNotEmpty && existing.docs.length < 10) {
-    secureLog('Found only ${existing.docs.length} schemes, deleting and reseeding...');
+    print('Found only ${existing.docs.length} schemes, deleting and reseeding...');
       for (final doc in existing.docs) {
         await doc.reference.delete();
       }
     }
 
-    secureLog('Seeding government schemes...');
+    print('Seeding government schemes...');
     
     try {
       final List<Map<String, dynamic>> schemes = [
@@ -243,12 +242,12 @@ class GovernmentSchemeSeeder {
     // Add all schemes to Firestore
     for (final scheme in schemes) {
       await collection.add(scheme);
-    secureLog('Added scheme: ${scheme['name']}');
+    print('Added scheme: ${scheme['name']}');
     }
 
-    secureLog('Successfully seeded ${schemes.length} government schemes!');
+    print('Successfully seeded ${schemes.length} government schemes!');
     } catch (e) {
-    secureLog('Error seeding government schemes: $e');
+    print('Error seeding government schemes: $e');
     }
   }
 }

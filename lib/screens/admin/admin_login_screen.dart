@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'admin_dashboard_screen.dart';
 
 class AdminLoginScreen extends StatefulWidget {
@@ -10,10 +12,6 @@ class AdminLoginScreen extends StatefulWidget {
 
 class _AdminLoginScreenState extends State<AdminLoginScreen> {
   static const Color primary = Color(0xFF0099B8);
-  
-  // Hardcoded admin credentials
-  static const String _adminEmail = 'rana1452005@gmail.com';
-  static const String _adminPassword = '123456';
 
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
@@ -38,20 +36,69 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
 
     setState(() => _isLoading = true);
 
-    // Simulate network delay
-    await Future.delayed(const Duration(milliseconds: 500));
-
-    if (email == _adminEmail && password == _adminPassword) {
-      setState(() => _isLoading = false);
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const AdminDashboardScreen()),
+    try {
+      UserCredential userCredential;
+      try {
+        userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+          email: email,
+          password: password,
         );
+      } on FirebaseAuthException catch (authEx) {
+        // Auto-create in Firebase Auth if it doesn't exist yet (only for the primary admin email)
+        if ((authEx.code == 'user-not-found' || authEx.code == 'invalid-credential' || authEx.code == 'wrong-password') && email == 'rana1452005@gmail.com') {
+          try {
+            userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+              email: email,
+              password: password,
+            );
+          } catch (_) {
+            rethrow;
+          }
+        } else {
+          rethrow;
+        }
       }
-    } else {
+
+      final user = userCredential.user;
+      if (user == null) {
+        throw FirebaseAuthException(code: 'user-null', message: 'Authentication returned an empty user.');
+      }
+
+      final adminDocRef = FirebaseFirestore.instance
+          .collection('admins')
+          .doc(user.uid);
+
+      var adminDoc = await adminDocRef.get();
+
+      // Auto-seed Firestore document if it doesn't exist yet for the primary admin email
+      if (!adminDoc.exists && email == 'rana1452005@gmail.com') {
+        await adminDocRef.set({
+          'email': email,
+          'role': 'admin',
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+        adminDoc = await adminDocRef.get();
+      }
+
+      if (adminDoc.exists) {
+        setState(() => _isLoading = false);
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const AdminDashboardScreen()),
+          );
+        }
+      } else {
+        await FirebaseAuth.instance.signOut();
+        setState(() => _isLoading = false);
+        _showError('Unauthorized access: User is not configured as an administrator.');
+      }
+    } on FirebaseAuthException catch (e) {
       setState(() => _isLoading = false);
-      _showError('Invalid email or password');
+      _showError(e.message ?? 'Authentication failed');
+    } catch (e) {
+      setState(() => _isLoading = false);
+      _showError('An error occurred: $e');
     }
   }
 
@@ -87,7 +134,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
                 width: 100,
                 height: 100,
                 decoration: BoxDecoration(
-                  color: primary.withOpacity(0.1),
+                  color: primary.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(

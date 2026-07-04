@@ -189,10 +189,10 @@ class _EmergencyDonationScreenState extends State<EmergencyDonationScreen> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: emergencyRed.withOpacity(0.3)),
+          border: Border.all(color: emergencyRed.withValues(alpha: 0.3)),
           boxShadow: [
             BoxShadow(
-              color: emergencyRed.withOpacity(0.1),
+              color: emergencyRed.withValues(alpha: 0.1),
               blurRadius: 8,
               offset: const Offset(0, 4),
             ),
@@ -584,9 +584,9 @@ class _CreateEmergencyTabState extends State<_CreateEmergencyTab> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: emergencyRed.withOpacity(0.1),
+                color: emergencyRed.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: emergencyRed.withOpacity(0.3)),
+                border: Border.all(color: emergencyRed.withValues(alpha: 0.3)),
               ),
               child: Row(
                 children: [
@@ -699,9 +699,9 @@ class _CreateEmergencyTabState extends State<_CreateEmergencyTab> {
                     width: 80,
                     height: 80,
                     decoration: BoxDecoration(
-                      color: emergencyRed.withOpacity(0.1),
+                      color: emergencyRed.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: emergencyRed.withOpacity(0.3)),
+                      border: Border.all(color: emergencyRed.withValues(alpha: 0.3)),
                     ),
                     child: const Icon(Icons.add_photo_alternate, color: emergencyRed, size: 32),
                   ),

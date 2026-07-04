@@ -294,10 +294,10 @@ class _NgoPublicProfileScreenState extends State<NgoPublicProfileScreen> {
                                 width: 100,
                                 height: 100,
                                 decoration: BoxDecoration(
-                                  color: primary.withOpacity(0.1),
+                                  color: primary.withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(8),
                                   border: Border.all(
-                                    color: primary.withOpacity(0.5), 
+                                    color: primary.withValues(alpha: 0.5), 
                                     width: 1.5,
                                   ),
                                 ),
@@ -446,9 +446,9 @@ class _NgoPublicProfileScreenState extends State<NgoPublicProfileScreen> {
                                         height: 65,
                                         margin: const EdgeInsets.only(right: 10),
                                         decoration: BoxDecoration(
-                                          color: primary.withOpacity(0.1),
+                                          color: primary.withValues(alpha: 0.1),
                                           borderRadius: BorderRadius.circular(8),
-                                          border: Border.all(color: primary.withOpacity(0.5)),
+                                          border: Border.all(color: primary.withValues(alpha: 0.5)),
                                         ),
                                         child: Column(
                                           mainAxisAlignment: MainAxisAlignment.center,
@@ -640,7 +640,7 @@ class _NgoPublicProfileScreenState extends State<NgoPublicProfileScreen> {
                 // Loading overlay
                 if (_isUploading)
                   Container(
-                    color: Colors.black.withOpacity(0.3),
+                    color: Colors.black.withValues(alpha: 0.3),
                     child: const Center(
                       child: CircularProgressIndicator(),
                     ),
@@ -679,7 +679,7 @@ class _NgoPublicProfileScreenState extends State<NgoPublicProfileScreen> {
         children: [
           CircleAvatar(
             radius: 18,
-            backgroundColor: primary.withOpacity(0.2),
+            backgroundColor: primary.withValues(alpha: 0.2),
             child: Icon(Icons.person, color: primary, size: 20),
           ),
           const SizedBox(width: 12),

@@ -165,7 +165,7 @@ class _NgoHelpSupportScreenState extends State<NgoHelpSupportScreen> {
             const SizedBox(height: 16),
             
             // FAQ Categories
-            ..._filteredFaqs.map((category) => _buildFaqCategory(category)).toList(),
+            ..._filteredFaqs.map((category) => _buildFaqCategory(category)),
             
             if (_filteredFaqs.isEmpty)
               Padding(
@@ -206,7 +206,7 @@ class _NgoHelpSupportScreenState extends State<NgoHelpSupportScreen> {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [primary, primary.withOpacity(0.8)],
+          colors: [primary, primary.withValues(alpha: 0.8)],
         ),
       ),
       child: Column(
@@ -227,7 +227,7 @@ class _NgoHelpSupportScreenState extends State<NgoHelpSupportScreen> {
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 14,
-              color: Colors.white.withOpacity(0.9),
+              color: Colors.white.withValues(alpha: 0.9),
             ),
           ),
         ],
@@ -294,7 +294,7 @@ class _NgoHelpSupportScreenState extends State<NgoHelpSupportScreen> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: primary.withOpacity(0.1),
+                color: primary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(icon, color: primary, size: 24),
@@ -367,7 +367,7 @@ class _NgoHelpSupportScreenState extends State<NgoHelpSupportScreen> {
           leading: Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: (category['color'] as Color).withOpacity(0.1),
+              color: (category['color'] as Color).withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(category['icon'] as IconData, color: category['color'] as Color),
@@ -379,7 +379,7 @@ class _NgoHelpSupportScreenState extends State<NgoHelpSupportScreen> {
           subtitle: Text('${(category['faqs'] as List).length} questions'),
           children: [
             const Divider(),
-            ...(category['faqs'] as List).map((faq) => _buildFaqItem(faq)).toList(),
+            ...(category['faqs'] as List).map((faq) => _buildFaqItem(faq)),
           ],
         ),
       ),
@@ -529,6 +529,7 @@ class _NgoHelpSupportScreenState extends State<NgoHelpSupportScreen> {
     if (await canLaunchUrl(emailUri)) {
       await launchUrl(emailUri);
     } else {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Could not open email app')),
       );
@@ -541,6 +542,7 @@ class _NgoHelpSupportScreenState extends State<NgoHelpSupportScreen> {
     if (await canLaunchUrl(phoneUri)) {
       await launchUrl(phoneUri);
     } else {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Could not open phone app')),
       );

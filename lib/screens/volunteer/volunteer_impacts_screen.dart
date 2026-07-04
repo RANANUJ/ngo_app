@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ngo_app/screens/impact/impact_detail_screen.dart';
+import 'package:ngo_app/screens/volunteer/volunteer_impact_detail_screen.dart';
 
 class VolunteerImpactsScreen extends StatelessWidget {
   const VolunteerImpactsScreen({super.key});

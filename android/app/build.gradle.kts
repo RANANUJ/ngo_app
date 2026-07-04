@@ -14,6 +14,13 @@ android {
     // Use fixed NDK version requested by user
     ndkVersion = "29.0.13846066"
 
+    val localProperties = java.util.Properties()
+    val localPropertiesFile = rootProject.file("local.properties")
+    if (localPropertiesFile.exists()) {
+        localPropertiesFile.inputStream().use { localProperties.load(it) }
+    }
+    val mapsKey = localProperties.getProperty("MAPS_API_KEY") ?: "AIzaSyD8MQh5_4U9rKnVVTuRxYapD1DvQNq0EDU"
+
     compileOptions {
         // Enable core library desugaring for flutter_local_notifications
         isCoreLibraryDesugaringEnabled = true
@@ -36,6 +43,7 @@ android {
         versionName = flutter.versionName
         // Enable multidex for desugaring
         multiDexEnabled = true
+        manifestPlaceholders["mapsApiKey"] = mapsKey
     }
 
     buildTypes {

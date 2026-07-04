@@ -151,7 +151,7 @@ class _FullScreenSOSAlertState extends State<FullScreenSOSAlert>
                       width: 120,
                       height: 120,
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
+                        color: Colors.white.withValues(alpha: 0.2),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
@@ -197,7 +197,7 @@ class _FullScreenSOSAlertState extends State<FullScreenSOSAlert>
                       vertical: 8,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
+                      color: Colors.white.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
@@ -219,7 +219,7 @@ class _FullScreenSOSAlertState extends State<FullScreenSOSAlert>
                       widget.address,
                       style: TextStyle(
                         fontSize: 16,
-                        color: Colors.white.withOpacity(0.9),
+                        color: Colors.white.withValues(alpha: 0.9),
                       ),
                       textAlign: TextAlign.center,
                       maxLines: 3,

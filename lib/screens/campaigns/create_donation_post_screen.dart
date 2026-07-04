@@ -289,7 +289,7 @@ class _CreateDonationPostScreenState extends State<CreateDonationPostScreen> {
                           if (selected) setState(() => _urgencyLevel = level);
                         },
                         backgroundColor: Colors.grey.shade100,
-                        selectedColor: chipColor.withOpacity(0.2),
+                        selectedColor: chipColor.withValues(alpha: 0.2),
                         labelStyle: TextStyle(
                           color: isSelected ? chipColor : Colors.grey.shade700,
                           fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,

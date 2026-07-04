@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:ngo_app/screens/donations/payment_donation_screen.dart';
+import 'package:ngo_app/features/donations/presentation/screens/payment_donation_screen.dart';
 
 class VolunteerDonationRequestScreen extends StatefulWidget {
   const VolunteerDonationRequestScreen({super.key});

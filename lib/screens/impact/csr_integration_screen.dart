@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:ngo_app/features/ngo/data/services/ngo_registration_service.dart';
-import 'package:ngo_app/screens/campaigns/opportunity_detail_screen.dart';
+import 'package:ngo_app/screens/ngo/ngo_csr_opportunity_detail_screen.dart';
 
 class CsrIntegrationScreen extends StatefulWidget {
   final NgoRegistrationRequest ngoData;
@@ -136,7 +136,7 @@ class _CsrIntegrationScreenState extends State<CsrIntegrationScreen> with Single
                 color: Colors.white,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
+                    color: Colors.black.withValues(alpha: 0.05),
                     blurRadius: 10,
                     offset: const Offset(0, 2),
                   ),
@@ -250,7 +250,7 @@ class _CsrIntegrationScreenState extends State<CsrIntegrationScreen> with Single
                       Container(
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
+                          color: Colors.white.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: const Icon(Icons.handshake, color: Colors.white, size: 32),
@@ -273,7 +273,7 @@ class _CsrIntegrationScreenState extends State<CsrIntegrationScreen> with Single
                               widget.ngoData.ngoName,
                               style: TextStyle(
                                 fontSize: 14,
-                                color: Colors.white.withOpacity(0.85),
+                                color: Colors.white.withValues(alpha: 0.85),
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -288,7 +288,7 @@ class _CsrIntegrationScreenState extends State<CsrIntegrationScreen> with Single
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.15),
+                      color: Colors.white.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Row(
@@ -313,7 +313,7 @@ class _CsrIntegrationScreenState extends State<CsrIntegrationScreen> with Single
   Widget _buildStatItem(IconData icon, String value, String label) {
     return Column(
       children: [
-        Icon(icon, color: Colors.white.withOpacity(0.9), size: 22),
+        Icon(icon, color: Colors.white.withValues(alpha: 0.9), size: 22),
         const SizedBox(height: 8),
         Text(
           value,
@@ -328,7 +328,7 @@ class _CsrIntegrationScreenState extends State<CsrIntegrationScreen> with Single
           label,
           style: TextStyle(
             fontSize: 10,
-            color: Colors.white.withOpacity(0.8),
+            color: Colors.white.withValues(alpha: 0.8),
           ),
           textAlign: TextAlign.center,
         ),
@@ -340,7 +340,7 @@ class _CsrIntegrationScreenState extends State<CsrIntegrationScreen> with Single
     return Container(
       height: 50,
       width: 1,
-      color: Colors.white.withOpacity(0.3),
+      color: Colors.white.withValues(alpha: 0.3),
     );
   }
 
@@ -594,7 +594,7 @@ class _CsrIntegrationScreenState extends State<CsrIntegrationScreen> with Single
             border: Border.all(color: Colors.grey.shade200),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.04),
+                color: Colors.black.withValues(alpha: 0.04),
                 blurRadius: 8,
                 offset: const Offset(0, 2),
               ),
@@ -617,7 +617,7 @@ class _CsrIntegrationScreenState extends State<CsrIntegrationScreen> with Single
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                           decoration: BoxDecoration(
-                            color: _getSectorColor(sector).withOpacity(0.15),
+                            color: _getSectorColor(sector).withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
@@ -633,7 +633,7 @@ class _CsrIntegrationScreenState extends State<CsrIntegrationScreen> with Single
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                           decoration: BoxDecoration(
-                            color: successGreen.withOpacity(0.15),
+                            color: successGreen.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Row(
@@ -728,7 +728,7 @@ class _CsrIntegrationScreenState extends State<CsrIntegrationScreen> with Single
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                               margin: const EdgeInsets.only(right: 8),
                               decoration: BoxDecoration(
-                                color: warningOrange.withOpacity(0.15),
+                                color: warningOrange.withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Row(
@@ -751,7 +751,7 @@ class _CsrIntegrationScreenState extends State<CsrIntegrationScreen> with Single
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                               decoration: BoxDecoration(
-                                color: successGreen.withOpacity(0.15),
+                                color: successGreen.withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Row(
@@ -972,7 +972,7 @@ class _CsrIntegrationScreenState extends State<CsrIntegrationScreen> with Single
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.15),
+        color: color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
@@ -1054,7 +1054,7 @@ class _CsrIntegrationScreenState extends State<CsrIntegrationScreen> with Single
       leading: Container(
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(10),
         ),
         child: Icon(icon, color: color, size: 22),
@@ -1174,7 +1174,7 @@ class _CsrIntegrationScreenState extends State<CsrIntegrationScreen> with Single
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.15),
+                color: color.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
@@ -1212,7 +1212,7 @@ class _CsrIntegrationScreenState extends State<CsrIntegrationScreen> with Single
         border: Border.all(color: Colors.grey.shade200),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -1225,7 +1225,7 @@ class _CsrIntegrationScreenState extends State<CsrIntegrationScreen> with Single
             children: [
               CircleAvatar(
                 radius: 24,
-                backgroundColor: primary.withOpacity(0.1),
+                backgroundColor: primary.withValues(alpha: 0.1),
                 child: Text(
                   volunteerName.isNotEmpty ? volunteerName[0].toUpperCase() : 'V',
                   style: TextStyle(
@@ -1371,7 +1371,7 @@ class _CsrIntegrationScreenState extends State<CsrIntegrationScreen> with Single
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: primary.withOpacity(0.1),
+                  color: primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(Icons.edit, color: primary, size: 20),

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:ngo_app/features/ngo/data/services/ngo_registration_service.dart';
 import 'package:ngo_app/features/storage/data/services/local_storage_service.dart';
 import 'ngo_home_screen.dart';
-import 'package:ngo_app/screens/auth/user_type_screen.dart';
+import 'package:ngo_app/features/auth/presentation/screens/user_type_screen.dart';
 
 class NgoVerificationStatusScreen extends StatefulWidget {
   final String registrationId;

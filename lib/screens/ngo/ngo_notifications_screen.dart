@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ngo_app/shared/widgets/skeleton_loader.dart';
 
 class NgoNotificationsScreen extends StatefulWidget {
   final String? ngoId;
@@ -101,6 +102,7 @@ class _NgoNotificationsScreenState extends State<NgoNotificationsScreen> {
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Settings saved'),
@@ -108,6 +110,7 @@ class _NgoNotificationsScreenState extends State<NgoNotificationsScreen> {
         ),
       );
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error saving settings: $e')),
       );
@@ -237,7 +240,7 @@ class _NgoNotificationsScreenState extends State<NgoNotificationsScreen> {
 
   Widget _buildNotificationsTab() {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const ListSkeleton(itemCount: 5, height: 70);
     }
 
     if (_notifications.isEmpty) {
@@ -317,9 +320,9 @@ class _NgoNotificationsScreenState extends State<NgoNotificationsScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: isRead ? Colors.white : primary.withOpacity(0.05),
+        color: isRead ? Colors.white : primary.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(12),
-        border: isRead ? null : Border.all(color: primary.withOpacity(0.2)),
+        border: isRead ? null : Border.all(color: primary.withValues(alpha: 0.2)),
         boxShadow: [
           BoxShadow(
             color: Colors.grey.shade200,
@@ -333,7 +336,7 @@ class _NgoNotificationsScreenState extends State<NgoNotificationsScreen> {
         leading: Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: iconColor.withOpacity(0.1),
+            color: iconColor.withValues(alpha: 0.1),
             shape: BoxShape.circle,
           ),
           child: Icon(icon, color: iconColor),

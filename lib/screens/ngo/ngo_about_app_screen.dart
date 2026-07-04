@@ -127,7 +127,7 @@ class _NgoAboutAppScreenState extends State<NgoAboutAppScreen> {
             'Version $_appVersion (Build $_buildNumber)',
             style: TextStyle(
               fontSize: 14,
-              color: Colors.white.withOpacity(0.9),
+              color: Colors.white.withValues(alpha: 0.9),
             ),
           ),
           const SizedBox(height: 4),
@@ -135,7 +135,7 @@ class _NgoAboutAppScreenState extends State<NgoAboutAppScreen> {
             'Connecting NGOs, Volunteers & Donors',
             style: TextStyle(
               fontSize: 14,
-              color: Colors.white.withOpacity(0.8),
+              color: Colors.white.withValues(alpha: 0.8),
             ),
           ),
         ],
@@ -243,7 +243,7 @@ class _NgoAboutAppScreenState extends State<NgoAboutAppScreen> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: primary.withOpacity(0.1),
+                    color: primary.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(feature['icon'] as IconData, color: primary, size: 20),
@@ -266,7 +266,7 @@ class _NgoAboutAppScreenState extends State<NgoAboutAppScreen> {
                 ),
               ],
             ),
-          )).toList(),
+          )),
         ],
       ),
     );
@@ -381,7 +381,7 @@ class _NgoAboutAppScreenState extends State<NgoAboutAppScreen> {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: primary.withOpacity(0.1),
+              color: primary.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(icon, color: primary),
@@ -554,6 +554,7 @@ class _NgoAboutAppScreenState extends State<NgoAboutAppScreen> {
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Could not open link')),
       );

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ngo_app/features/ngo/data/services/ngo_registration_service.dart';
-import 'ngo/ngo_public_profile_screen.dart';
+import 'package:ngo_app/screens/ngo/ngo_public_profile_screen.dart';
 
 class DiscoverNgoScreen extends StatefulWidget {
   const DiscoverNgoScreen({Key? key}) : super(key: key);
@@ -207,7 +207,7 @@ class _DiscoverNgoScreenState extends State<DiscoverNgoScreen> {
                 height: 85,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [primary, primary.withOpacity(0.7)],
+                    colors: [primary, primary.withValues(alpha: 0.7)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
@@ -287,7 +287,7 @@ class _DiscoverNgoScreenState extends State<DiscoverNgoScreen> {
         Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [primary, primary.withOpacity(0.7)],
+              colors: [primary, primary.withValues(alpha: 0.7)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -302,7 +302,7 @@ class _DiscoverNgoScreenState extends State<DiscoverNgoScreen> {
                 style: TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.bold,
-                  color: Colors.white.withOpacity(0.9),
+                  color: Colors.white.withValues(alpha: 0.9),
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -311,7 +311,7 @@ class _DiscoverNgoScreenState extends State<DiscoverNgoScreen> {
                 'Making Change and Difference',
                 style: TextStyle(
                   fontSize: 7,
-                  color: Colors.white.withOpacity(0.8),
+                  color: Colors.white.withValues(alpha: 0.8),
                 ),
                 textAlign: TextAlign.center,
               ),

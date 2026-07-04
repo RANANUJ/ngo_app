@@ -1,1 +1,1 @@
-export 'user_profile_screen.dart';
+export 'package:ngo_app/features/profile/presentation/screens/user_profile_screen.dart';

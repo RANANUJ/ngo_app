@@ -126,7 +126,7 @@ class _NgoMonthlyFundingScreenState extends State<NgoMonthlyFundingScreen> with 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: LinearGradient(colors: [primary, primary.withOpacity(0.8)]),
+        gradient: LinearGradient(colors: [primary, primary.withValues(alpha: 0.8)]),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
@@ -171,13 +171,13 @@ class _NgoMonthlyFundingScreenState extends State<NgoMonthlyFundingScreen> with 
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: Colors.white, borderRadius: BorderRadius.circular(14),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+              Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
                 child: Icon(icon, color: color, size: 20)),
               Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey.shade400),
             ]),
@@ -196,7 +196,7 @@ class _NgoMonthlyFundingScreenState extends State<NgoMonthlyFundingScreen> with 
       content: Column(mainAxisSize: MainAxisSize.min, children: [
         Text(description, style: TextStyle(color: Colors.grey.shade600)),
         const SizedBox(height: 16),
-        Container(padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: primary.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+        Container(padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
           child: Text(value, style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: primary))),
       ]),
       actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close'))],
@@ -243,7 +243,7 @@ class _NgoMonthlyFundingScreenState extends State<NgoMonthlyFundingScreen> with 
             child: Column(mainAxisAlignment: MainAxisAlignment.end, children: [
               if (e.value > 0) Text(currencyFormat.format(e.value).replaceAll('₹', ''), style: TextStyle(fontSize: 7, color: isCurrentMonth ? primary : Colors.grey)),
               Container(height: height < 4 && e.value > 0 ? 4 : height, margin: const EdgeInsets.symmetric(horizontal: 2),
-                decoration: BoxDecoration(color: isCurrentMonth ? primary : primary.withOpacity(0.3), borderRadius: const BorderRadius.vertical(top: Radius.circular(4)))),
+                decoration: BoxDecoration(color: isCurrentMonth ? primary : primary.withValues(alpha: 0.3), borderRadius: const BorderRadius.vertical(top: Radius.circular(4)))),
               const SizedBox(height: 4),
               Text(e.key, style: TextStyle(fontSize: 9, color: isCurrentMonth ? primary : Colors.grey, fontWeight: isCurrentMonth ? FontWeight.bold : FontWeight.normal)),
             ]),
@@ -328,28 +328,14 @@ class _NgoMonthlyFundingScreenState extends State<NgoMonthlyFundingScreen> with 
     );
   }
 
-  void _showAllTransactions() {
-    showModalBottomSheet(context: context, isScrollControlled: true, shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.8, maxChildSize: 0.95, minChildSize: 0.5, expand: false,
-        builder: (context, scrollController) => Column(children: [
-          Container(width: 40, height: 4, margin: const EdgeInsets.symmetric(vertical: 12), decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2))),
-          Padding(padding: const EdgeInsets.all(16), child: Text('All Transactions (${_transactions.length})', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold))),
-          Expanded(child: ListView.builder(controller: scrollController, itemCount: _transactions.length, padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemBuilder: (context, index) => _buildTransactionTile(_transactions[index]))),
-        ]),
-      ),
-    );
-  }
-
   Widget _buildTransactionTile(MonthlyFundingData donation) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8)]),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8)]),
       child: ListTile(
         contentPadding: const EdgeInsets.all(12),
         leading: CircleAvatar(
-          backgroundColor: primary.withOpacity(0.1),
+          backgroundColor: primary.withValues(alpha: 0.1),
           backgroundImage: donation.donorProfileImage != null ? NetworkImage(donation.donorProfileImage!) : null,
           child: donation.donorProfileImage == null ? Text(donation.donorName.isNotEmpty ? donation.donorName[0].toUpperCase() : 'A', style: TextStyle(color: primary, fontWeight: FontWeight.bold)) : null,
         ),
@@ -378,7 +364,7 @@ class _NgoMonthlyFundingScreenState extends State<NgoMonthlyFundingScreen> with 
         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
           Center(child: Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 20), decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)))),
           Row(children: [
-            CircleAvatar(radius: 30, backgroundColor: primary.withOpacity(0.1),
+            CircleAvatar(radius: 30, backgroundColor: primary.withValues(alpha: 0.1),
               backgroundImage: donation.donorProfileImage != null ? NetworkImage(donation.donorProfileImage!) : null,
               child: donation.donorProfileImage == null ? Text(donation.donorName.isNotEmpty ? donation.donorName[0].toUpperCase() : 'A', style: TextStyle(color: primary, fontWeight: FontWeight.bold, fontSize: 24)) : null),
             const SizedBox(width: 16),
@@ -408,7 +394,7 @@ class _NgoMonthlyFundingScreenState extends State<NgoMonthlyFundingScreen> with 
 
   Widget _detailRow(IconData icon, String label, String value, Color color) {
     return Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Row(children: [
-      Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+      Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
         child: Icon(icon, color: color, size: 18)),
       const SizedBox(width: 12),
       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

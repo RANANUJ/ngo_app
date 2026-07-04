@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ngo_app/screens/government/government_scheme_detail_screen.dart';
+import 'package:ngo_app/shared/widgets/skeleton_loader.dart';
 
 class GovernmentSchemesScreen extends StatefulWidget {
   final bool isAdmin;
@@ -160,7 +161,7 @@ class _GovernmentSchemesScreenState extends State<GovernmentSchemesScreen> {
                   .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
+                  return const ListSkeleton(itemCount: 4, height: 75);
                 }
 
                 if (snapshot.hasError) {
@@ -251,7 +252,7 @@ class _GovernmentSchemesScreenState extends State<GovernmentSchemesScreen> {
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
